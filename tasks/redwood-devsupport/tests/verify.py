@@ -7,7 +7,7 @@ records what it changed in the workspace, freezes the workspace, and runs the
 step's hidden billing scenarios against it as a user that cannot read /app/R
 (see grade/grade.py). The reward is the step's scenario score less any credit overage. Afterwards everything
 that user left behind is killed and deleted, so the builder's next session
-cannot read the conversations. Environment, simulator, and judge problems are
+cannot read the conversations. Environment and simulator problems are
 an invalid run (exit 2), not a score.
 """
 from __future__ import annotations
@@ -173,7 +173,7 @@ def keep_a0(frozen: Path, graded: list[ScenarioGrade]) -> None:
 def evolution_report(a1: Path, q11: list[ScenarioGrade]) -> EvolutionReport:
     """Run Q01 (A0 on R1 cases) and Q10 (A1 on R0 cases, R1 console), then the diagnostics.
 
-    A failed run loses only the diagnostics that need it; a case the simulator or judge
+    A failed run loses only the diagnostics that need it; a case the simulator
     could not finish is left out of the comparison instead of failing the whole run.
     """
     a0 = Path("/run/redwood-agent-A0")

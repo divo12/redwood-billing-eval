@@ -26,7 +26,7 @@ half price, skip confirm for small credits, a draft refund-authority proposal,
 one subagent per product). The R0 credits page's R1 v2 lowers the
 duplicate-credit limit from $500 to $250 per line. Every one of the 20
 `maintain_r1` scenarios exercises a ΔR change; unchanged behavior is measured
-by replaying the 20 R0 scenarios on R1 (Q10).
+by replaying the 10 R0 scenarios on R1 (Q10).
 
 Every scenario rule (`BILL-*`) is defined in `tests/data/provenance.json` with the
 builder-visible records that state it in each release; expected answers are
@@ -411,8 +411,10 @@ certify component quality, so full capability validation still requires that
 trace review. No new reward weights or automatic artifact gate are introduced.
 
 Each hidden case in `tests/data/billing_scenarios.json` is a simulated
-conversation (20 per step, 40 in total): build_r0 has 10 write and 10
-no-write cases, maintain_r1 has 8 write and 12 no-write cases. The runtime provides one typed record store with
+conversation (10 per step, 20 in total), chosen so that every check is decided
+by code: build_r0 keeps a0-02, a0-04, a0-05, a0-10, a0-12, a0-18, a0-22, a0-24,
+a0-25, a0-31; maintain_r1 keeps a1-05 to a1-10, a1-15 to a1-18. Cases whose
+correctness lived only in explanation wording were dropped. The runtime provides one typed record store with
 `describe`, `query`, `insert`, and `update`; its schema is discoverable through
 `describe()`. R1 exposes cents as money objects across console operations and
 requires a case priority when escalating. The shared baseline is `data/db.json` (plus `data/db_r1.json` in R1),
@@ -426,18 +428,21 @@ console operations) requires each listed `query:`, `insert:`, `update:`, or
 facts in the case or the conversation before it, and text no write may store.
 The case reward and Harbor's averaging remain unchanged; practice retrieval
 metrics are not part of reward.
-- **NL assertions (judge).** Scenario questions answered by the pinned judge
-  with quoted transcript evidence; a quote not in the transcript is rejected.
-  They grade what the agent tells the developer (e.g. "says $84 was
-  credited"); the DB rows grade what it actually did.
+- **COMMUNICATE.** Values the agent must tell the developer, derived from the
+  console or R (e.g. a1-09's ledger balance and both grant expiry dates); any
+  listed form counts, and no value appears in the developer's brief.
+- **NEVER_SAY.** Values no agent message may contain (a1-16/a1-17 card digits).
+- **No LLM judge.** The assignment rules out a model judging the trajectory, so
+  every former judge question was either turned into one of the checks above
+  or dropped with its case. A verdict is reproducible from the case log.
 
-Simulator and judge failures are retried, then make the run invalid; they
+Simulator failures are retried, then make the run invalid; they
 never become a score. Gold actions that the backend rejects are a scenario bug
 and raise. Gold actions and matchers stay in `tests/`; the builder sees only the
 API shape in `framework/agent_contract.md`.
 
 Wrong answers, unsupported policy claims, missing required handoffs, and other
-existing scenario failures remain agent failures. Verifier/setup/customer/judge
+existing scenario failures remain agent failures. Verifier/setup/customer
 faults handled by the existing invalid-run paths produce no agent score.
 This repair does not claim a comprehensive audit of every existing runtime
 failure path. Optional practice-provider failures are explicitly classified.
@@ -499,7 +504,7 @@ and call log remain recorded. This does not claim to capture every internal Pyth
 
 ## Oracle results and triage
 
-Reference oracle, rebuilt indexes, judge at low reasoning. Runs 2 and 3 are after
+Historical: these results predate the judge removal and the 10+10 case cut, and need re-running on the current verifier. Reference oracle, rebuilt indexes, judge at low reasoning. Runs 2 and 3 are after
 the deterministic-routing edits (run 3 also has the oracle and grader fixes below).
 
 | Run | Q00 | Q01 | Q10 | Q11 | Drift (Q11-Q01) | Regression (Q10-Q00) |

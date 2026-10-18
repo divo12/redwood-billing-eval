@@ -1,8 +1,9 @@
 """The typed shape of `billing_scenarios.json`.
 
-Each scenario is one simulated conversation with hidden expectations: judge
-questions (`checks`), the billing end state (`db`), and console operations
-the agent must have run (`actions`). `load_scenarios` validates the file into `Scenario` objects
+Each scenario is one simulated conversation with hidden expectations, all
+decided by code: the billing end state (`db`), console operations the agent
+must have run (`actions`), values it must say (`communicate`), and values it
+must never say (`never_say`). `load_scenarios` validates the file into `Scenario` objects
 so the rest of the verifier works with attributes and enums instead of raw
 dicts. The models are frozen and forbid unknown keys, so a typo in the JSON
 fails at load time, not mid-run.
@@ -96,16 +97,6 @@ class CustomerBrief(BaseModel):
     task_instructions: str = ""
 
 
-class JudgeCheck(BaseModel):
-    """A yes/no question the judge answers from the transcript, plus the expected answer."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
-
-    question: str = Field(validation_alias="judge", serialization_alias="judge")
-    expect: bool
-    scored: bool = True
-
-
 class Action(BaseModel):
     """A console operation some successful call must match: hyper-tau's ACTION, compared on
     console operations instead of tool names, so builders keep their own tools.
@@ -154,10 +145,10 @@ class Scenario(BaseModel):
     purpose: Purpose = Purpose.BASELINE
     brief: CustomerBrief = Field(default_factory=CustomerBrief, validation_alias="scenario",
                                  serialization_alias="scenario")
-    checks: tuple[JudgeCheck, ...] = ()
     db: DbExpectation | None = None
     actions: tuple[Action, ...] = ()
     communicate: tuple[tuple[str, ...], ...] = ()  # values the agent must tell the customer; any form of each counts
+    never_say: tuple[tuple[str, ...], ...] = ()  # values no agent message may contain, in any listed form
     tougher_by: str = ""
     tags: tuple[str, ...] = ()
 

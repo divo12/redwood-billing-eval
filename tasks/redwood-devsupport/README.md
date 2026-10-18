@@ -7,8 +7,8 @@ places, or rebuild it / patch around it?
 
 | Step | World | Builder does | Graded on |
 |---|---|---|---|
-| `build_r0` | R0 (today 2026-09-15) | builds A0 in `/app/workspace` | 20 R0 scenarios |
-| `maintain_r1` | R1 = R0 + ΔR (today 2027-04-08) | continues the same session, turns A0 into A1 | 20 R1 scenarios, every one exercising a ΔR change |
+| `build_r0` | R0 (today 2026-09-15) | builds A0 in `/app/workspace` | 10 R0 scenarios |
+| `maintain_r1` | R1 = R0 + ΔR (today 2027-04-08) | continues the same session, turns A0 into A1 | 10 R1 scenarios, every one exercising a ΔR change |
 
 `maintain_r1` also reports, without scoring, where each change landed (axis 1),
 what A1 costs to run (axis 2), and drift / regression (axis 3). See `tests/README.md`.

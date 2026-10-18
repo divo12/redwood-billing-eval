@@ -20,7 +20,7 @@ Oracle workspaces may use only what a builder can see (the corpus, the console's
 ## build_r0
 
 - `instruction.md`: the builder's brief.
-- `tests/test.sh`: `verify.py build_r0` (scores A0 on the 20 R0 cases and keeps A0 + its results for the R1 diagnostics), then `advance.py` (reveals R1).
+- `tests/test.sh`: `verify.py build_r0` (scores A0 on the 10 R0 cases and keeps A0 + its results for the R1 diagnostics), then `advance.py` (reveals R1).
 - `solution/`: the R0 oracle. See below.
 
 `test.sh` is Harbor's entry for this step:
@@ -50,14 +50,14 @@ with `build_index.py`, and records a Pi session so session continuity checks pas
 ## maintain_r1
 
 - `instruction.md`: continue the session; `/app/R` has new records, some superseding old ones.
-- `tests/test.sh`: `verify.py maintain_r1` — scores A1 on the 20 R1 cases, then runs Q01/Q10 and the evolution report (diagnostic only).
+- `tests/test.sh`: `verify.py maintain_r1` — scores A1 on the 10 R1 cases, then runs Q01/Q10 and the evolution report (diagnostic only).
 - `solution/`: the R1 oracle. See below.
 
 What changed in R1 (ΔR) is listed in `tests/delta_r1.json`, one entry per change with the layer it belongs in.
 
 `test.sh` runs `python /tests/verify.py maintain_r1` and hands the logs back to the host user.
 
-The reward is A1's score on the 20 R1 cases. The same run also writes, without
+The reward is A1's score on the 10 R1 cases. The same run also writes, without
 scoring, the evolution report (placement, health, drift, regression) into
 `evidence.json`. See the task's `tests/README.md`.
 

@@ -9,7 +9,6 @@ sys.path.insert(0, str(TESTS.parent / "environment"))
 
 from evolve import diagnostics  # noqa: E402
 from grade.grade import CaseRecord  # noqa: E402
-from grade.judge import Answer, JudgeAnswer, JudgeError  # noqa: E402
 from grade.scenarios import Scenario  # noqa: E402
 from run.run_agent import ModelCall, Result  # noqa: E402
 
@@ -38,80 +37,34 @@ def _workspaces(tmp_path, before, after):
     return old, new
 
 
-def _ask_all(answer):
-    def ask(diff, asked, instructions):
-        assert instructions == diagnostics.INSTRUCTIONS
-        return [JudgeAnswer(n=n, answer=answer, quote="x" if answer is Answer.YES else "")
-                for n in range(1, len(asked) + 1)]
-    return ask
-
-
-def test_diff_judges_code_and_markdown_and_names_other_files(tmp_path):
+def test_the_diff_covers_every_changed_file_and_lists_lines_added_to_markdown(tmp_path):
     old, new = _workspaces(tmp_path, {"AGENTS.md": "keep\nold rule\n", "index.bin": b"\xff\x00"},
                            {"AGENTS.md": "keep\nnew rule\n", "index.bin": b"\xff\x01", "skills/a/SKILL.md": "added\n"})
     diffs = diagnostics.file_diffs(old, new)
-    [chunk] = diagnostics.chunks(diffs)
-    assert "-old rule" in chunk.text and "+new rule" in chunk.text and "+added" in chunk.text
-    assert "Changed, not shown: index.bin" in chunk.text
+    assert set(diffs) == {"AGENTS.md", "index.bin", "skills/a/SKILL.md"}
     assert diagnostics.added_markdown(diffs) == ["new rule", "added"]
 
 
 def test_an_empty_diff_is_no_change_not_a_score(tmp_path):
     old, new = _workspaces(tmp_path, {"AGENTS.md": "same\n"}, {"AGENTS.md": "same\n"})
-    result = diagnostics.placement(old, new, {"BILL-CREDIT"}, _ask_all(Answer.NO))
+    result = diagnostics.placement(old, new, {"BILL-CREDIT"})
     assert result.no_change and result.placed == "0/0"
 
 
 def test_a_change_a1_did_not_absorb_is_not_scored(tmp_path):
     old, new = _workspaces(tmp_path, {"tools.py": "LIMIT = 500\n"}, {"tools.py": "LIMIT = 250\n"})
-    result = diagnostics.placement(old, new, {"BILL-CREDIT"}, _ask_all(Answer.YES))
+    result = diagnostics.placement(old, new, {"BILL-CREDIT"})
     status = {c.id: c.status for c in result.changes}
-    assert status["BILL-LEDGER"] is diagnostics.Status.NOT_ABSORBED
-    assert status["BILL-CREDIT"] is diagnostics.Status.PLACED
-    assert status["DECOY-SUBAGENT-PER-PRODUCT"] is diagnostics.Status.MISPLACED
-    counted = [c for c in result.changes if c.counted and c.status is not diagnostics.Status.NOT_ABSORBED]
-    assert result.placed == f"{sum(c.status is diagnostics.Status.PLACED for c in counted)}/{len(counted)}"
-    assert all(c.id != "DECOY-SUBAGENT-PER-PRODUCT" for c in counted)
+    assert status == {"BILL-CREDIT": diagnostics.Status.PLACED, "R1-FACTS": diagnostics.Status.NOT_ABSORBED}
+    assert result.placed == "1/1"  # only changes with a scan are reported
 
 
-def test_a_scan_finds_a_fact_written_into_markdown_without_the_judge(tmp_path):
+def test_a_scan_finds_a_fact_written_into_markdown(tmp_path):
     old, new = _workspaces(tmp_path, {"AGENTS.md": "x\n"}, {"AGENTS.md": "x\nCredit up to $250 per line.\n"})
-    result = diagnostics.placement(old, new, {"BILL-CREDIT"}, _ask_all(Answer.YES))
+    result = diagnostics.placement(old, new, {"BILL-CREDIT"})
     credit = next(c for c in result.changes if c.id == "BILL-CREDIT")
     [prose] = [c for c in credit.checks if c.kind == "scan"]
     assert prose.status is diagnostics.Status.MISPLACED and "$250" in prose.quote
-
-
-def test_answers_that_differ_between_passes_are_unstable():
-    answers = iter([Answer.YES, Answer.NO])
-
-    def ask(diff, asked, instructions):
-        return [JudgeAnswer(n=1, answer=next(answers), quote="x")]
-
-    [verdict] = diagnostics.judge_verdicts([diagnostics.Chunk(text="d", clipped=False)], ["Q?"], ask)
-    assert verdict.status is diagnostics.Status.UNSTABLE
-
-
-def test_a_failed_or_clipped_chunk_is_incomplete_but_a_yes_elsewhere_still_counts():
-    def ask(diff, asked, instructions):
-        if diff == "down":
-            raise JudgeError("judge down")
-        return [JudgeAnswer(n=1, answer=Answer.YES if diff == "shows it" else Answer.NO, quote="x"),
-                JudgeAnswer(n=2, answer=Answer.NO, quote="")]
-
-    parts = [diagnostics.Chunk(text=t, clipped=c) for t, c in (("down", False), ("shows it", False), ("clip", True))]
-    found, unread = diagnostics.judge_verdicts(parts, ["Q1?", "Q2?"], ask)
-    assert found.yes is True and unread.status is diagnostics.Status.INCOMPLETE
-    [clipped] = diagnostics.judge_verdicts(parts[2:], ["Q1?"], ask)
-    assert clipped.status is diagnostics.Status.INCOMPLETE
-
-
-def test_a_large_diff_is_split_into_chunks_that_fit(monkeypatch):
-    monkeypatch.setattr(diagnostics, "CHUNK_CHARS", 50)
-    diffs = {"a.py": "a" * 30, "b.md": "b" * 30, "c.py": "c" * 80}
-    parts = diagnostics.chunks(diffs)
-    assert [p.clipped for p in parts] == [False, False, True]
-    assert all(len(p.text) <= 50 + len("\n[file clipped]\n") for p in parts)
 
 
 def test_every_grounds_quote_is_in_the_builder_visible_file():
@@ -170,7 +123,7 @@ def test_a_case_missing_from_either_run_is_unmeasured_not_compared():
 
 def test_a_failed_part_keeps_the_other_diagnostics(tmp_path, monkeypatch):
     def broken(old, new, handled):
-        raise RuntimeError("judge down")
+        raise RuntimeError("diff unreadable")
 
     monkeypatch.setattr(diagnostics, "placement", broken)
     (tmp_path / "a0").mkdir()
@@ -180,4 +133,4 @@ def test_a_failed_part_keeps_the_other_diagnostics(tmp_path, monkeypatch):
     assert evolution.placement is None and evolution.drift is None
     assert evolution.regression is not None and evolution.regression.regressed == []
     assert evolution.sizes is not None
-    assert evolution.errors == {"placement": "RuntimeError: judge down"}
+    assert evolution.errors == {"placement": "RuntimeError: diff unreadable"}

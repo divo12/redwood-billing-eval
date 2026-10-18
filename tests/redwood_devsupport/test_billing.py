@@ -20,7 +20,6 @@ sys.path[:0] = [str(TASK / "tests"), str(TASK / "environment")]
 import advance
 from grade import grade
 from grade.grade import CheckResult
-from grade.judge import Answer, JudgeAnswer
 from grade.scenarios import Release, Scenario
 from redwood_kit.billing import Billing as BillingClient
 from redwood_kit.billing import BillingError as ClientBillingError
@@ -153,21 +152,9 @@ def checked(case_id: str, result: dict) -> dict[str, CheckResult]:
     return billing_rows(case, result, RELEASES[case["step"]])
 
 
-def judged(*answers: str):
-    def ask(_transcript, questions, _instructions):
-        return [JudgeAnswer(n=n, answer=Answer(answers[n - 1] if n <= len(answers) else "no"),
-                            quote="AGENT: The line was credited." if answers[n - 1:n] == ("yes",) else "")
-                for n, _ in enumerate(questions, 1)]
-    return ask
-
-
 CREDIT_CASE = {
     "id": "inline-credit",
     "step": "build_r0",
-    "checks": [
-        {"judge": "Does the agent say it credited the duplicate line?", "expect": True},
-        {"judge": "Does the agent promise a refund timeline?", "expect": False},
-    ],
     "db": {
         "gold": [{
             "op": "insert",
@@ -201,7 +188,6 @@ def dispute_case(account_id: str, invoice_id: str, line_id: str, request_ids: li
     return {
         "id": "inline-dispute",
         "step": "build_r0",
-        "checks": [{"judge": "Does the agent ask for the invoice or request IDs?", "expect": True}],
         "db": {
             "gold": [
                 {
@@ -773,7 +759,7 @@ def test_excludes_holds_on_every_matching_write_and_the_lookup_is_its_own_action
 
 
 def test_every_scenario_replays_in_release_and_matches_empty_trace_semantics():
-    assert len(SCENARIOS) == 40
+    assert len(SCENARIOS) == 20
     baseline = run_agent.load_db("R1")
     for step, release in RELEASES.items():
         step_cases = [case for case in SCENARIOS if case["step"] == step]
@@ -1043,11 +1029,9 @@ def _derived(state):
         "a0-02": [_dollars(state["invoices"]["INV-BG-202608-002"]["total_cents"]),
                   _dollars(sum(_lines(state, "INV-BG-202608-002", "hosted_api"))),
                   _dollars(sum(_lines(state, "INV-BG-202608-002", "plan_fee")))],
-        "a0-03": [_plan(state, "kestrel-apps")],
         "a0-04": [str(sum(u["billed_tokens"] for u in usage
                           if u["account_id"] == "lumenfield-ai" and u["at"].startswith("2026-08")))],
         "a0-05": [_dollars(state["invoices"]["INV-2026-0831-150"]["total_cents"])],
-        "a0-07": [_plan(state, "velvet-signal")],
         "a0-10": [_dollars(state["invoice_lines"]["INV-BG-202608-009/L1"]["amount_cents"])],
         "a0-24": [_dollars(state["invoices"]["INV-2026-0831-301"]["total_cents"])],
         "a0-25": [_dollars(state["invoice_lines"]["INV-2026-0831-114/L3"]["amount_cents"])],
@@ -1076,23 +1060,15 @@ def _ledger_balance(state, account_id):
 def _derived_r1(state):
     """Each R1 `communicate` value recomputed from the R1 console rows it names."""
     lines = state["invoice_lines"]
-    cached = sum(u["cached_tokens"] for u in state["usage"].values()
-                 if u["account_id"] == "ridgeback-ai" and u["at"].startswith("2027-03"))
     expiry = {entry["grant_id"]: entry["expires_on"] for entry in state["credit_ledger"].values() if entry["expires_on"]}
     return {
-        "a1-01": [f"{cached:,}"],
         "a1-05": [_dollars(lines["INV-2027-0331-118/L3"]["amount_cents"])],
+        "a1-07": [_dollars(lines["INV-2027-0331-310/L3"]["amount_cents"]), lines["INV-2027-0331-310/L3"]["invoice_id"]],
         "a1-08": [_dollars(lines["INV-2027-0331-350/L3"]["amount_cents"])],
-        "a1-09": [_dollars(_ledger_balance(state, "echo-valley"))],
-        "a1-10": [expiry["GRANT-cinder-analytics-1"]],
-        "a1-11": [_dollars(sum(line["amount_cents"] for line in lines.values()
-                               if line["invoice_id"] == "INV-2027-0331-122" and line["product"] == "hosted_api"))],
-        "a1-12": [_dollars(_ledger_balance(state, "ferngate-labs"))],
-        "a1-13": [{"aws_marketplace": "AWS Marketplace"}[state["accounts"]["fjordline"]["billing_channel"]]],
-        "a1-14": [{"gcp_marketplace": "GCP Marketplace"}[state["accounts"]["gullwing-ai"]["billing_channel"]]],
-        "a1-19": [_dollars(lines["INV-2027-0331-360/L3"]["amount_cents"])],
-        "a1-20": [_dollars(lines["INV-2027-0331-240/L2"]["amount_cents"]),
-                  _dollars(state["invoices"]["INV-2027-0331-240"]["total_cents"])],
+        "a1-09": [_dollars(_ledger_balance(state, "echo-valley")),
+                  expiry["GRANT-echo-valley-1"], expiry["GRANT-echo-valley-2"]],
+        "a1-10": [expiry["GRANT-cinder-analytics-1"], "90 days"],  # the expiry rule is R1 policy, not console data
+        "a1-15": [{"aws_marketplace": "AWS Marketplace"}[state["accounts"]["ironbark-cloud"]["billing_channel"]]],
     }
 
 
@@ -1129,8 +1105,6 @@ def r1_credit(account_id: str, invoice_id: str, line_id: str, dollars: str) -> d
     ("a1-08", [r1_credit("northwind-ai", "INV-2027-0331-350", "INV-2027-0331-350/L3", "120.00")]),
     ("a1-18", [insert("cases", {"account_id": "tidewell-labs", "team": "billing_ops", "summary": "handoff",
                                 "status": "escalated", "priority": "normal"})]),
-    ("a1-20", [insert("cases", {"account_id": "bluefin-labs", "team": "finance", "summary": "handoff",
-                                "status": "escalated"})]),
 ])
 def test_r1_gold_differs_from_what_the_r0_rule_would_write(case_id, r0_gold):
     """Changed-value witness: the write the R0 rule prescribes fails the R1 case's DB check."""
@@ -1138,7 +1112,7 @@ def test_r1_gold_differs_from_what_the_r0_rule_would_write(case_id, r0_gold):
     actual = record(query("accounts", {"account_id": case["actions"][0]["equals"]["account_id"]}),
                     *r0_gold, release="R1")
     assert not billing_rows(case, actual, "R1")["db"].passed, case_id
-    assert actual["log"][-1].ok is (case_id != "a1-20"), case_id
+    assert actual["log"][-1].ok, case_id
 
 
 def test_every_scenario_rule_cites_records_visible_in_its_release():
@@ -1517,26 +1491,22 @@ def test_development_billing_serves_the_current_release_over_the_socket(tmp_path
         server.server_close()
 
 
-def test_judge_and_db_rows_fail_independently_on_a_credit_case():
+def test_a_matching_credit_passes_every_code_check():
     case = CREDIT_CASE
     actual = record(query("accounts", {"account_id": COPPERLEAF}), credit(memo="custom memo"))
     result = Result(case_id="a0-23", termination=Termination.CUSTOMER_STOP, billing=as_billing(actual))
-    good = grade.grade(Scenario.model_validate(case), result, judged("yes"))
-    assert all(row.passed for row in good.checks if row.kind in {"db", "action"})
-    bad_judge = grade.grade(Scenario.model_validate(case), result, judged())
-    failed_judges = [row for row in bad_judge.checks if row.kind == "judge" and not row.passed]
-    assert failed_judges
-    assert all(row.passed for row in bad_judge.checks if row.kind in {"db", "action"})
+    graded = grade.grade(Scenario.model_validate(case), result)
+    assert graded.passed and {row.kind for row in graded.checks} == {"db", "action"}
 
 
-def test_unfinished_run_fails_billing_rows_without_judging():
+def test_unfinished_run_fails_billing_rows():
     case = CREDIT_CASE
     result = Result(
         case_id="a0-23",
         termination=Termination.MAX_STEPS,
         billing=as_billing(record(query("accounts", {"account_id": COPPERLEAF}), credit())),
     )
-    graded = grade.grade(Scenario.model_validate(case), result, lambda *_: pytest.fail("judge must not be called"))
+    graded = grade.grade(Scenario.model_validate(case), result)
     billing_rows = [row for row in graded.checks if row.kind in {"db", "action"}]
     assert len(billing_rows) == 2
     assert all(not row.passed for row in billing_rows)

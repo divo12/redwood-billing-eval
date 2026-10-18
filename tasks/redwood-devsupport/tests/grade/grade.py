@@ -2,8 +2,8 @@
 
     python -m grade.grade <step> <workspace> [<overlay> ...] [--only ID,ID] [--workers N] [--out DIR]
 
-Each scenario is one conversation (`run_agent.run_case`), graded by judge
-questions about the transcript (`judge.py`) and these code-decided checks:
+Each scenario is one conversation (`run_agent.run_case`), graded only by
+code-decided checks (hyper-tau's DB, ACTION and COMMUNICATE; no judge):
 
     db      the billing end state equals the gold actions (or an accepted
             alternative) replayed on a fresh seed, compared on the fields that matter.
@@ -12,11 +12,11 @@ questions about the transcript (`judge.py`) and these code-decided checks:
             handoff facts the receiving team sees, and text no write may store.
     communicate  every expected value appears in some agent message (hyper-tau's
             COMMUNICATE): any one listed form of each value, ignoring case, commas and "$".
+    never_say  no agent message contains any listed form of these values (e.g. card digits).
 
 A scenario passes when every scored check passes; a conversation that never
-finished fails without being judged. The step reward averages the scenarios.
-Simulator and judge failures are retried, then raised: they make the run
-invalid, never a score.
+finished fails every check. The step reward averages the scenarios.
+Simulator failures are retried, then raised: they make the run invalid, never a score.
 
 The command line layers workspace directories (later files win) and grades
 them locally, outside Harbor, for calibration. It needs OPENAI_API_KEY.
@@ -40,7 +40,6 @@ TESTS = Path(__file__).resolve().parents[1]
 if not Path("/opt/redwood_kit").is_dir():  # a local run from the repository
     sys.path.insert(0, str(TESTS.parent / "environment"))
 
-from grade.judge import CONVERSATION_INSTRUCTIONS, Answer, Ask, JudgeError, ask_judge, normalized, render  # noqa: E402
 from grade.scenarios import (  # noqa: E402
     Action,
     DbExpectation,
@@ -54,7 +53,14 @@ from pydantic import BaseModel, ConfigDict  # noqa: E402
 from redwood_kit.billing import store as billing_store  # noqa: E402
 from redwood_kit.billing.store import ConsoleCall  # noqa: E402
 from redwood_kit.jsontypes import JsonObject  # noqa: E402
-from redwood_kit.messages import AssistantMessage, Message, from_dict  # noqa: E402
+from redwood_kit.messages import (  # noqa: E402
+    AssistantMessage,
+    Message,
+    MultiToolMessage,
+    ToolMessage,
+    UserMessage,
+    from_dict,
+)
 from run import run_agent  # noqa: E402
 from run.customer import Customer, CustomerError  # noqa: E402
 from run.run_agent import (  # noqa: E402
@@ -72,7 +78,7 @@ from run.run_agent import (  # noqa: E402
 #              (reasoning counts as completion) priced at the frozen per-million rates
 #     overage  max(0, mean credits per conversation / budget - 1), over every graded conversation,
 #              failed ones included; 0 while no budget is set
-# The step reward is max(0, scenario score - overage). Customer-simulator, judge and embedding
+# The step reward is max(0, scenario score - overage). Customer-simulator and embedding
 # calls are not metered. Rates and budget mirror environment/app/framework/deployment_manifest.json.
 
 class Rate(BaseModel):
@@ -109,28 +115,63 @@ def credit_use(per_case: list[float], budget: float | None = CREDIT_BUDGET) -> C
 # ---- code-decided checks
 
 class CheckKind(StrEnum):
-    JUDGE = "judge"
     DB = "db"
     ACTION = "action"
     COMMUNICATE = "communicate"
+    NEVER_SAY = "never_say"
 
 
 class CheckResult(BaseModel):
-    """One graded row. Judge rows carry the question and the judge's answer and quote."""
+    """One graded row: what was checked, whether it passed, and why not."""
 
     kind: CheckKind
     scored: bool = True
     passed: bool
     problem: str = ""
-    question: str = ""
-    expect: bool | None = None
-    answer: Answer | None = None
-    quote: str = ""
     observed: list[JsonObject] = []
 
     @property
     def label(self) -> str:
-        return self.question or f"{self.kind}: {self.problem or 'ok'}"
+        return f"{self.kind}: {self.problem or 'ok'}"
+
+
+# ---- the transcript: what the receiving team sees on a handoff
+
+MESSAGE_CHARS = 4000
+TOOL_RESULT_CHARS = 1000
+
+
+def clip(text: str, limit: int = MESSAGE_CHARS) -> str:
+    return text if len(text) <= limit else text[:limit] + " [...]"
+
+
+def _render_agent(message: AssistantMessage) -> list[str]:
+    lines = [f"AGENT: {clip(message.content)}"] if message.content else []
+    return lines + [f"AGENT TOOL CALL: {call.name}({clip(json.dumps(call.arguments))})"
+                    for call in message.tool_calls or []]
+
+
+def _render_one(message: Message) -> list[str]:
+    if isinstance(message, UserMessage):
+        return [f"DEVELOPER: {clip(message.content or '')}"]
+    if isinstance(message, AssistantMessage):
+        return _render_agent(message)
+    if isinstance(message, ToolMessage):
+        kind = "ERROR" if message.error else "RESULT"
+        return [f"TOOL {kind}: {clip(message.content or '', TOOL_RESULT_CHARS)}"]
+    if isinstance(message, MultiToolMessage):
+        return [line for item in message.tool_messages for line in _render_one(item)]
+    return []  # the system prompt is not part of the conversation
+
+
+def render(messages: list[Message]) -> str:
+    """Developer and agent turns, tool calls, and tool results, as plain text."""
+    return "\n\n".join(line for message in messages for line in _render_one(message))
+
+
+def normalized(text: str) -> str:
+    """Lowercase words only, so markdown, punctuation, and typographic quotes or dashes never decide a match."""
+    return " " + " ".join(re.findall(r"[a-z0-9]+", text.lower())) + " "
 
 
 def _state_diff(actual: dict[str, list[JsonObject]], gold: dict[str, list[JsonObject]]) -> dict[str, str]:
@@ -200,11 +241,22 @@ def _says(form: str, said: str) -> bool:
     return re.search(rf"(?<!\d){re.escape(_plain(form))}(?!\d)", said) is not None
 
 
+def _agent_said(messages: list[Message]) -> str:
+    return _plain(" ".join(m.content or "" for m in messages if isinstance(m, AssistantMessage)))
+
+
 def check_communicate(values: tuple[tuple[str, ...], ...], messages: list[Message]) -> CheckResult:
-    said = _plain(" ".join(m.content or "" for m in messages if isinstance(m, AssistantMessage)))
+    said = _agent_said(messages)
     missing = [forms for forms in values if not any(_says(form, said) for form in forms)]
     return CheckResult(kind=CheckKind.COMMUNICATE, passed=not missing,
                        problem="; ".join(f"never said any of {list(forms)}" for forms in missing))
+
+
+def check_never_say(values: tuple[tuple[str, ...], ...], messages: list[Message]) -> CheckResult:
+    said = _agent_said(messages)
+    leaked = [form for forms in values for form in forms if _says(form, said)]
+    return CheckResult(kind=CheckKind.NEVER_SAY, passed=not leaked,
+                       problem="; ".join(f"said {form!r}" for form in leaked))
 
 
 # ---- grading
@@ -243,15 +295,6 @@ class CaseRecord(BaseModel):
     scenario: Scenario
     result: Result
     grade: ScenarioGrade | None = None
-    judge_error: str | None = None
-
-
-def judge_checks(case: Scenario, messages: list[Message], ask: Ask) -> list[CheckResult]:
-    questions = [check.question for check in case.checks]
-    answers = ask(render(messages), questions, CONVERSATION_INSTRUCTIONS) if questions else []
-    return [CheckResult(kind=CheckKind.JUDGE, scored=check.scored, question=check.question, expect=check.expect,
-                        answer=answer.answer, quote=answer.quote, passed=answer.is_yes == check.expect)
-            for check, answer in zip(case.checks, answers, strict=True)]
 
 
 def billing_checks(case: Scenario, result: Result, messages: list[Message], release: Release) -> list[CheckResult]:
@@ -260,6 +303,8 @@ def billing_checks(case: Scenario, result: Result, messages: list[Message], rele
         rows.append(check_actions(case.actions, result.billing.log, messages))
     if case.communicate:
         rows.append(check_communicate(case.communicate, messages))
+    if case.never_say:
+        rows.append(check_never_say(case.never_say, messages))
     return rows
 
 
@@ -268,12 +313,12 @@ def _unfinished(row: CheckResult) -> CheckResult:
     return row.model_copy(update={"passed": False, "problem": "the conversation did not finish"})
 
 
-def grade(case: Scenario, result: Result, ask: Ask = ask_judge, release: Release | None = None) -> ScenarioGrade:
+def grade(case: Scenario, result: Result, release: Release | None = None) -> ScenarioGrade:
     """`release` is the console the conversation ran on; it defaults to the scenario's own step."""
     messages = [from_dict(m) for m in result.messages]
     finished = result.termination.finished
     checks = billing_checks(case, result, messages, release or case.step.release)
-    checks = judge_checks(case, messages, ask) + checks if finished else [_unfinished(row) for row in checks]
+    checks = checks if finished else [_unfinished(row) for row in checks]
     passed = finished and all(row.passed for row in checks if row.scored)
     return ScenarioGrade(id=case.id, termination=result.termination, error=result.error, passed=passed,
                          checks=checks, credits=credits(result.model_calls))
@@ -342,15 +387,9 @@ def _converse(case: Scenario, workspace: Path, log_dir: Path, guidelines: str, r
 
 
 def _grade_and_log(case: Scenario, result: Result, path: Path, release: Release) -> ScenarioGrade:
-    record = CaseRecord(scenario=case, result=result)
-    try:
-        record.grade = grade(case, result, release=release)
-        return record.grade
-    except JudgeError as error:
-        record.judge_error = str(error)
-        raise
-    finally:
-        path.write_text(record.model_dump_json(indent=2) + "\n")
+    graded = grade(case, result, release=release)
+    path.write_text(CaseRecord(scenario=case, result=result, grade=graded).model_dump_json(indent=2) + "\n")
+    return graded
 
 
 class Selection(BaseModel):
@@ -361,7 +400,7 @@ class Selection(BaseModel):
     only: frozenset[str] | None = None
     release: Release | None = None
     skip_invalid: bool = False
-    """Drop a case the simulator or judge could not finish, instead of raising (diagnostic runs only)."""
+    """Drop a case the simulator could not finish, instead of raising (diagnostic runs only)."""
 
 
 ALL = Selection()
@@ -379,7 +418,7 @@ def run_step(step: Step, workspace: Path, log_dir: Path, *, workers: int = WORKE
         try:
             result = _converse(case, workspace, log_dir, guidelines, console)
             return _grade_and_log(case, result, log_dir / "cases" / f"{case.id}.json", console)
-        except (CustomerError, JudgeError):
+        except CustomerError:
             if not select.skip_invalid:
                 raise
             return None

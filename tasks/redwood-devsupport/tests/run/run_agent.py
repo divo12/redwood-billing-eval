@@ -109,7 +109,7 @@ class Result(BaseModel):
     termination: Termination = Termination.AGENT_ERROR
     reply: str | None = None  # the agent's last text reply
     error: str | None = None
-    messages: list[JsonObject] = []  # wire-format message dicts: they go to the judge and the case log
+    messages: list[JsonObject] = []  # wire-format message dicts: they go to the graders and the case log
     model_calls: list[ModelCall] = []
     embedding_calls: list[EmbeddingCall] = []
     billing: BillingRecord = BillingRecord()

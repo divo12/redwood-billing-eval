@@ -8,7 +8,7 @@ There are two kinds of output, and they never mix:
 
 | Output | Decides the reward? | Where it is computed |
 |---|---|---|
-| **Scenario checks** — did A handle this conversation correctly? | **Yes** | `grade/grade.py` (+ `judge.py`) |
+| **Scenario checks** — did A handle this conversation correctly? | **Yes** | `grade/grade.py` (code only, no judge) |
 | **Credit overage** — mean agent credits per conversation over the published budget | **Yes**, subtracted (0 while no budget is set) | `grade/grade.py` |
 | **Evolution diagnostics** — how did A change from A0 to A1? (axes 1–3) | **No**, reported only | `evolve/diagnostics.py` |
 
@@ -24,16 +24,15 @@ run/                     one conversation
 grade/                   the reward
 ├── grade.py             the code-decided checks (db, action), the credit overage
 │                        against the published budget; runs every scenario of a step and sums the reward
-├── judge.py             transcript rendering + the bounded yes/no LLM judge
 └── scenarios.py         typed models of billing_scenarios.json (loaded and validated once)
 evolve/
 └── diagnostics.py       maintain_r1 only, never scored: axis 1 placement, axis 2 health,
                          axis 3 drift + regression, and the one report object over all axes
 data/
-├── billing_scenarios.json  20 R0 cases (`build_r0`, ids `a0-*`) and 20 R1 cases (`maintain_r1`, ids `a1-*`);
+├── billing_scenarios.json  10 R0 cases (`build_r0`, ids `a0-*`) and 10 R1 cases (`maintain_r1`, ids `a1-*`);
 │                           every R1 case exercises an R1 change (ΔR)
 ├── delta_r1.json        the R1 changes (axis 1): the rules that show A1 absorbed each, the builder-visible
-│                        quote that grounds where it belongs, judge questions and markdown scans
+│                        quote that grounds where it belongs, and markdown scans
 └── provenance.json      which visible R record justifies each rule (`BILL-*`); used by tests, not at grading time
 ```
 
@@ -45,7 +44,7 @@ data/
 2. `manifest` + `workspace_report` — which workspace files changed since the last step, and their sizes.
 3. `freeze` — copy the workspace to a read-only location the agent runs from. A broken artifact (e.g. missing `agent.py`) gives reward 0 with `artifact_error`.
 4. `grade.run_step` — converse and grade every scenario of the step (below).
-5. `diagnose` — after `build_r0`, keep A0 and its per-case results (Q00). After `maintain_r1`, build the evolution report. Each part (the Q01 and Q10 runs, drift, regression, health, sizes, placement) is computed on its own; a part that fails is `None` with its reason in `evolution.errors`, and the others are kept. A Q01/Q10 case the simulator or judge could not finish is listed as `unmeasured` instead of failing the run. The reward is untouched.
+5. `diagnose` — after `build_r0`, keep A0 and its per-case results (Q00). After `maintain_r1`, build the evolution report. Each part (the Q01 and Q10 runs, drift, regression, health, sizes, placement) is computed on its own; a part that fails is `None` with its reason in `evolution.errors`, and the others are kept. A Q01/Q10 case the simulator could not finish is listed as `unmeasured` instead of failing the run. The reward is untouched.
 6. `scrub` + `finish` — delete everything the agent left behind, write evidence and reward.
 
 ## One scenario (`grade.grade`)
@@ -57,24 +56,24 @@ Then:
 
 1. If the conversation **did not finish** (agent error, step limit, customer gave up),
    the scenario fails. Every billing check is marked failed with
-   "the conversation did not finish", and the judge is not asked.
+   "the conversation did not finish".
 2. Otherwise every check below runs. The scenario **passes when every scored check passes**.
 3. The step score is the mean over *situations* (a scenario and its rewordings count once), `grade.summarize`. The reward is that score minus the credit overage, floored at 0 (`grade.credit_use`, published in `app/framework/agent_contract.md`).
 
-Simulator or judge failures are retried (`CASE_ATTEMPTS`, `JUDGE_ATTEMPTS`) and then
+Simulator failures are retried (`CASE_ATTEMPTS`) and then
 raise: an invalid run, not a zero.
 
 ## The scenario checks (these make the reward)
 
 Each check returns one `CheckResult` (`grade.py`): `kind`, `passed`, `problem` (why it failed, in words), and `scored`.
 
-### 1. Judge check — `grade.judge_checks`, `judge.ask_judge`
+### 1. Never-say check — `grade.check_never_say`
 
-- **Reads:** the rendered transcript (`judge.render`: `DEVELOPER:`, `AGENT:`, `AGENT TOOL CALL:` lines, each clipped).
-- **Asks:** the scenario's `checks[].judge` questions, all in one call to the pinned judge model.
-- **Passes when:** the judge's answer equals `expect`.
-- **Guard rails:** a "yes" must quote the transcript word for word (after `normalized`). A missing answer, an invented quote, or an API error → ask again, up to `JUDGE_ATTEMPTS` (3), then `JudgeError` (invalid run). A retry after unusable answers tells the judge why they were rejected; a retry after an API error backs off first (`JUDGE_BACKOFF_SECONDS`, doubling).
-- **Example (a1-03):** "Does the agent say 402 quota_exceeded is the expected response…?" expect `true`; "Does the agent say the 402 is a bug…?" expect `false`.
+Only when the scenario has `never_say`.
+
+- **Reads:** the agent's messages (never the developer's).
+- **Fails when:** any listed form of any value appears, with the same matching as `communicate` (case, commas and `$` ignored; no match inside a longer number).
+- **Example (a1-16):** `[["4111"], ["1111"]]`: the agent must not read back any group of the card number the developer pasted.
 
 ### 2. DB check — `checks.check_db`
 
@@ -128,10 +127,9 @@ They would only repeat another check: the escalation team (DB check), ordinary w
 
 ### Axis 1 — placement (`diagnostics.placement`)
 
-- **Reads:** the per-file diff from A0's workspace to A1's. `.py` and `.md` diffs go to the judge in chunks of at most `CHUNK_CHARS`; other changed files (the index) are listed by name. An empty diff is `no_change`.
+- **Reads:** the per-file diff from A0's workspace to A1's. An empty diff is `no_change`. Only changes with a scan are reported.
 - **Checks only what A1 absorbed:** a change is checked when A1 passes an R1 case of one of its `rules`; otherwise it is `not_absorbed`, so an A1 that changed nothing gets no credit for "should not happen" questions.
-- **Judge questions** ask whether the behaviour is enforced in code or kept out of prose, not which file holds it. A question is yes when any chunk shows it, asked twice: answers that differ are `unstable`; a failed or clipped chunk is `incomplete`, never "no".
-- **Scans** are regexes over the lines A1 added to markdown files (e.g. `$250` as prose), with no judge.
+- **Scans** are regexes over the lines A1 added to markdown files (e.g. `$250` as prose). There is no judge anywhere in the verifier.
 - **Counted:** `placed` covers changes with `grounds`, a quote from a builder-visible file (`app/framework/agent_building.md` or an R1 record) that says where it belongs; ungrounded changes compare with the reference agent only and are reported, not counted.
 
 ### Axis 2 — health (`diagnostics.py`)
