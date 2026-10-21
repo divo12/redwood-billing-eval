@@ -60,8 +60,10 @@ Model and embedding calls use the gateway and the models in
 container has 2 CPUs, 8 GiB memory, and 20 GiB storage. Further runtime limits
 are in the agent contract.
 
-Each case is a conversation with a developer who may answer follow-up
-questions. The agent can use its tools before replying. Use Redwood's
+Each case is a conversation with a developer. The developer answers
+questions and approves actions only through the `ask_developer` and
+`confirm_with_developer` tools described in the agent contract. The agent
+can use its tools before replying. Use Redwood's
 materials to give accurate information, distinguish current policy from
 proposals and historical facts, ask for missing details, and hand off to the
 appropriate team when needed.

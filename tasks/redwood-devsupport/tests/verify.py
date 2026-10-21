@@ -2,12 +2,14 @@
 
     verify.py build_r0 | maintain_r1
 
-Each step checks that the builder ran one Pi session (continued across steps),
-records what it changed in the workspace, freezes the workspace, and runs the
-step's hidden billing scenarios against it as a user that cannot read /app/R
-(see grade/grade.py). The reward is the step's scenario score less any credit overage. Afterwards everything
-that user left behind is killed and deleted, so the builder's next session
-cannot read the conversations. Environment and simulator problems are
+Each step checks that the builder ran one agent session (Claude Code or Pi,
+continued across steps), records what it changed in the workspace, freezes the
+workspace, and runs the step's hidden billing scenarios against it as a user
+that cannot read /app/R (see grade/grade.py). The reward is the step's scenario
+score less any credit overage; reward.json also breaks it down into functional
+correctness, constraint satisfaction, robustness and artifact quality.
+Afterwards everything that user left behind is killed and deleted, so the
+builder's next session cannot read the conversations. Environment problems are
 an invalid run (exit 2), not a score.
 """
 from __future__ import annotations
@@ -30,13 +32,18 @@ BASELINE = Path("/opt/redwood-baseline/workspace")
 RELEASE = Path("/etc/redwood-release")
 STATE = Path("/run/redwood-verifier")
 LOGS = Path("/logs/verifier")
-SESSIONS = Path("/logs/agent/pi/sessions")
+PI_SESSIONS = Path("/logs/agent/pi/sessions")
+CLAUDE_SESSIONS = Path("/logs/agent/sessions/projects")  # Harbor's claude-code adapter: CLAUDE_CONFIG_DIR
 TRACKED = ("system_prompt.md", "AGENTS.md")
+SIZE_LIMITS = {"system_prompt.md": 1500, "AGENTS.md": 4000}  # promised in steps/build_r0/instruction.md
+STUB_SKILL = "skills/example/SKILL.md"
+STUB_SUBAGENT = "subagents/example.md"
 A0 = STATE / "a0"  # the frozen build_r0 workspace, kept for the maintain_r1 diagnostics
 Q00 = STATE / "q00.json"
 
 
 class Session(BaseModel):
+    harness: str = "pi"
     file: str
     id: str
     bytes: int
@@ -71,6 +78,7 @@ class Evidence(BaseModel):
     session: Session
     workspace: WorkspaceReport
     artifact_error: str | None = None
+    artifacts: list[ArtifactCheck] = []
     score: StepSummary | None = None
     cases: list[CaseOutcome] = []
     scrubbed: int | None = None
@@ -78,8 +86,21 @@ class Evidence(BaseModel):
     evolution_error: str | None = None
 
 
+class ArtifactCheck(BaseModel):
+    name: str
+    passed: bool
+    detail: str = ""
+
+
 class Reward(BaseModel):
+    """`reward` is what Harbor scores; the rest break it down (the brief's multi-criterion form)."""
+
     reward: float
+    overall: float
+    functional_correctness: float
+    constraint_satisfaction: float
+    robustness: float
+    artifact_quality: float
 
 
 class InvalidRun(BaseModel):
@@ -128,26 +149,49 @@ def workspace_report(before: dict[str, str], after: dict[str, str], workspace: P
     return WorkspaceReport(files=len(after), changed=changed, sizes={name: _size(workspace / name) for name in TRACKED})
 
 
-def _current_session() -> Session:
-    files = sorted(SESSIONS.glob("*.jsonl"))
+def _pi_session() -> Session:
+    files = sorted(PI_SESSIONS.glob("*.jsonl"))
     if len(files) != 1:
         raise RuntimeError(f"expected exactly one Pi session, found {len(files)}")
     with files[0].open() as handle:
         first = json.loads(handle.readline())
     if first.get("type") != "session" or not first.get("id"):
         raise RuntimeError("Pi session does not start with an identified session record")
-    return Session(file=files[0].name, id=first["id"], bytes=files[0].stat().st_size)
+    return Session(harness="pi", file=files[0].name, id=first["id"], bytes=files[0].stat().st_size)
+
+
+def _claude_session() -> Session:
+    """The most recently written top-level Claude Code transcript; its id is the file stem."""
+    files = sorted(CLAUDE_SESSIONS.glob("*/*.jsonl"), key=lambda path: path.stat().st_mtime)
+    if not files:
+        raise RuntimeError(f"no Claude Code session under {CLAUDE_SESSIONS}")
+    latest = files[-1]
+    return Session(harness="claude-code", file=str(latest.relative_to(CLAUDE_SESSIONS)), id=latest.stem,
+                   bytes=latest.stat().st_size)
+
+
+def _current_session() -> Session:
+    if PI_SESSIONS.is_dir() and any(PI_SESSIONS.glob("*.jsonl")):
+        return _pi_session()
+    return _claude_session()
+
+
+def _continued(session: Session, before: Session) -> bool:
+    """Same transcript grown, or (Claude Code resume) a newer transcript carrying the old session id."""
+    if (session.file, session.id) == (before.file, before.id):
+        return session.bytes > before.bytes
+    if session.harness != "claude-code" or before.harness != "claude-code":
+        return False
+    return before.id in (CLAUDE_SESSIONS / session.file).read_text(errors="replace")
 
 
 def check_session(step: Step) -> Session:
-    """The one Pi session, which a later step must continue (same file and id, and longer)."""
+    """The builder's session, which a later step must continue rather than start afresh."""
     session = _current_session()
     if step is not Step.BUILD_R0:
         before = Session.model_validate_json((STATE / "session.json").read_text())
-        if (session.file, session.id) != (before.file, before.id):
-            raise RuntimeError("Pi started a fresh session instead of continuing the previous step")
-        if session.bytes <= before.bytes:
-            raise RuntimeError("Pi session did not grow during this step")
+        if not _continued(session, before):
+            raise RuntimeError(f"{session.harness} did not continue the previous step's session {before.id}")
     write_model(STATE / "session.json", session)
     return session
 
@@ -181,9 +225,9 @@ def evolution_report(a1: Path, q11: list[ScenarioGrade]) -> EvolutionReport:
     logs = {"q11": LOGS, "q01": LOGS / "q01", "q10": LOGS / "q10"}
     errors: dict[str, str] = {}
     q01 = attempt(errors, "q01", lambda: passed(run_step(Step.MAINTAIN_R1, a0, logs["q01"],
-                                                         select=Selection(skip_invalid=True))[1]))
+                                                         select=Selection())[1]))
     q10 = attempt(errors, "q10", lambda: passed(run_step(Step.BUILD_R0, a1, logs["q10"],
-                                                         select=Selection(release=Release.R1, skip_invalid=True))[1]))
+                                                         select=Selection(release=Release.R1))[1]))
     q00: Outcomes = json.loads(Q00.read_text())
     runs = {"q00": q00, "q01": q01, "q10": q10, "q11": passed(q11)}
     rules = {s.id: s.rules for s in load_scenarios(Step.MAINTAIN_R1)}
@@ -203,9 +247,51 @@ def diagnose(step: Step, frozen: Path, graded: list[ScenarioGrade], evidence: Ev
         evidence.evolution_error = f"{type(error).__name__}: {error}"
 
 
-def finish(evidence: Evidence, reward: float) -> None:
+def _differs(workspace: Path, relative: str) -> bool:
+    baseline = BASELINE / relative
+    return not baseline.is_file() or (workspace / relative).read_bytes() != baseline.read_bytes()
+
+
+def _real(workspace: Path, pattern: str, stub: str) -> list[str]:
+    """Files matching `pattern` that are not the starter's example stub."""
+    return [path.relative_to(workspace).as_posix() for path in sorted(workspace.glob(pattern))
+            if path.relative_to(workspace).as_posix() != stub or _differs(workspace, stub)]
+
+
+def artifact_checks(workspace: Path, graded: list[ScenarioGrade]) -> list[ArtifactCheck]:
+    """The deliverables the instruction promises, checked by code: sizes, components, and their use."""
+    called = {name for g in graded for name in g.tools_called}
+    hooks = workspace / "hooks.py"
+    checks = [ArtifactCheck(name=f"{name} under {limit} characters", passed=size is not None and size.chars < limit,
+                            detail=f"{size.chars if size else 'missing'} characters")
+              for name, limit in SIZE_LIMITS.items() for size in [_size(workspace / name)]]
+    skills = _real(workspace, "skills/*/SKILL.md", STUB_SKILL)
+    subagents = _real(workspace, "subagents/*.md", STUB_SUBAGENT)
+    checks += [
+        ArtifactCheck(name="a non-stub skill", passed=bool(skills), detail=", ".join(skills)),
+        ArtifactCheck(name="a non-stub subagent", passed=bool(subagents), detail=", ".join(subagents)),
+        ArtifactCheck(name="a @hook guardrail", passed=hooks.is_file() and "@hook" in hooks.read_text()
+                      and _differs(workspace, "hooks.py")),
+        ArtifactCheck(name="the skill was loaded in some conversation", passed="load_skill" in called),
+        ArtifactCheck(name="the subagent was delegated to in some conversation", passed="delegate" in called),
+    ]
+    return checks
+
+
+def reward_of(summary: StepSummary | None, artifacts: list[ArtifactCheck]) -> Reward:
+    quality = round(sum(c.passed for c in artifacts) / len(artifacts), 4) if artifacts else 0.0
+    if summary is None:
+        return Reward(reward=0.0, overall=0.0, functional_correctness=0.0, constraint_satisfaction=0.0,
+                      robustness=0.0, artifact_quality=quality)
+    return Reward(reward=summary.reward, overall=summary.reward,
+                  functional_correctness=summary.functional_correctness,
+                  constraint_satisfaction=summary.constraint_satisfaction,
+                  robustness=summary.robustness, artifact_quality=quality)
+
+
+def finish(evidence: Evidence) -> None:
     write_model(LOGS / "evidence.json", evidence)
-    write_model(LOGS / "reward.json", Reward(reward=reward))
+    write_model(LOGS / "reward.json", reward_of(evidence.score, evidence.artifacts))
     publish(LOGS)
 
 
@@ -224,7 +310,7 @@ def run(step: Step) -> int:
         freeze(APP / "workspace", frozen)
     except ValueError as error:
         evidence.artifact_error = str(error)
-        finish(evidence, 0.0)
+        finish(evidence)
         return 0
     try:
         summary, graded = run_step(step, frozen, LOGS)
@@ -233,7 +319,8 @@ def run(step: Step) -> int:
         evidence.scrubbed = scrub()
     evidence.score = summary
     evidence.cases = [CaseOutcome(id=g.id, passed=g.passed, termination=g.termination) for g in graded]
-    finish(evidence, summary.reward)
+    evidence.artifacts = artifact_checks(APP / "workspace", graded)
+    finish(evidence)
     print(f"{step}: {summary.passed}/{summary.scenarios} scenarios, reward {summary.reward}; "
           f"sizes {evidence.workspace.sizes}")
     return 0

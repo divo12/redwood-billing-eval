@@ -10,7 +10,7 @@ contract.
 |----------------|---------|
 | `system_prompt.md` | Identity: who the agent is, whose interests it serves, and its authority. Not the billing rulebook. |
 | `AGENTS.md` | Operating principles: how the agent retrieves, checks evidence, and hands off. Exact billing rules do not go here. A developer can't override them. |
-| `tools.py` | The actions the agent can take (`@is_tool` methods on `Tools`). |
+| `tools.py` | The actions the agent can take (`@is_tool` methods on `Tools`), including `ask_developer` and `confirm_with_developer` for talking to the developer. |
 | `hooks.py` | Guardrails the runtime runs around every developer message and tool call (`@hook` methods on `Hooks`). At least one functional guardrail is required. |
 | `skills/<name>/SKILL.md` | A procedure the model loads when needed. At least one substantive billing-support procedure is required. |
 | `subagents/<name>.md` | A specialist with its own prompt, model, and tools in a separate context. At least one functional billing-support specialist is required. |

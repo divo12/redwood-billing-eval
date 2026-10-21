@@ -69,7 +69,7 @@ def test_a_scan_finds_a_fact_written_into_markdown(tmp_path):
 
 def test_every_grounds_quote_is_in_the_builder_visible_file():
     environment = TESTS.parent / "environment"
-    roots = {"app": environment / "app", "R1": TESTS.parents[2] / "environments" / "redwood-mini" / "R1"}
+    roots = {"app": environment / "app", "R1": TESTS.parents[2] / "tasks" / "redwood-devsupport" / "environment" / "corpus" / "R1"}
     for change in diagnostics.load_delta().changes:
         if change.grounds is None:
             continue
@@ -106,7 +106,7 @@ def test_layer_sizes_and_health(tmp_path):
     assert sizes["skills_lines"] == 2 and sizes["tools_lines"] == 1 and sizes["other_bytes"] == 5
     cases = tmp_path / "log" / "cases"
     cases.mkdir(parents=True)
-    call = ModelCall(model="gpt-6-sol", kwargs={}, instructions_chars=0, tools=0, prompt_tokens=10, completion_tokens=2,
+    call = ModelCall(model="claude-opus-5-5", kwargs={}, instructions_chars=0, tools=0, prompt_tokens=10, completion_tokens=2,
                      messages=[], response={})
     result = Result(case_id="a", seconds=4.0, messages=[{"role": "user"}, {"role": "assistant"}], model_calls=[call])
     (cases / "a.json").write_text(CaseRecord(scenario=Scenario(id="a"), result=result).model_dump_json())

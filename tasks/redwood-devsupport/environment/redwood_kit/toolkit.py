@@ -15,6 +15,7 @@ from .jsontypes import Json, JsonObject, is_json_object
 if TYPE_CHECKING:
     from .agent_context import ModelGateway
     from .billing import Billing
+    from .developer import Developer
     from .hooks import ToolRunner
 
 
@@ -103,12 +104,13 @@ def tool_from_method[**P](method: Callable[P, object]) -> Tool:
 class ToolKitBase:
     """Anything with `@is_tool` methods; `get_tools()` lists them, `call()` runs one.
 
-    The runtime sets `gateway` (ModelGateway), `runner`, and `billing` before any tool runs.
+    The runtime sets `gateway` (ModelGateway), `runner`, `billing`, and `developer` before any tool runs.
     """
 
     gateway: ModelGateway
     runner: ToolRunner
     billing: Billing | None = None
+    developer: Developer | None = None
 
     def get_tools(self) -> list[Tool]:
         tools = []

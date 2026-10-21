@@ -9,10 +9,6 @@ _CARD_NUMBER = re.compile(
     rf"\b(?:\d[ -]?){{12,18}}\d\b|\b(?:{_DIGIT_WORD}[\s,-]+){{11,18}}{_DIGIT_WORD}\b",
     re.IGNORECASE,
 )
-# Source: R1/sources/confluence/customer-success-and-support/support-process/support-quality-standards-2027.json.
-_YES = re.compile(r"\b(yes|yeah|yep|confirm(?:ed)?|go ahead|proceed|do it|please do|sure|ok(?:ay)?)\b", re.IGNORECASE)
-_NO = re.compile(r"\b(no|not|don't|do not|wait|hold off|cancel)\b", re.IGNORECASE)
-_LEADING_YES = re.compile(r"^\W*(yes|yeah|yep|confirm(?:ed)?|go ahead|proceed|sure|ok(?:ay)?)\b", re.IGNORECASE)
 
 
 def redact_card_numbers(text: str) -> str:
@@ -34,20 +30,24 @@ class Hooks(HookKitBase):
     def __init__(self) -> None:
         self._looked_up_accounts: set[str] = set()
         self._policy_texts: list[str] = []
-        self._customer_messages: list[str] = []
+        self._consented = False
 
     @hook("user_message")
     def remove_card_numbers(self, text):
         redacted = redact_card_numbers(text)
-        self._customer_messages.append(redacted)
         return redacted if redacted != text else None
 
+    # Source: R1/sources/confluence/customer-success-and-support/support-process/support-quality-standards-2027.json.
+    @hook("post_tool", "confirm_with_developer")
+    def remember_consent(self, tool, args, result):
+        if isinstance(result, dict) and result.get("answer") == "yes":
+            self._consented = True
+
     def _require_confirmation(self):
-        latest = self._customer_messages[-1] if len(self._customer_messages) > 1 else ""
-        if not (_LEADING_YES.search(latest) or (_YES.search(latest) and not _NO.search(latest))):
+        if not self._consented:
             raise Blocked(
-                "tell the customer exactly what you will write (invoice line, and amount for a credit), "
-                "ask them to confirm, and write only after they explicitly say yes"
+                "call confirm_with_developer with exactly what you will write (invoice line, and amount "
+                "for a credit), and write only after it returns yes"
             )
 
     @hook("pre_tool", "*")

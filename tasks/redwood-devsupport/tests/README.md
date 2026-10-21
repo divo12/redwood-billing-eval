@@ -18,9 +18,8 @@ There are two kinds of output, and they never mix:
 verify.py                entry point: verify.py build_r0 | maintain_r1   (orchestration only)
 run/                     one conversation
 ├── run_agent.py         sandboxed agent + billing store + the conversation loop
-├── customer.py          the simulated developer (a model playing the customer from a hidden brief)
-├── customer_guidelines.md  how the simulated developer behaves (stay in persona, end with `###STOP###`)
-└── gateway.py           OpenAI calls for the agent and the customer; the allowed models
+├── customer.py          the scripted developer: opening, agenda, facts for ask_developer, the confirm answer
+└── gateway.py           the agent's model calls (Anthropic) and embeddings (OpenAI); the allowed models
 grade/                   the reward
 ├── grade.py             the code-decided checks (db, action), the credit overage
 │                        against the published budget; runs every scenario of a step and sums the reward
@@ -54,7 +53,7 @@ the billing store's final state and its call log, plus model/embedding usage.
 
 Then:
 
-1. If the conversation **did not finish** (agent error, step limit, customer gave up),
+1. If the conversation **did not finish** (agent error, step limit, developer ran out of script),
    the scenario fails. Every billing check is marked failed with
    "the conversation did not finish".
 2. Otherwise every check below runs. The scenario **passes when every scored check passes**.
@@ -146,11 +145,11 @@ They would only repeat another check: the escalation team (DB check), ordinary w
 ## Running it locally
 
 ```sh
-# one step, one or two cases, your workspace (needs OPENAI_API_KEY)
+# one step, one or two cases, your workspace (needs ANTHROPIC_API_KEY and OPENAI_API_KEY)
 cd tasks/redwood-devsupport/tests && python -m grade.grade build_r0 path/to/workspace --only a0-12,a0-03
 
 # the verifier's unit tests
-uv run --python 3.12 --no-project --with pytest --with 'pydantic>=2.9,<3' --with 'openai>=1.100,<3' \
+uv run --python 3.12 --no-project --with pytest --with 'pydantic>=2.9,<3' --with 'openai>=1.100,<3' --with 'anthropic>=0.60,<1' \
   pytest -q tests/redwood_devsupport/test_grade.py tests/redwood_devsupport/test_evolution.py tests/redwood_devsupport/test_cost.py
 
 # lint, strict types, complexity, no getattr/setattr

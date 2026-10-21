@@ -12,6 +12,7 @@ TASK = Path(__file__).resolve().parents[2] / "tasks" / "redwood-devsupport"
 sys.path.insert(0, str(TASK / "environment"))
 
 from redwood_kit.billing.store import local_console  # noqa: E402
+from redwood_kit.developer import Developer  # noqa: E402
 from redwood_kit.hooks import ToolRunner  # noqa: E402
 from redwood_kit.messages import ToolCall  # noqa: E402
 
@@ -40,6 +41,9 @@ def oracle(tmp_path):
             sys.modules["billing_rules"] = previous
     tools = tools_module.Tools()
     tools.billing = local_console("R1", TASK / "environment/r1/development_seed.json")
+    answers = iter(["no", "yes", "yes", "yes"])  # the developer's answers to successive confirmations
+    tools.developer = Developer(lambda request: {"answer": next(answers), "message": ""}
+                                if request["op"] == "confirm" else {"answers": {}})
     hooks = hooks_module.Hooks()
     runner = ToolRunner(tools, hooks)
     counter = iter(range(1, 1000))
@@ -55,10 +59,12 @@ def test_credit_waits_for_an_explicit_yes(oracle):
     runner.user_message("I was charged twice on PRACTICE-DUP-180")
     assert not call("find_account", {"account_id": "practice-alderwick"}).error
     blocked = call("credit_duplicate", _credit_args())
-    assert blocked.error and "confirm" in blocked.content
-    runner.user_message("No, wait, don't do anything yet")
+    assert blocked.error and "confirm_with_developer" in blocked.content
+    runner.user_message("Yes, go ahead")  # consent in chat text does not count
     assert call("credit_duplicate", _credit_args()).error
-    runner.user_message("Yes, go ahead")
+    assert json.loads(call("confirm_with_developer", {"proposal": "Credit $180 on L1"}).content)["answer"] == "no"
+    assert call("credit_duplicate", _credit_args()).error
+    assert json.loads(call("confirm_with_developer", {"proposal": "Credit $180 on L1"}).content)["answer"] == "yes"
     credited = call("credit_duplicate", _credit_args())
     assert not credited.error, credited.content
     assert json.loads(credited.content)["amount_credited"] == "$180.00"
@@ -67,7 +73,8 @@ def test_credit_waits_for_an_explicit_yes(oracle):
 def test_contract_account_gets_a_dispute_not_a_credit(oracle):
     runner, _, call = oracle
     runner.user_message("PRACTICE-R1-DUP-60 bills one request twice")
-    runner.user_message("yes, please do")
+    call("confirm_with_developer", {"proposal": "skip"})  # "no"
+    call("confirm_with_developer", {"proposal": "Open a dispute on PRACTICE-R1-DUP-60/L2"})  # "yes"
     assert not call("find_account", {"account_id": "practice-ironbark"}).error
     args = {"account_id": "practice-ironbark", "invoice_id": "PRACTICE-R1-DUP-60", "line_id": "PRACTICE-R1-DUP-60/L2"}
     credit = call("credit_duplicate", args)

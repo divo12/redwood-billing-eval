@@ -6,8 +6,7 @@ from redwood_kit.skills import load_skills
 from redwood_kit.subagents import load_subagents
 
 HERE = Path(__file__).parent
-MODEL = "gpt-6-sol"
-REASONING_EFFORT = "high"
+MODEL = "claude-opus-5-5"
 
 
 class Agent:
@@ -35,7 +34,6 @@ class Agent:
             model=MODEL,
             messages=[self.system, *state],
             actions=self.tools or None,
-            reasoning_effort=REASONING_EFFORT,
         )
         return reply, [*state, reply]
 

@@ -6,7 +6,6 @@ from pathlib import Path
 
 from .agent_context import ModelGateway
 from .hooks import ToolRunner
-from .jsontypes import Json
 from .messages import AssistantMessage, Message, MultiToolMessage, SystemMessage, UserMessage
 from .skills import frontmatter, workspace_of
 from .toolkit import Tool, ToolType, is_tool
@@ -18,7 +17,6 @@ class Subagent:
     description: str
     prompt: str
     model: str | None
-    reasoning_effort: str | None
     tools: tuple[str, ...]
     max_turns: int
 
@@ -30,7 +28,7 @@ def load_subagents(workspace: Path) -> dict[str, Subagent]:
         name = meta.get("name") or path.stem
         tools = tuple(t.strip() for t in meta.get("tools", "").split(",") if t.strip())
         subagents[name] = Subagent(name, meta.get("description", ""), body, meta.get("model"),
-                                   meta.get("reasoning_effort"), tools, int(meta.get("max_turns", 8)))
+                                   tools, int(meta.get("max_turns", 8)))
     return subagents
 
 
@@ -58,10 +56,7 @@ def _next_reply(
     tools: list[Tool],
 ) -> AssistantMessage:
     model = spec.model or gateway.models[0].model
-    options: dict[str, Json] = {}
-    if spec.reasoning_effort is not None:
-        options["reasoning_effort"] = spec.reasoning_effort
-    return gateway.generate(model=model, messages=messages, actions=tools or None, **options)
+    return gateway.generate(model=model, messages=messages, actions=tools or None)
 
 
 class SubagentTools:

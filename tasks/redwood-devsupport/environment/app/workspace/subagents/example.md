@@ -1,8 +1,7 @@
 ---
 name: example
 description: Format example. Replace this file with a real specialist, or delete it.
-model: gpt-6-sol
-reasoning_effort: low
+model: claude-opus-5-5
 tools: search_records
 max_turns: 8
 ---

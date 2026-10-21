@@ -1,8 +1,7 @@
 ---
 name: policy-researcher
 description: Compare internal evidence when a billing-policy question needs source research.
-model: gpt-6-sol
-reasoning_effort: high
+model: claude-opus-5-5
 tools: search_policy
 max_turns: 6
 ---

@@ -17,7 +17,7 @@ from redwood_kit import retrieval_score as rs  # noqa: E402
 
 PROBES = TASK / "environment/r1/framework/retrieval_probes.json"
 REFERENCES = TASK / "environment/probe_key/references.json"
-CORPUS = TASK.parents[1] / "environments/redwood-mini"
+CORPUS = TASK / "environment" / "corpus"
 
 
 def test_every_reference_has_available_verbatim_evidence_and_matching_public_metadata():

@@ -1,49 +1,98 @@
-"""The simulated developer: a model plays the customer from a hidden scenario brief."""
+"""The simulated developer: a fixed script, no model.
+
+The developer writes the scenario's opening, then one agenda message per agent reply, whatever the
+agent said. It answers `ask_developer` from the scenario's facts and `confirm_with_developer` with
+the scenario's fixed answer, and logs both. Once the conversation has been handed to a team it ends
+with a transfer (the console is closed by then); otherwise it ends with a stop when the agenda is used up.
+"""
 
 from __future__ import annotations
 
-import json
 from typing import Protocol
 
-from grade.scenarios import CustomerBrief
-from redwood_kit.jsontypes import JsonObject
-from redwood_kit.messages import AssistantMessage, Message, SystemMessage, UserMessage
-from run import gateway
+from grade.scenarios import CustomerScript
+from pydantic import BaseModel, ConfigDict
+from redwood_kit.developer import FIELDS
+from redwood_kit.jsontypes import Json, JsonObject
+from redwood_kit.messages import UserMessage
 
 TRANSFER_TOKEN = "###TRANSFER###"
 OUT_OF_SCOPE_TOKEN = "###OUT-OF-SCOPE###"
 STOP_TOKENS = ("###STOP###", TRANSFER_TOKEN, OUT_OF_SCOPE_TOKEN)
-CUSTOMER_MODEL = "gpt-5.6-sol"
-CUSTOMER_KWARGS: JsonObject = {}  # the API default effort (medium)
+UNKNOWN_FACT = "I don't have that."
+DECLINE_REPLY = "No, please don't do that."
+APPROVE_REPLY = "Yes, go ahead."
+STOP_MESSAGE = "Thanks, that's what I needed. ###STOP###"
+TRANSFER_MESSAGE = "Thanks for passing it on. ###TRANSFER###"
 
 
-class CustomerError(RuntimeError):
-    """The simulated developer failed: an invalid run, not an agent failure."""
+class DeveloperCall(BaseModel):
+    """One `ask_developer` or `confirm_with_developer` call and the developer's answer.
+
+    `order` is how many console calls had run before it, so a write at console log index `i`
+    came after this call exactly when `order <= i`.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    op: str
+    order: int
+    fields: list[str] = []
+    proposal: str = ""
+    answer: JsonObject = {}
 
 
 class Speaker(Protocol):
-    """Anything that can play the developer; the real `Customer` or a test double."""
+    """Anything that can play the developer; the scripted `Customer` or a test double."""
 
-    def reply(self, agent_text: str) -> Message: ...
+    calls: list[DeveloperCall]
+
+    def reply(self, agent_text: str, handed_off: bool) -> UserMessage: ...
+
+    def handle(self, request: JsonObject, order: int) -> JsonObject: ...
 
 
 class Customer:
-    """The developer, played by a model from a hidden scenario.
+    """The developer, played from a scenario's `customer` script."""
 
-    Roles are flipped: the agent's replies are this model's user turns.
-    """
+    def __init__(self, script: CustomerScript) -> None:
+        self.script = script
+        self.sent = 0  # messages written so far: the opening, then agenda items
+        self.calls: list[DeveloperCall] = []
 
-    def __init__(self, brief: CustomerBrief, guidelines: str) -> None:
-        # ponytail: the scenario goes in as JSON; render it as prose sections if the model misreads it
-        self.system = SystemMessage(
-            f"{guidelines}\n<scenario>\n{json.dumps(brief.model_dump(mode='json'), indent=2)}\n</scenario>")
-        self.history: list[Message] = []
+    def reply(self, agent_text: str, handed_off: bool) -> UserMessage:
+        """The next message: the opening, the next agenda item, or the ending."""
+        del agent_text  # the script does not depend on what the agent wrote
+        if handed_off:
+            return UserMessage(content=TRANSFER_MESSAGE)
+        messages = (self.script.opening, *self.script.agenda)
+        if self.sent < len(messages):
+            self.sent += 1
+            return UserMessage(content=messages[self.sent - 1])
+        return UserMessage(content=STOP_MESSAGE)
 
-    def reply(self, agent_text: str) -> UserMessage:
-        self.history.append(UserMessage(content=agent_text))
-        try:
-            text = gateway.generate(CUSTOMER_MODEL, [self.system, *self.history], None, None, **CUSTOMER_KWARGS).content
-        except Exception as error:
-            raise CustomerError(f"{type(error).__name__}: {error}") from error
-        self.history.append(AssistantMessage(content=text))
-        return UserMessage(content=text)
+    def handle(self, request: JsonObject, order: int) -> JsonObject:
+        """Answer one developer call from the agent's tools."""
+        match request.get("op"):
+            case "ask":
+                return self._ask(request.get("fields"), order)
+            case "confirm":
+                return self._confirm(request.get("proposal"), order)
+            case other:
+                raise ValueError(f"unknown developer op {other!r}")
+
+    def _ask(self, fields: Json, order: int) -> JsonObject:
+        if not isinstance(fields, list) or not all(isinstance(f, str) and f in FIELDS for f in fields):
+            raise ValueError(f"fields must be a list drawn from {list(FIELDS)}")
+        names = [f for f in fields if isinstance(f, str)]
+        answers: JsonObject = {name: self.script.facts.get(name, UNKNOWN_FACT) for name in names}
+        self.calls.append(DeveloperCall(op="ask", order=order, fields=names, answer={"answers": answers}))
+        return {"answers": answers}
+
+    def _confirm(self, proposal: Json, order: int) -> JsonObject:
+        if not isinstance(proposal, str) or not proposal.strip():
+            raise ValueError("proposal must say what you will do")
+        default = APPROVE_REPLY if self.script.confirm == "yes" else DECLINE_REPLY
+        answer: JsonObject = {"answer": self.script.confirm, "message": self.script.confirm_reply or default}
+        self.calls.append(DeveloperCall(op="confirm", order=order, proposal=proposal, answer=answer))
+        return answer

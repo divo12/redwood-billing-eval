@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import Literal
 
 from billing_rules import DUPLICATE_CREDIT_LIMIT_CENTS
+from redwood_kit.developer import DeveloperTools
 from redwood_kit.skills import SkillTools
 from redwood_kit.subagents import SubagentTools
 from redwood_kit.toolkit import ToolKitBase, ToolType, is_tool
@@ -22,7 +23,7 @@ Team = Literal[
 ]
 
 
-class Tools(SkillTools, SubagentTools, ToolKitBase):
+class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
     def __init__(self) -> None:
         self._description: dict | None = None
 

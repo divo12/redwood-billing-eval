@@ -20,6 +20,7 @@ from .agent_context import (
     activate_agent_context,
 )
 from .billing import Billing
+from .developer import Developer
 from .hooks import HookKitBase, ToolRunner
 from .jsontypes import Json, JsonObject, is_json_object
 from .messages import Message, ToolCall, UserMessage, from_dict, to_dict
@@ -40,6 +41,7 @@ class HostCall(StrEnum):
     MODEL = "model"
     EMBED = "embed"
     BILLING = "billing"
+    DEVELOPER = "developer"
 
 
 @runtime_checkable
@@ -141,6 +143,7 @@ def _build_agent(root: Path, toolkit: ToolKitBase, gateway: ModelGateway, runner
     toolkit.gateway = gateway
     toolkit.runner = runner
     toolkit.billing = billing
+    toolkit.developer = Developer(_ask)
     context = AgentBuildContext(
         action_interface=ActionInterface(tuple(toolkit.get_tools())),
         resources=KitResources.from_root(root),

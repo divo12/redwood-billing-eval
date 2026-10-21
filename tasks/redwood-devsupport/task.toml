@@ -3,13 +3,14 @@ multi_step_reward_strategy = "mean"
 artifacts = ["/app/workspace"]
 
 [task]
-name = "observe-bench/redwood-devsupport"
-version = "0.4.0"
+name = "collinear-candidate/redwood-billing-support"
+version = "1.0.0"
 description = "Build Redwood Inference's billing support agent from company knowledge R0, then maintain it when the knowledge grows to R1."
 keywords = ["agent-building", "billing-support", "continual", "redwood"]
 
 [[task.authors]]
-name = "Observe Bench"
+name = "Divyansh Bhadauria"
+email = "divyanshbhadauria3@gmail.com"
 
 [metadata]
 difficulty = "hard"
@@ -19,16 +20,22 @@ category = "agent-building"
 timeout_sec = 7200.0
 user = "harbor"
 network_mode = "allowlist"
-allowed_hosts = ["api.openai.com"]
+# The builder's harness (Claude Code: Anthropic hosts) plus OpenAI for embeddings and the score service.
+allowed_hosts = ["api.openai.com", "api.anthropic.com", "statsig.anthropic.com", "downloads.claude.ai", "claude.ai", "console.anthropic.com"]
+
 
 [environment]
 network_mode = "allowlist"
-allowed_hosts = ["api.openai.com", "registry.npmjs.org", "nodejs.org", "github.com", "*.githubusercontent.com"]
+allowed_hosts = ["api.openai.com", "api.anthropic.com", "statsig.anthropic.com", "downloads.claude.ai", "claude.ai", "console.anthropic.com", "registry.npmjs.org", "nodejs.org", "github.com", "*.githubusercontent.com"]
 build_timeout_sec = 1800.0
 os = "linux"
 cpus = 2
 memory_mb = 8192
 storage_mb = 20480
+
+[environment.env]
+# The builder embeds R with redwood_kit.embeddings.embed, which reads this key.
+OPENAI_API_KEY = "${OPENAI_API_KEY}"
 
 [environment.healthcheck]
 command = "test -f /app/workspace/agent.py && test -f /app/workspace/tools.py && test -S /run/redwood/retrieval-score.sock && python -c \"import redwood_kit.candidate\""
@@ -42,13 +49,16 @@ timeout_sec = 3600.0
 user = "root"
 environment_mode = "shared"
 network_mode = "allowlist"
-allowed_hosts = ["api.openai.com"]
+# The support agent under test runs on Anthropic; embeddings stay on OpenAI.
+allowed_hosts = ["api.anthropic.com", "api.openai.com"]
 
 [verifier.env]
 OPENAI_API_KEY = "${OPENAI_API_KEY}"
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}"
 
 [solution.env]
 OPENAI_API_KEY = "${OPENAI_API_KEY}"
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}"
 
 [[steps]]
 name = "build_r0"

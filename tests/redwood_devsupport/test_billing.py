@@ -998,7 +998,7 @@ def test_build_index_selects_every_provenance_source_without_embedding():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     provenance = json.loads((TASK / "tests" / "data" / "provenance.json").read_text())
-    root = TASK.parents[1] / "environments" / "redwood-mini"
+    root = TASK / "environment" / "corpus"
     for rule in provenance["rules"].values():
         for release in rule["releases"].values():
             for record in release["records"]:
@@ -1118,7 +1118,7 @@ def test_r1_gold_differs_from_what_the_r0_rule_would_write(case_id, r0_gold):
 def test_every_scenario_rule_cites_records_visible_in_its_release():
     provenance = json.loads((TASK / "tests" / "data" / "provenance.json").read_text())["rules"]
     scenarios = json.loads((TASK / "tests" / "data" / "billing_scenarios.json").read_text())["scenarios"]
-    root = TASK.parents[1] / "environments" / "redwood-mini"
+    root = TASK / "environment" / "corpus"
     visible = {"R0": ("R0/",), "R1": ("R0/", "R1/")}
     carriers = {"full", "partial", "superseding"}
     needed = {(rule, "R0" if case["step"] == "build_r0" else "R1") for case in scenarios for rule in case["rules"]}

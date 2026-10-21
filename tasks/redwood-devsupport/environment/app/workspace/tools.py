@@ -1,9 +1,10 @@
+from redwood_kit.developer import DeveloperTools
 from redwood_kit.skills import SkillTools
 from redwood_kit.subagents import SubagentTools
 from redwood_kit.toolkit import ToolKitBase, ToolType, is_tool
 
 
-class Tools(SkillTools, SubagentTools, ToolKitBase):
+class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
     @is_tool(ToolType.WRITE)
     def escalate(
         self, account_id: str, team: str, summary: str, details: dict[str, str] | None = None,

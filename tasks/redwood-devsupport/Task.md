@@ -1,8 +1,9 @@
 # Task: build and maintain Redwood billing support
 
-Status: Draft — the user approved the repair direction and independent builder
-design on 2026-09-27. This version's concrete practice cases and live calibration
-have not received a separate human review. Task version: 0.4.0; Harbor: 0.22.0.
+Status: Draft — task version 1.0.0 (2026-10-21); Harbor 0.22.0. The 1.0.0
+changes (scripted developer, support agent on Claude, Claude Code builder,
+multi-criterion reward, packaging) supersede the older statements kept below
+as design history; `RUN_REPORT.md` holds the current results.
 
 ## Purpose and boundary
 
@@ -16,7 +17,7 @@ The active corpus is `environments/redwood-mini`, not nano or full Redwood.
 R0 contains 3514 source records; R1 adds 3522 without replacing R0 paths.
 The build begins with R0 at `/app/R`. After the first evaluation, the existing
 root-only transition reveals R1 in the same container. The builder continues
-its same Pi session and updates its existing workspace. R2 remains absent.
+its same builder session and updates its existing workspace. R2 remains absent.
 R1 is the enterprise evolution ΔR. It adds the R1-only `credit_ledger` table
 (`data/db_r1.json`, merged over `data/db.json` only in R1) and ten planted
 records: six rules (support charter 2027, credit ledger, payment-card data,
@@ -45,13 +46,19 @@ are design choices.
 
 ## Relevant Harness and resources
 
-- Builder: Harbor `pi`, configured `openai/gpt-6-sol`, thinking `high`, one
-  trial and one concurrent trial; the same session continues across steps.
-- Deployed agent: `gpt-6-sol` with reasoning effort `high`, enforced by the
-  deployment manifest and gateway. Embedding models remain
-  `text-embedding-3-small` and `text-embedding-3-large`.
+- Builder: Harbor `claude-code`, `claude-opus-5-5`, effort `high`
+  (`run-config.claude.json`); the same session resumes across steps. The
+  verifier also accepts a Pi session, which the oracle writes.
+- Deployed agent: `claude-opus-5-5` without extended thinking, enforced by
+  the deployment manifest and the Anthropic gateway in `tests/run/gateway.py`.
+  Embedding models remain `text-embedding-3-small` and `text-embedding-3-large`
+  (OpenAI).
+- Developer: a fixed script per scenario (`customer` in
+  `tests/data/billing_scenarios.json`), no model. Facts come only through the
+  `ask_developer` tool and consent through `confirm_with_developer`.
 - Builder limits: R0 7200 seconds, R1 3600 seconds; 2 CPUs, 8192 MiB memory,
-  20480 MiB storage. Agent network allowlist remains `api.openai.com`.
+  20480 MiB storage. Network: Anthropic hosts for the builder's harness and
+  `api.openai.com` for embeddings and the score service.
 - Runtime: frozen read-only workspace, no direct external network or credentials,
   gateway inference, 4 GiB address space and 128 MiB per-file write limit.
   At most 40 agent turns per conversation, including tool rounds. Each wait
@@ -153,7 +160,7 @@ appropriate team when needed.
 
 ## Development feedback
 
-`framework/RAG.md` documents available retrieval facilities and optional
+`framework/offline-rag/README.md` documents available retrieval facilities and optional
 practice checks. You choose whether to use them and which designs to compare.
 Their scores are diagnostic; no architecture or practice-score threshold is
 required. Test the behavior of the agent you actually ship.
@@ -406,9 +413,11 @@ Required skills, subagents, and hook guardrails must contain substantive job-spe
 and be reachable through the deployed agent. Placeholder files do not establish
 capability. Audit loading/delegation behavior and the component's effect in the
 runtime evidence; there is no requirement to invoke either in every case. The
-existing conversation reward does not separately score artifact presence or
-certify component quality, so full capability validation still requires that
-trace review. No new reward weights or automatic artifact gate are introduced.
+conversation reward (`reward`) does not score artifact presence. Since 1.0.0,
+`reward.json` also reports `artifact_quality`: code checks for the instruction's
+size limits, a non-stub skill, subagent and `@hook`, and whether some graded
+conversation loaded the skill and delegated to the subagent. It does not change
+`reward`, and component quality still needs trace review.
 
 Each hidden case in `tests/data/billing_scenarios.json` is a simulated
 conversation (10 per step, 20 in total), chosen so that every check is decided
@@ -436,8 +445,10 @@ metrics are not part of reward.
   every former judge question was either turned into one of the checks above
   or dropped with its case. A verdict is reproducible from the case log.
 
-Simulator failures are retried, then make the run invalid; they
-never become a score. Gold actions that the backend rejects are a scenario bug
+The developer is a script, so it cannot fail or drift: every run of a case
+gets identical developer turns, facts and consent answers.
+- **CONSENT.** Under BILL-CONFIRM, every successful credit note or dispute
+  insert must come after a `yes` from `confirm_with_developer`. Gold actions that the backend rejects are a scenario bug
 and raise. Gold actions and matchers stay in `tests/`; the builder sees only the
 API shape in `framework/agent_contract.md`.
 
@@ -558,7 +569,7 @@ with 1 flip in 228 answers (0.4%).
 
 ## Validation and remaining work
 
-The research behind the changes is in [rag-research.md](rag-research.md); that
+The research behind the changes is in [docs/rag_research.md](../../docs/rag_research.md); that
 document describes the pre-repair findings, not the current runtime contract.
 
 Local verification: all tests in `tests/redwood_devsupport` pass, and
@@ -597,17 +608,12 @@ Packaging checks confirmed all three pack files are readable but not writable
 by the builder, and hidden references remain inaccessible. Local documentation
 links, version labels, and exact instruction/spec agreement were also checked.
 
-Live model calibration is pending: `OPENAI_API_KEY` was not configured in the
-execution environment, and no maximum spend was supplied. Never put its value
-in a prompt, source file, image, or log. Supply it through the normal runtime
-environment before the run. Proposed run: one Pi trial through both releases,
-configured builder/support models and existing simulator/judge, existing time
-limits. Confirm the cost ceiling before starting.
-
-Once access and the run plan are ready:
+The 1.0.0 runs (oracle, and Claude Opus 5.5 high in Claude Code) and their
+analysis are in `RUN_REPORT.md`:
 
 ```sh
-harbor run -y -c tasks/redwood-devsupport/run-config.json -o "$PWD/jobs"
+harbor run -p ./tasks/redwood-devsupport -a oracle -o "$PWD/jobs"
+harbor run -y -c tasks/redwood-devsupport/run-config.claude.json -o "$PWD/jobs"
 ```
 
 Read the complete builder trajectory, runtime model/tool contexts, scenario

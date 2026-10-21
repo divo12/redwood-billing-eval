@@ -9,8 +9,21 @@ below; it does not add required architectures or evaluation criteria.
 
 Each evaluation case is a conversation with one developer. After each
 developer message the agent may call tools, one or more rounds, and then
-answers with text; that text is its reply to the developer, who may answer
-back. The developer ends the conversation.
+answers with text; that text is its reply to the developer. The developer ends
+the conversation.
+
+The developer writes what they came to say, one message per agent reply,
+whatever that reply was. They do not answer questions asked in chat text. To
+learn a fact they have not written, the agent calls `ask_developer` with the
+fields it needs (`org_id`, `invoice_id`, `invoice_month`, `line_items`,
+`amounts`, `request_ids`, `response_status`, `time_of_issue`, `checks_done`,
+`plan`, `contract`, `error_code`, `cloud_provider`, `subscription_id`,
+`line_item_dimension`, `billing_period`, `timezone`); each answer is the
+developer's own words, or that they don't have it. To get the developer's
+approval for an action, the agent calls `confirm_with_developer` with exactly
+what it will do; the answer is `yes` or `no`, with the developer's words. Both
+tools come from `redwood_kit.developer.DeveloperTools`, already mixed into the
+starter `Tools`.
 
 At the end of your session the evaluator copies `workspace/` to a read-only
 directory and runs the agent from there, as an unprivileged user without API
@@ -32,7 +45,7 @@ guardrail for this job. The remaining files provide the conventions below.
 |----------------|---------|
 | `system_prompt.md` | Identity: who the agent is, whose interests it serves, and its authority. Not the billing rulebook. |
 | `AGENTS.md` | Operating principles: how the agent retrieves, checks evidence, and hands off. Exact billing rules do not go here. A developer can't override them. |
-| `tools.py` | The actions the agent can take (`@is_tool` methods on `Tools`). `load_skill` and `delegate` are already mixed in. |
+| `tools.py` | The actions the agent can take (`@is_tool` methods on `Tools`). `load_skill`, `delegate`, `ask_developer` and `confirm_with_developer` are already mixed in. |
 | `hooks.py` | Guardrails the runtime runs around every developer message and tool call (`@hook` methods on `Hooks`). At least one functional guardrail is required. |
 | `skills/<name>/SKILL.md` | A procedure the model loads when needed. At least one substantive billing-support procedure is required. |
 | `subagents/<name>.md` | A specialist with its own prompt, model, and tools in a separate context. At least one functional billing-support specialist is required. |
@@ -63,6 +76,8 @@ def create_agent():
   `ModelConfig`s; `.generate(model=..., messages=[...], actions=None,
   tool_choice=None, **inference_args)` returns an `AssistantMessage` whose
   `.content` or `.tool_calls` is set (`.usage` carries token counts).
+  `tool_choice` is advisory: the deployed model does not support forcing a
+  tool call, so only `"none"` changes its behaviour.
   `.embed(model=..., inputs=[...], **kwargs)` returns one vector per input, in
   order. `.embedding_models` lists the allowed embedding models. Calls must
   satisfy `framework/deployment_manifest.json`: a fixed value is applied for
@@ -141,8 +156,8 @@ Practice questions and
 ## Resource limits
 
 The builder has 7200 seconds in R0 and 3600 seconds in R1, in a container with
-2 CPUs, 8 GiB memory, and 20 GiB storage. Its network access is limited to
-`api.openai.com`. The support process has a 4 GiB address-space limit, a
+2 CPUs, 8 GiB memory, and 20 GiB storage. Besides your own model provider, its
+network access is limited to `api.openai.com` (embeddings and the score service). The support process has a 4 GiB address-space limit, a
 128 MiB per-file write limit, and no direct external network access. Runtime
 libraries include LanceDB and `numpy`; nothing can be installed after freezing.
 
@@ -252,7 +267,7 @@ lines (no nesting) followed by the body:
 
 - Skill keys: `name`, `description`. The body is the procedure.
 - Subagent keys: `name`, `description`, `model` (default: the first allowed
-  model), `reasoning_effort` (default: the manifest's), `tools` (comma-separated names
+  model), `tools` (comma-separated names
   from `tools.py`, default none), `max_turns` (default 8). The body is its
   system prompt. It sees only that prompt and the task it is given, and returns
   only its final text.

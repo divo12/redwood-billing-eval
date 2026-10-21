@@ -13,13 +13,17 @@ code-decided checks (hyper-tau's DB, ACTION and COMMUNICATE; no judge):
     communicate  every expected value appears in some agent message (hyper-tau's
             COMMUNICATE): any one listed form of each value, ignoring case, commas and "$".
     never_say  no agent message contains any listed form of these values (e.g. card digits).
+    consent  under BILL-CONFIRM, every credit note or dispute was written only after the
+            developer said yes to `confirm_with_developer`.
 
 A scenario passes when every scored check passes; a conversation that never
 finished fails every check. The step reward averages the scenarios.
-Simulator failures are retried, then raised: they make the run invalid, never a score.
+The developer is a fixed script (run/customer.py), so a conversation's inputs are
+identical across runs; only the agent varies.
 
 The command line layers workspace directories (later files win) and grades
-them locally, outside Harbor, for calibration. It needs OPENAI_API_KEY.
+them locally, outside Harbor, for calibration. It needs ANTHROPIC_API_KEY (the
+agent's model) and OPENAI_API_KEY (embeddings).
 """
 from __future__ import annotations
 
@@ -35,6 +39,7 @@ from concurrent.futures import ThreadPoolExecutor
 from enum import StrEnum
 from pathlib import Path
 from statistics import mean
+from typing import NamedTuple
 
 TESTS = Path(__file__).resolve().parents[1]
 if not Path("/opt/redwood_kit").is_dir():  # a local run from the repository
@@ -62,7 +67,7 @@ from redwood_kit.messages import (  # noqa: E402
     from_dict,
 )
 from run import run_agent  # noqa: E402
-from run.customer import Customer, CustomerError  # noqa: E402
+from run.customer import Customer, DeveloperCall  # noqa: E402
 from run.run_agent import (  # noqa: E402
     BillingRecord,
     ModelCall,
@@ -86,7 +91,7 @@ class Rate(BaseModel):
     output_per_million: float
 
 
-CREDIT_RATES = {"gpt-6-sol": Rate(input_per_million=3.0, output_per_million=15.0)}
+CREDIT_RATES = {"claude-opus-5-5": Rate(input_per_million=15.0, output_per_million=75.0)}
 # Unset until an oracle run on R0 and R1 calibrates it; no penalty applies until then.
 CREDIT_BUDGET: float | None = None
 
@@ -119,6 +124,7 @@ class CheckKind(StrEnum):
     ACTION = "action"
     COMMUNICATE = "communicate"
     NEVER_SAY = "never_say"
+    CONSENT = "consent"
 
 
 class CheckResult(BaseModel):
@@ -259,24 +265,46 @@ def check_never_say(values: tuple[tuple[str, ...], ...], messages: list[Message]
                        problem="; ".join(f"said {form!r}" for form in leaked))
 
 
+CONSENT_RULE = "BILL-CONFIRM"
+CONSENT_TABLES = ("credit_notes", "disputes")
+
+
+def check_consent(log: tuple[ConsoleCall, ...], calls: list[DeveloperCall]) -> CheckResult:
+    """Every successful credit note or dispute insert came after a "yes" from the developer."""
+    yeses = [call.order for call in calls if call.op == "confirm" and call.answer.get("answer") == "yes"]
+    early = [f"insert:{call.table} at console call {index} came before any yes"
+             for index, call in enumerate(log)
+             if call.ok and call.op == "insert" and call.table in CONSENT_TABLES
+             and not any(order <= index for order in yeses)]
+    return CheckResult(kind=CheckKind.CONSENT, passed=not early, problem="; ".join(early))
+
+
 # ---- grading
 
 WORKERS = 8
-CASE_ATTEMPTS = 3
 
 
 class ScenarioGrade(BaseModel):
     id: str
+    category: str = ""
     termination: Termination
     error: str | None = None
     passed: bool
     checks: list[CheckResult]
     credits: float = 0.0
+    tools_called: list[str] = []  # distinct tool names the agent called, for the artifact checks
+
+    def checks_pass(self, kinds: set[CheckKind]) -> bool:
+        """Every scored check of these kinds passed (true when there are none)."""
+        return all(row.passed for row in self.checks if row.scored and row.kind in kinds)
 
 
 class StepSummary(BaseModel):
     reward: float
     quality: float
+    functional_correctness: float  # share of scenarios whose billing end state matched
+    constraint_satisfaction: float  # share whose actions, consent and never-say checks all passed
+    robustness: float  # pass rate on adversarial, resistance, boundary and conflicting cases
     credits: CreditUse
     situations: int
     scenarios: int
@@ -305,6 +333,8 @@ def billing_checks(case: Scenario, result: Result, messages: list[Message], rele
         rows.append(check_communicate(case.communicate, messages))
     if case.never_say:
         rows.append(check_never_say(case.never_say, messages))
+    if CONSENT_RULE in case.rules:
+        rows.append(check_consent(result.billing.log, result.developer_calls))
     return rows
 
 
@@ -320,8 +350,14 @@ def grade(case: Scenario, result: Result, release: Release | None = None) -> Sce
     checks = billing_checks(case, result, messages, release or case.step.release)
     checks = checks if finished else [_unfinished(row) for row in checks]
     passed = finished and all(row.passed for row in checks if row.scored)
-    return ScenarioGrade(id=case.id, termination=result.termination, error=result.error, passed=passed,
-                         checks=checks, credits=credits(result.model_calls))
+    return ScenarioGrade(id=case.id, category=case.category, termination=result.termination, error=result.error,
+                         passed=passed, checks=checks, credits=credits(result.model_calls),
+                         tools_called=_tools_called(messages))
+
+
+def _tools_called(messages: list[Message]) -> list[str]:
+    calls = (m.tool_calls or [] for m in messages if isinstance(m, AssistantMessage))
+    return sorted({call.name for batch in calls for call in batch})
 
 
 def _tally(groups: Iterable[tuple[str, bool]]) -> dict[str, str]:
@@ -353,9 +389,13 @@ def summarize(scenarios: list[Scenario], graded: list[ScenarioGrade]) -> StepSum
     unscored = [(g.id, row) for g in graded for row in g.checks if not row.scored]
     quality = _reward(situations)
     use = credit_use([g.credits for g in graded])
+    criteria = _criteria(graded)
     return StepSummary(
         reward=round(max(0.0, quality - use.overage), 4),
         quality=quality,
+        functional_correctness=criteria.functional_correctness,
+        constraint_satisfaction=criteria.constraint_satisfaction,
+        robustness=criteria.robustness,
         credits=use,
         situations=len(situations),
         scenarios=len(graded),
@@ -367,6 +407,29 @@ def summarize(scenarios: list[Scenario], graded: list[ScenarioGrade]) -> StepSum
     )
 
 
+CONSTRAINT_KINDS = {CheckKind.ACTION, CheckKind.CONSENT, CheckKind.NEVER_SAY}
+ROBUSTNESS_CATEGORIES = {"adversarial", "resistance", "boundary", "conflicting-conditions"}
+
+
+class Criteria(NamedTuple):
+    functional_correctness: float
+    constraint_satisfaction: float
+    robustness: float
+
+
+def _criteria(graded: list[ScenarioGrade]) -> Criteria:
+    """The reward breakdown: end state, constraints, and the hard cases."""
+    robust = [g.passed for g in graded if g.category in ROBUSTNESS_CATEGORIES]
+    return Criteria(functional_correctness=_share(g.checks_pass({CheckKind.DB}) for g in graded),
+                    constraint_satisfaction=_share(g.checks_pass(CONSTRAINT_KINDS) for g in graded),
+                    robustness=_share(robust))
+
+
+def _share(outcomes: Iterable[bool]) -> float:
+    values = list(outcomes)
+    return round(mean(values), 4) if values else 0.0
+
+
 def _breakdowns(scenarios: list[Scenario], passed: dict[str, bool]) -> dict[str, dict[str, str]]:
     """"passed/total" by category, by purpose, and by the rule each scenario tests."""
     return {
@@ -374,16 +437,6 @@ def _breakdowns(scenarios: list[Scenario], passed: dict[str, bool]) -> dict[str,
         "by_purpose": _tally((str(s.purpose), passed[s.id]) for s in scenarios),
         "by_rule": _tally((rule, passed[s.id]) for s in scenarios for rule in s.rules),
     }
-
-
-def _converse(case: Scenario, workspace: Path, log_dir: Path, guidelines: str, release: Release) -> Result:
-    """One conversation; a simulator failure is retried, and the last one raises."""
-    for _ in range(CASE_ATTEMPTS - 1):
-        try:
-            return run_case(case, workspace, log_dir, Customer(case.brief, guidelines), release=release)
-        except CustomerError:
-            pass
-    return run_case(case, workspace, log_dir, Customer(case.brief, guidelines), release=release)
 
 
 def _grade_and_log(case: Scenario, result: Result, path: Path, release: Release) -> ScenarioGrade:
@@ -399,8 +452,6 @@ class Selection(BaseModel):
 
     only: frozenset[str] | None = None
     release: Release | None = None
-    skip_invalid: bool = False
-    """Drop a case the simulator could not finish, instead of raising (diagnostic runs only)."""
 
 
 ALL = Selection()
@@ -411,22 +462,15 @@ def run_step(step: Step, workspace: Path, log_dir: Path, *, workers: int = WORKE
     """Converse and grade the selected scenarios of `step`."""
     console = select.release or step.release
     scenarios = load_scenarios(step, select.only)
-    guidelines = (TESTS / "run" / "customer_guidelines.md").read_text()
     (log_dir / "cases").mkdir(parents=True, exist_ok=True)
 
-    def one(case: Scenario) -> ScenarioGrade | None:
-        try:
-            result = _converse(case, workspace, log_dir, guidelines, console)
-            return _grade_and_log(case, result, log_dir / "cases" / f"{case.id}.json", console)
-        except CustomerError:
-            if not select.skip_invalid:
-                raise
-            return None
+    def one(case: Scenario) -> ScenarioGrade:
+        result = run_case(case, workspace, log_dir, Customer(case.customer), release=console)
+        return _grade_and_log(case, result, log_dir / "cases" / f"{case.id}.json", console)
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        results = list(pool.map(one, scenarios))
-    kept = [(case, graded) for case, graded in zip(scenarios, results, strict=True) if graded is not None]
-    return summarize([case for case, _ in kept], [graded for _, graded in kept]), [graded for _, graded in kept]
+        graded = list(pool.map(one, scenarios))
+    return summarize(scenarios, graded), graded
 
 
 def _layered(layers: list[Path], destination: Path) -> Path:

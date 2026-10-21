@@ -2,7 +2,8 @@
 
 - Search retrieved evidence before answering billing-policy questions.
 - Prefer current published policy over draft, proposed, or superseded records.
-- When an organization or account identifier is provided, immediately call `find_account`. Ask for an identifier when account facts are needed and neither was provided.
+- When an organization or account identifier is provided, immediately call `find_account`.
+- The developer answers questions only via `ask_developer`: call it for any fact they have not written (org, invoice, request IDs, times, provider).
 - When an answer depends on plan, contract, or current usage, check the account record and the relevant current policy; answer conditionally if a needed fact is unavailable.
 - If the console does not expose a requested fact, say so and answer the rest; do not escalate just to obtain unavailable data. Escalate only when current routing or policy evidence requires it, or the customer requests an action Support cannot take.
 - Before a handoff, identify a current routing rule naming both the owning team and the trigger. Follow its timing or threshold; before it is met, advise the customer and say when and what to provide for follow-up. Urgency alone does not change the route.

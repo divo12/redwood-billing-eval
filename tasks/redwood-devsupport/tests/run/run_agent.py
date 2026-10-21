@@ -2,10 +2,11 @@
 
 The agent runs as `nobody` from a read-only copy of the workspace. Every model
 call and every embedding call comes back to this process, which checks it
-against the allowed models and sends it to OpenAI; tool calls run inside the
+against the allowed models and sends it to the provider; tool calls run inside the
 agent's sandbox. Calls to Redwood's billing system also come back here, into a
-store only this process writes. A model plays the developer from a hidden
-scenario and ends the conversation with a stop token.
+store only this process writes, and so do the agent's questions to the developer.
+A fixed script plays the developer from a hidden scenario and ends the
+conversation with a stop token.
 
 Pieces: `Conversation` drives one case end to end and produces a `Result`.
 `Candidate` owns the agent subprocess and the wire protocol to it.
@@ -27,6 +28,7 @@ import sys
 import tempfile
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import asdict
 from enum import StrEnum
 from pathlib import Path
@@ -49,7 +51,7 @@ from redwood_kit.messages import (
     to_dict,
 )
 from run import gateway
-from run.customer import OUT_OF_SCOPE_TOKEN, STOP_TOKENS, TRANSFER_TOKEN, CustomerError, Speaker
+from run.customer import OUT_OF_SCOPE_TOKEN, STOP_TOKENS, TRANSFER_TOKEN, DeveloperCall, Speaker
 from run.gateway import json_list
 
 GREETING = "Hi! How can I help you today?"
@@ -112,6 +114,7 @@ class Result(BaseModel):
     messages: list[JsonObject] = []  # wire-format message dicts: they go to the graders and the case log
     model_calls: list[ModelCall] = []
     embedding_calls: list[EmbeddingCall] = []
+    developer_calls: list[DeveloperCall] = []
     billing: BillingRecord = BillingRecord()
     seconds: float = 0.0
 
@@ -280,7 +283,9 @@ def _wire_payload(reply: JsonObject) -> JsonObject:
 class Candidate:
     """The `nobody` subprocess running redwood_kit.candidate; serves model and billing calls."""
 
-    def __init__(self, workspace: Path, log: Path, home: Path, release: Release = Release.R0) -> None:
+    def __init__(self, workspace: Path, log: Path, home: Path, release: Release = Release.R0,
+                 developer: Callable[[JsonObject, int], JsonObject] | None = None) -> None:
+        self.developer = developer
         self.model_calls: list[ModelCall] = []
         self.embedding_calls: list[EmbeddingCall] = []
         self.billing = Billing(load_db(release), release=Release(release).value)
@@ -358,6 +363,8 @@ class Candidate:
                 return self._serve_embed(reply)
             case "billing":
                 return self.billing.handle(reply, self.position)
+            case "developer" if self.developer is not None:
+                return self.developer(_wire_payload(reply), len(self.billing.log))
             case other:
                 raise ValueError(f"unknown call {other!r}")
 
@@ -400,8 +407,7 @@ class Conversation:
     """One simulated case: greeting, agent turns with tool rounds, then the wrap-up.
 
     The loop ends when the developer sends a stop token, the agent stops
-    itself, or the conversation hits `MAX_STEPS`. `CustomerError` propagates
-    (an invalid run); anything else becomes `agent_error` on the result.
+    itself, or the conversation hits `MAX_STEPS`. Any error becomes `agent_error` on the result.
     """
 
     def __init__(self, case: Scenario, workspace: Path, log_dir: Path, customer: Speaker,
@@ -422,8 +428,6 @@ class Conversation:
         started = time.monotonic()
         try:
             self._converse()
-        except CustomerError:
-            raise
         except Exception as error:
             self.result.termination = Termination.AGENT_ERROR
             self.result.error = f"{type(error).__name__}: {error}"[:4000]
@@ -447,11 +451,11 @@ class Conversation:
 
     def _open(self) -> Message:
         self.candidate = Candidate(self.workspace, self.log_dir / f"agent_{self.result.case_id}.log",
-                                   self.home, self.release)
+                                   self.home, self.release, developer=self.customer.handle)
         self.candidate.request({"op": "init", "models": [asdict(m) for m in gateway.MODELS],
                                 "embedding_models": [asdict(m) for m in gateway.EMBEDDING_MODELS],
                                 "first_message": to_dict(self.messages[0])})
-        pending = self.customer.reply(GREETING)
+        pending = self.customer.reply(GREETING, handed_off=False)
         self.messages.append(pending)
         return pending
 
@@ -472,7 +476,7 @@ class Conversation:
             return None
         if next_pending is not None:
             return next_pending
-        answer = self.customer.reply(reply.content or "")
+        answer = self.customer.reply(reply.content or "", handed_off=candidate.billing.handoff is not None)
         self.messages.append(answer)
         return answer
 
@@ -494,6 +498,7 @@ class Conversation:
         if self.candidate is not None:
             self.result.model_calls = self.candidate.model_calls
             self.result.embedding_calls = self.candidate.embedding_calls
+            self.result.developer_calls = list(self.customer.calls)
             self.result.billing = BillingRecord(
                 state=self.candidate.billing.state,
                 log=tuple(self.candidate.billing.log),
@@ -506,5 +511,5 @@ class Conversation:
 
 def run_case(case: Scenario, workspace: Path, log_dir: Path, customer: Speaker,
              release: Release = Release.R0) -> Result:
-    """Converse until the customer ends it or the agent runs out of steps. CustomerError propagates."""
+    """Converse until the customer ends it or the agent runs out of steps."""
     return Conversation(case, workspace, log_dir, customer, release).run()

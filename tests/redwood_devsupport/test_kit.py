@@ -203,7 +203,7 @@ def test_a_subagents_escalation_is_recorded_and_it_uses_the_default_model(monkey
     assert "Never promise a credit." in tool_results[0] and "unknown skill 'refunds'" in tool_results[1]
     assert '"answer": "Sent to finance."' in tool_results[2]
     model, kwargs, messages, tools = calls[3]  # the subagent's first call
-    assert (model, kwargs, tools) == ("gpt-6-sol", {"reasoning_effort": "high"}, ["escalate"])
+    assert (model, kwargs, tools) == ("claude-opus-5-5", {}, ["escalate"])
     assert messages[0].content == "You route credit requests."
 
 

@@ -1,15 +1,16 @@
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/opt
 
+COPY environment/requirements.lock /tmp/requirements.lock
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl git jq ripgrep \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 1000 harbor \
-    && pip install --no-cache-dir "pydantic>=2.9,<3" "openai>=1.100,<3" "numpy>=2,<3" "lancedb>=0.22,<0.30" \
-        "ragas==0.4.3" "langchain-community==0.3.31"
+    && pip install --no-cache-dir -r /tmp/requirements.lock \
+    && rm /tmp/requirements.lock
 
 COPY environment/redwood_kit/ /opt/redwood_kit/
 COPY environment/advance.py /usr/local/libexec/redwood-advance
@@ -18,13 +19,13 @@ COPY environment/probe_key/ /opt/redwood-probes/
 # Starting workspace: the verifier's baseline for what the builder changed in build_r0.
 COPY environment/app/workspace/ /opt/redwood-baseline/workspace/
 # Everything R1-only lives in this root-only overlay until advance.py reveals it.
-COPY --from=redwood R1/ /opt/redwood-overlays/R1/R/
+COPY environment/corpus/R1/ /opt/redwood-overlays/R1/R/
 COPY environment/r1/ /opt/redwood-overlays/R1/
 COPY data/db_r1.json /opt/redwood-overlays/R1/db_r1.json
 
 WORKDIR /app
 COPY environment/app/ /app/
-COPY --from=redwood R0/ /app/R/
+COPY environment/corpus/R0/ /app/R/
 COPY data/db.json /opt/redwood-data/db.json
 
 # /app/R is readable by the builder (group harbor) and not by the user the agent runs as.

@@ -7,7 +7,7 @@ TASK = Path(__file__).resolve().parents[2] / "tasks" / "redwood-devsupport"
 sys.path[:0] = [str(TASK / "tests"), str(TASK / "environment")]
 
 from grade.scenarios import Scenario  # noqa: E402
-from redwood_kit.messages import AssistantMessage, ToolCall, UserMessage  # noqa: E402
+from redwood_kit.messages import AssistantMessage, SystemMessage, ToolCall, ToolMessage, UserMessage  # noqa: E402
 from run import (
     gateway,  # noqa: E402
     run_agent,  # noqa: E402
@@ -15,12 +15,19 @@ from run import (
 
 
 class ScriptedCustomer:
-    def __init__(self, *turns: str) -> None:
-        self.turns, self.heard = list(turns), []
+    def __init__(self, *turns: str, facts: dict | None = None, confirm: str = "yes") -> None:
+        self.turns, self.heard, self.calls, self.requests = list(turns), [], [], []
+        self.facts, self.confirm = facts or {}, confirm
 
-    def reply(self, agent_text: str) -> UserMessage:
+    def reply(self, agent_text: str, handed_off: bool) -> UserMessage:
         self.heard.append(agent_text)
         return UserMessage(content=self.turns.pop(0))
+
+    def handle(self, request: dict, order: int) -> dict:
+        self.requests.append((request, order))
+        if request["op"] == "ask":
+            return {"answers": {f: self.facts.get(f, "I don't have that.") for f in request["fields"]}}
+        return {"answer": self.confirm, "message": self.confirm}
 
 
 def converse(monkeypatch, tmp_path, agent_turns, customer, files=None):
@@ -143,25 +150,35 @@ def test_transfer_token_is_its_own_termination(monkeypatch, tmp_path):
     assert result.termination == "customer_transfer"
 
 
-def test_generate_sends_function_tools_without_strict_unchanged(monkeypatch):
+def test_generate_sends_messages_api_tools_and_turns(monkeypatch):
     sent = {}
 
-    class Responses:
+    class Messages:
         def create(self, **request):
             sent.update(request)
-            return gateway.Response.model_validate({
-                "id": "r", "created_at": 0, "model": "m", "object": "response", "parallel_tool_calls": True,
-                "tool_choice": "auto", "tools": [],
-                "output": [{"type": "message", "id": "m", "role": "assistant", "status": "completed",
-                            "content": [{"type": "output_text", "text": "hi", "annotations": []}]}],
-            })
+            return gateway.AnthropicMessage.model_validate({
+                "id": "m", "type": "message", "role": "assistant", "model": "claude-opus-5-5",
+                "content": [{"type": "text", "text": "hi"},
+                            {"type": "tool_use", "id": "toolu_2", "name": "find_account", "input": {"q": "x"}}],
+                "stop_reason": "tool_use", "stop_sequence": None,
+                "usage": {"input_tokens": 10, "output_tokens": 3}})
 
     class Client:
-        responses = Responses()
+        messages = Messages()
 
-    monkeypatch.setattr(gateway, "_openai", lambda: Client())
+    monkeypatch.setattr(gateway, "_anthropic", lambda: Client())
     tool = {"type": "function", "name": "find_account", "description": "d",
             "parameters": {"type": "object", "properties": {}, "required": []}}
-    reply = gateway.generate("m", [UserMessage(content="hello")], [tool], None)
-    assert reply.content == "hi"
-    assert sent["tools"] == [tool]
+    history = [SystemMessage("be nice"), AssistantMessage(content="Hi! How can I help?"), UserMessage(content="hello"),
+               AssistantMessage(tool_calls=[ToolCall("toolu_1", "find_account", {})]),
+               ToolMessage(id="toolu_1", content="{}")]
+    reply = gateway.generate("claude-opus-5-5", history, [tool], "required")
+    assert (reply.content, reply.tool_calls) == ("hi", [ToolCall("toolu_2", "find_account", {"q": "x"})])
+    assert reply.usage == {"prompt_tokens": 10, "completion_tokens": 3}
+    assert sent["system"] == "be nice"
+    assert sent["tools"] == [{"name": "find_account", "description": "d", "input_schema": tool["parameters"]}]
+    assert sent["tool_choice"] == {"type": "auto"}  # the model rejects forced choices
+    assert [turn["role"] for turn in sent["messages"]] == ["user", "assistant", "user", "assistant", "user"]
+    assert sent["messages"][0]["content"][0]["text"] == gateway.OPENING
+    assert sent["messages"][4]["content"] == [{"type": "tool_result", "tool_use_id": "toolu_1", "content": "{}",
+                                               "is_error": False}]

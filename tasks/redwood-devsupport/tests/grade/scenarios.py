@@ -13,8 +13,10 @@ from __future__ import annotations
 import json
 from enum import StrEnum
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from redwood_kit.developer import FIELDS
 from redwood_kit.jsontypes import JsonObject
 
 SCENARIOS_PATH = Path(__file__).resolve().parents[1] / "data" / "billing_scenarios.json"
@@ -87,14 +89,41 @@ class CustomerBrief(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    # Field order is load-bearing: the customer prompt dumps this model as JSON
-    # and must stay byte-identical to the raw scenario block.
     today: str = ""
     persona: str = ""
     reason_for_contact: str = ""
     known_info: str = ""
     unknown_info: str = ""
     task_instructions: str = ""
+
+
+class CustomerScript(BaseModel):
+    """The scripted developer: what they write, in order, and what they answer when asked.
+
+        opening   the first message, after the agent's greeting
+        agenda    the next messages, one per agent reply, whatever the agent said
+        facts     answers to `ask_developer`, by field; any other field gets "I don't have that"
+        confirm   the answer to every `confirm_with_developer`; `confirm_reply` is said with it
+
+    Once the conversation is handed to a team the developer ends it with a transfer on the agent's next
+    reply; otherwise they end it with a stop when the agenda is used up. So every question the agent must
+    answer from the console is asked before the handoff the scenario expects.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    opening: str
+    agenda: tuple[str, ...] = ()
+    facts: dict[str, str] = {}
+    confirm: Literal["yes", "no"] = "yes"
+    confirm_reply: str = ""
+
+    @model_validator(mode="after")
+    def _facts_use_the_field_vocabulary(self) -> CustomerScript:
+        unknown = sorted(set(self.facts) - set(FIELDS))
+        if unknown:
+            raise ValueError(f"facts use fields outside redwood_kit.developer.FIELDS: {unknown}")
+        return self
 
 
 class Action(BaseModel):
@@ -144,7 +173,8 @@ class Scenario(BaseModel):
     category: str = ""
     purpose: Purpose = Purpose.BASELINE
     brief: CustomerBrief = Field(default_factory=CustomerBrief, validation_alias="scenario",
-                                 serialization_alias="scenario")
+                                 serialization_alias="scenario")  # the situation, for readers; not run
+    customer: CustomerScript = CustomerScript(opening="Hi.")  # every shipped scenario sets its own (test-enforced)
     db: DbExpectation | None = None
     actions: tuple[Action, ...] = ()
     communicate: tuple[tuple[str, ...], ...] = ()  # values the agent must tell the customer; any form of each counts
