@@ -5,17 +5,20 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/opt
 
 COPY environment/requirements.lock /tmp/requirements.lock
+# nodejs, npm and procps are what Harbor's Claude Code installer would apt-get at run time, where the builder has
+# no route to the Debian mirrors; having them here makes that step a no-op.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl git jq ripgrep \
+    && apt-get install -y --no-install-recommends ca-certificates curl git jq ripgrep nodejs npm procps \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 1000 harbor \
     && pip install --no-cache-dir -r /tmp/requirements.lock \
-    && rm /tmp/requirements.lock
+    && rm /tmp/requirements.lock \
+    && python -c "from fastembed import TextEmbedding; TextEmbedding('sentence-transformers/all-MiniLM-L6-v2', cache_dir='/opt/redwood-models')" \
+    && chmod -R a=rX /opt/redwood-models
 
 COPY environment/redwood_kit/ /opt/redwood_kit/
 COPY environment/advance.py /usr/local/libexec/redwood-advance
 COPY environment/entrypoint.sh /usr/local/bin/redwood-entrypoint
-COPY environment/probe_key/ /opt/redwood-probes/
 # Starting workspace: the verifier's baseline for what the builder changed in build_r0.
 COPY environment/app/workspace/ /opt/redwood-baseline/workspace/
 # Everything R1-only lives in this root-only overlay until advance.py reveals it.
@@ -41,8 +44,7 @@ RUN python -c 'import json; from pathlib import Path; from redwood_kit.billing.s
     && cd /app \
     && chmod 700 /usr/local/libexec/redwood-advance \
     && chmod 755 /usr/local/bin/redwood-entrypoint \
-    && chmod 700 /opt/redwood-probes \
-    && chmod -R go-rwx /opt/redwood-baseline /opt/redwood-overlays /opt/redwood-probes /opt/redwood-data /tests /logs/verifier \
+    && chmod -R go-rwx /opt/redwood-baseline /opt/redwood-overlays /opt/redwood-data /tests /logs/verifier \
     && chmod 711 /logs \
     && chmod -R a=rX /app \
     && chown -R root:harbor /app/R && chmod -R u=rX,g=rX,o= /app/R \

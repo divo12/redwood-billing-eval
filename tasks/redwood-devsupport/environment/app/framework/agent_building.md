@@ -356,13 +356,12 @@ This adapts the experiment ledger and recorded-rollout comparisons in
 [Evo-Bench][evo-ledger] and [its trace tools][evo-traces]. It does not supply
 Evo-Bench's evaluation service, iteration quota, or optimizer in this runtime.
 
-Practice questions and `retrieval_score` are described in
-[offline-rag/README.md](offline-rag/README.md). They score submitted retrieval
-evidence, not complete conversations. There is no supplied public
+Practice questions are described in [offline-rag/README.md](offline-rag/README.md):
+run them through your retrieval and read the results. They test retrieved
+evidence, not complete conversations, and there is no scorer and no supplied
 conversation-grading endpoint. You can write your own development checks and
-keep those separate from independent evaluation. A provider error is not the
-same thing as a low quality score. Live model calls spend build time; the
-synthetic example below makes none.
+keep those separate from independent evaluation. Live model calls spend build
+time; the synthetic example below makes none.
 
 ## Maintenance and delivery
 

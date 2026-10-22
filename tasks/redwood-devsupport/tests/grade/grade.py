@@ -23,7 +23,7 @@ identical across runs; only the agent varies.
 
 The command line layers workspace directories (later files win) and grades
 them locally, outside Harbor, for calibration. It needs ANTHROPIC_API_KEY (the
-agent's model) and OPENAI_API_KEY (embeddings).
+agent's model); embeddings run on the local model in /opt/redwood-models.
 """
 from __future__ import annotations
 
@@ -91,7 +91,7 @@ class Rate(BaseModel):
     output_per_million: float
 
 
-CREDIT_RATES = {"claude-opus-5-5": Rate(input_per_million=15.0, output_per_million=75.0)}
+CREDIT_RATES = {"claude-sonnet-5-5": Rate(input_per_million=2.0, output_per_million=10.0)}
 # Unset until an oracle run on R0 and R1 calibrates it; no penalty applies until then.
 CREDIT_BUDGET: float | None = None
 
@@ -491,6 +491,7 @@ def main(argv: list[str] | None = None) -> int:
     run_agent.KIT_PATH = str(TESTS.parent / "environment")
     only = frozenset(args.only.split(",")) if args.only else None
     with tempfile.TemporaryDirectory() as tmp:
+        Path(tmp).chmod(0o755)  # as root the agent runs as nobody, which must reach its workspace (0700 by default)
         workspace = _layered(args.layers, Path(tmp) / "workspace")
         summary, graded = run_step(args.step, workspace, args.out, workers=args.workers,
                                    select=Selection(only=only, release=args.release))

@@ -49,26 +49,22 @@ are design choices.
 - Builder: Harbor `claude-code`, `claude-opus-5-5`, effort `high`
   (`run-config.claude.json`); the same session resumes across steps. The
   verifier also accepts a Pi session, which the oracle writes.
-- Deployed agent: `claude-opus-5-5` without extended thinking, enforced by
+- Deployed agent: `claude-sonnet-5-5` with prompt caching, no extended thinking, enforced by
   the deployment manifest and the Anthropic gateway in `tests/run/gateway.py`.
-  Embedding models remain `text-embedding-3-small` and `text-embedding-3-large`
-  (OpenAI).
+  Embeddings: `sentence-transformers/all-MiniLM-L6-v2` run locally (fastembed/ONNX, weights baked into the image,
+  ~28 texts/s on 2 CPUs); no OpenAI key or host anywhere.
 - Developer: a fixed script per scenario (`customer` in
   `tests/data/billing_scenarios.json`), no model. Facts come only through the
   `ask_developer` tool and consent through `confirm_with_developer`.
 - Builder limits: R0 7200 seconds, R1 3600 seconds; 2 CPUs, 8192 MiB memory,
   20480 MiB storage. Network: Anthropic hosts for the builder's harness and
-  `api.openai.com` for embeddings and the score service.
+  nothing else.
 - Runtime: frozen read-only workspace, no direct external network or credentials,
   gateway inference, 4 GiB address space and 128 MiB per-file write limit.
   At most 40 agent turns per conversation, including tool rounds. Each wait
   for candidate output has a 180-second timeout, distinct from gateway
   provider timeouts. Each complete verifier step is bounded at 3600 seconds.
-- Optional practice judge: `gpt-5.6-sol`, pinned RAGAS 0.4.3; no live calibration
-  of these diagnostics is claimed. Judge calls use a per-request client and
-  one event loop, a 60-second provider timeout with one SDK retry, and a
-  240-second deadline around the complete metric operation. Client timeout:
-  270 seconds. Calls are serial, with no shared mutable API-key environment.
+- No practice judge: retrieval practice questions are read by the builder, not scored.
 
 ## Builder engineering references
 
@@ -197,215 +193,22 @@ are unchanged. You have 3600 seconds in this step. The support agent still
 cannot read `/app/R`; all knowledge it needs must ship in the workspace.
 
 Optional practice questions in `framework/retrieval_probes.json` list the
-releases they apply to. The score service uses the current release from
-`/etc/redwood-release`. Practice scores remain advisory and are separate from
+releases they apply to; use the ones for the current release in
+`/etc/redwood-release`. What you read from them is advisory and separate from
 the held-out billing conversations that determine success.
 ```
 
-## Practice API and truth
-
-`score(question, chunks)` is optional development feedback. The question must
-match a visible probe; `chunks` contains actual evidence returned by the
-builder's workflow, including any follow-up reads. There may be at most eight
-strings and 12000 total characters including whitespace/metadata. Lengths are
-flexible within that aggregate limit. Oversize input is rejected, not clipped.
-This request limit does not prescribe runtime chunking or retrieval budgets.
-
-Success returns `context_precision`, `context_recall`, `release`, `group`, and
-`elapsed_seconds`. The release is read afresh from `/etc/redwood-release`.
-A question unavailable in the current release returns `wrong_release`; the
-service never scores it against future evidence. R0 questions retain their
-explicit R1 reference entries; new R1 questions are added to practice coverage.
-The builder should report billing and general-retrieval diagnostics separately.
-There is no required sweep, threshold, second ranker, or combined-mean rule.
-
-Empty evidence on an applicable question legitimately returns two zeroes,
-without a credential or judge call. Nonempty evidence requires the builder's
-runtime-supplied `OPENAI_API_KEY`. Classified errors include `invalid_request`,
-`over_budget`, `wrong_release`, `missing_credentials`, `timeout`,
-`provider_error`, `invalid_judge_output`, `service_unavailable`, and
-`service_error`. Failures never become numeric zeroes. Optional diagnostic
-failure does not prevent delivery; its elapsed time still consumes build time.
-If infrastructure prevents a comparable required run, invalidate and rerun it.
-
-Precision is RAGAS average precision over useful retrieved passages, not the
-fraction of useful passages. Recall is attribution of required reference
-claims to submitted evidence. Neither independently proves authoritative
-current policy, actual runtime retrieval, or final conversation success.
-
-Hidden reference fixtures contain required claims, source paths, source
-release, record date, status, scope, and verbatim field-level excerpts. The
-following is the control-plane truth; these answers are not copied into the
-public questions or World Skill. Accept equivalent evidence supporting the
-claims and qualifications; do not require a specific document id in the
-builder's answer. Source excerpts in `environment/probe_key/references.json`
-are mechanically checked against the unchanged corpus.
-
-### b1 — billing / paraphrase
-
-Releases: R0, R1.
-
-Question: A United States company is adding Redwood as a vendor. Which tax form do we send, and which payment rail do we prefer?
-
-Required reference claims:
-
-- Redwood Inference, Inc. is a US entity and provides a completed W-9, not a W-8.
-- The preferred payment rail is ACH.
-
-Source evidence:
-
-- `R0/sources/gmail/monica_patel/20260308-w9-remit-invoice-3345-acme-healthtech.json`; status `correspondence`; record date `2026-03-10T14:22:11-07:00`. Scope: Legal/Tax confirmation and Finance remittance guidance in vendor onboarding correspondence.
-
-### b2 — billing / draft_authority
-
-Releases: R0, R1.
-
-Question: In the Dedicated Pricing Tiers v1 proposal, what minimum term is proposed for Premium, who approves an exception, and does this document establish that the proposal is approved?
-
-Required reference claims:
-
-- The proposal gives Premium a 12-month minimum; exceptions require VP Sales and Finance approval.
-- The page is in_review and describes proposed pricing, so it does not by itself establish an approved current offer.
-
-Source evidence:
-
-- `R0/sources/confluence/product-docs/pricing-and-packaging/dedicated-pricing-tiers-v1.json`; status `in_review`; record date `2025-03-27`. Scope: document-specific.
-
-### b3 — billing / paraphrase
-
-Releases: R0, R1.
-
-Question: For a Private deployment, do the regulated-customer packaging notes say setup work is always included in the annual fee, and what support level is generally required?
-
-Required reference claims:
-
-- The notes allow a separate one-time implementation or onboarding fee for complex networking, custom topology, or on-prem installs.
-- Private generally requires Enhanced or Enterprise support.
-
-Source evidence:
-
-- `R0/sources/confluence/product-docs/pricing-and-packaging/private-deployments-compliance-addendum-pricing-notes.json`; status `published`; record date `2025-06-06`. Scope: Published internal packaging guidance for regulated Dedicated/Private opportunities.
-
-### b4 — billing / exact_id_and_missing_evidence
-
-Releases: R0, R1.
-
-Question: Does INT-4928 establish that Finance can already edit invoice amounts in the admin console? What access and scope does the ticket actually propose?
-
-Required reference claims:
-
-- INT-4928 is In Progress, so the ticket does not establish deployment.
-- It proposes a restricted finance/admin read-only invoice view with RBAC; invoice edits and billing-calculation changes are outside its scope.
-
-Source evidence:
-
-- `R0/sources/jira/misc-requests/INT-4928-expose-invoice-metadata-console.json`; status `In Progress`; record date `2025-11-18`. Scope: document-specific.
-
-### b5 — billing / historical_case
-
-Releases: R0, R1.
-
-Question: For VerdeHealth in SUP-231418, what broke negotiated-rate reconciliation during failover, and what fix does the resolved ticket record?
-
-Required reference claims:
-
-- The proxy stripped X-Private-Origin during retries, preventing negotiated-rate reconciliation for the fallback window.
-- The recorded resolution preserved that header in the postback forwarder, applied the customer-specific credit, and added a missing-rate-lookup check. This describes that resolved case, not a universal credit entitlement.
-
-Source evidence:
-
-- `R0/sources/jira/customer-support/SUP-231418-sustainability-discount-missing-after-private-fallback-invoice-discrepancy.json`; status `Resolved`; record date `2026-02-25`. Scope: Resolved VerdeHealth-specific contract and invoice incident.
-
-### b6 — billing / conflicting_sources
-
-Releases: R0, R1.
-
-Question: The hardware lease cost model uses Bronze/Silver/Gold support while the regulated Private packaging notes use Standard/Enhanced/Enterprise. Which document is draft versus published, and can the cost model alone establish an approved customer quote?
-
-Required reference claims:
-
-- The hardware lease cost model is a draft with illustrative prices that must be rerun for customer inputs.
-- The regulated Private packaging notes are published and use Standard, Enhanced, and Enterprise support guidance.
-- The documents differ in scope and status; the draft cost model alone does not establish an approved quote or a mapping between those tier names.
-
-Source evidence:
-
-- `R0/sources/google_drive/shared_drives/engineering/private-deployments/hardware-lease-vs-cloud-billing-playbook.json`; status `draft`; record date `2025-02-20`. Scope: Illustrative internal financing cost model.
-- `R0/sources/confluence/product-docs/pricing-and-packaging/private-deployments-compliance-addendum-pricing-notes.json`; status `published`; record date `2025-06-06`. Scope: Regulated deployment packaging guidance.
-
-### b7 — billing / new_release_evidence
-
-Releases: R1.
-
-Question: According to the Marketplace RevRec & Invoicing Notes, can Finance drop legacy SKU mappings when v2 launches, and how long should reporting distinguish legacy from v2?
-
-Required reference claims:
-
-- Legacy SKUs must remain mapped to internal meters until fully sunset.
-- Revenue reporting separates legacy and v2 SKUs for at least two quarters after launch.
-
-Source evidence:
-
-- `R1/sources/confluence/finance-and-legal/revrec-and-billing/marketplace-revrec-and-invoicing-notes.json`; status `published`; record date `2026-02-19`. Scope: Published marketplace SKU migration and revenue reporting guidance.
-
-### b8 — billing / new_release_conflict
-
-Releases: R1.
-
-Question: Are the reserved-GPU-month conversion rule and the Business billing example in Packaged tiers and credit conversion guidelines internally consistent enough to quote a compute-hour entitlement? Identify the discrepancy.
-
-Required reference claims:
-
-- The conversion rule says one reserved-GPU-month equals 720 compute-hours.
-- The Business example instead says three reserved-GPU-months cover 216 hours using 3*72.
-- Those statements conflict: three times 720 would be 2160 hours, so this document alone does not establish an unambiguous entitlement to quote; seek clarification.
-
-Source evidence:
-
-- `R1/sources/confluence/product-docs/pricing-and-packaging/packaged-tiers-credit-conversion-guidelines-2024.json`; status `published`; record date `2025-02-20`. Scope: Internal inconsistency within this published guideline; not an adjudicated customer entitlement.
-
-### n2 — general_retrieval / exact_id
-
-Releases: R0, R1.
-
-Question: What did ticket SUP-1913 decide?
-
-Required reference claims:
-
-- SUP-1913 was tool-call arguments returned as plain text, which crashed a JSON parser. The workaround was to move the tool schema earlier in the system prompt, add a strict JSON instruction, and enable tool_args_json_mode=strict. The failure rate fell to about 0.2 percent and the ticket was closed.
-
-Source evidence:
-
-- `R0/sources/jira/customer-support/SUP-1913-tool-args-plain-text-instead-of-json.json`; status `Closed`; record date `2025-03-10`. Scope: Historical decision in the closed support ticket.
-
-### n4 — general_retrieval / multi_fact
-
-Releases: R0, R1.
-
-Question: The public board still says operational while their calls are failing. What do we collect first, and who is allowed to change that board?
-
-Required reference claims:
-
-- Before escalating, collect the contract type, impacted region, impact start time with timezone, symptoms, 3 to 5 request IDs, and the endpoint. The Comms Lead posts or adjusts the status page. Support does not publish Sev0 or Sev1 status updates unless explicitly authorized.
-
-Source evidence:
-
-- `R0/sources/confluence/customer-success-and-support/escalation-playbook/status-page-customer-escalation-playbook.json`; status `published`; record date `2026-01-12`. Scope: document-specific.
-
-### n5 — general_retrieval / quoted_exact_terms
-
-Releases: R0, R1.
-
-Question: For Redwood Private, which bundle version first includes "audit-export-connector", and which sinks does "auditExport" support?
-
-Required reference claims:
-
-- Customer-managed audit log export needs a Redwood Private bundle v2.8.0 or later, which includes audit-export-connector.
-- The supported sinks are AWS S3, Google Cloud Storage, and Azure Blob Storage.
-
-Source evidence:
-
-- `R0/sources/confluence/eng-private-deployments/deployment-guides/private-audit-log-export-configuration.json`; status `published`; record date `2026-01-18`. Scope: document-specific.
+## Practice questions
+
+`framework/retrieval_probes.json` lists practice questions (6 billing and 3
+general-retrieval at R0; 2 more billing at R1) with the releases they apply to.
+There is no scorer and no reference answers: the builder runs each applicable
+question through its own retrieval, reads the returned passages and judges
+whether the evidence is present, buried, stale or contradicted
+(`framework/offline-rag/README.md` has the loop). Nothing here is graded or
+scored and no OpenAI credential or judge model is involved. An earlier
+revision shipped a RAGAS-based score service with private references; it was
+removed because it needed an OpenAI key and its metrics were advisory only.
 
 ## Final outcome and independent verification
 
@@ -574,20 +377,17 @@ document describes the pre-repair findings, not the current runtime contract.
 
 Local verification: all tests in `tests/redwood_devsupport` pass, and
 `scripts/check_redwood.sh` (ruff, strict mypy, xenon, no getattr/setattr)
-passes. The suite includes the real pinned RAGAS/SDK adapter with intercepted
-provider responses. Command (no model credentials or paid requests):
+passes. Command (no model credentials or paid requests):
 
 ```sh
-uv run --python 3.12 --no-project --with 'openai>=1.100,<3' --with 'pydantic>=2.9,<3' --with pytest \
-  --with 'ragas==0.4.3' --with 'langchain-community==0.3.31' \
+uv run --python 3.12 --no-project --with pytest --with httpx --with 'pydantic>=2.9,<3' \
+  --with 'openai>=1.100,<3' --with 'anthropic>=0.60,<1' --with 'fastembed==0.9.0' \
   --with 'lancedb>=0.22,<0.30' --with 'numpy>=2,<3' pytest -q tests/redwood_devsupport
 ```
 
-Checks cover field-level reference provenance, no silent evidence clipping,
-empty results, unavailable-release queries, over-budget evidence, missing
-credentials, invalid numbers, deadline cancellation and next-request recovery,
-wrapped provider errors, and actual pinned RAGAS/SDK request construction with
-fake provider responses. A scripted support conversation verifies that each
+Checks cover the billing console, the scripted developer and consent order,
+the provider gateways (provider errors invalidate a run, bad agent requests do
+not), grading, and the oracle workspaces. A scripted support conversation verifies that each
 tool result reaches the next model call and appears in retained evidence.
 
 Docker packaging checks built the actual image, exercised builder/socket

@@ -19,7 +19,7 @@ verify.py                entry point: verify.py build_r0 | maintain_r1   (orches
 run/                     one conversation
 ├── run_agent.py         sandboxed agent + billing store + the conversation loop
 ├── customer.py          the scripted developer: opening, agenda, facts for ask_developer, the confirm answer
-└── gateway.py           the agent's model calls (Anthropic) and embeddings (OpenAI); the allowed models
+└── gateway.py           the agent's model calls (Anthropic) and embeddings (local MiniLM); the allowed models
 grade/                   the reward
 ├── grade.py             the code-decided checks (db, action), the credit overage
 │                        against the published budget; runs every scenario of a step and sums the reward
@@ -145,7 +145,7 @@ They would only repeat another check: the escalation team (DB check), ordinary w
 ## Running it locally
 
 ```sh
-# one step, one or two cases, your workspace (needs ANTHROPIC_API_KEY and OPENAI_API_KEY)
+# one step, one or two cases, your workspace (needs ANTHROPIC_API_KEY; embeddings need the model in /opt/redwood-models)
 cd tasks/redwood-devsupport/tests && python -m grade.grade build_r0 path/to/workspace --only a0-12,a0-03
 
 # the verifier's unit tests

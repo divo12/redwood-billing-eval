@@ -18,8 +18,8 @@ are unchanged. You have 3600 seconds in this step. The support agent still
 cannot read `/app/R`; all knowledge it needs must ship in the workspace.
 
 Optional practice questions in `framework/retrieval_probes.json` list the
-releases they apply to. The score service uses the current release from
-`/etc/redwood-release`. Practice scores remain advisory and are separate from
+releases they apply to; use the ones for the current release in
+`/etc/redwood-release`. What you read from them is advisory and separate from
 the held-out billing conversations that determine success.
 
 Use `redwood_kit.billing.development_billing()` to test console-facing

@@ -106,7 +106,7 @@ def test_layer_sizes_and_health(tmp_path):
     assert sizes["skills_lines"] == 2 and sizes["tools_lines"] == 1 and sizes["other_bytes"] == 5
     cases = tmp_path / "log" / "cases"
     cases.mkdir(parents=True)
-    call = ModelCall(model="claude-opus-5-5", kwargs={}, instructions_chars=0, tools=0, prompt_tokens=10, completion_tokens=2,
+    call = ModelCall(model="claude-sonnet-5-5", kwargs={}, instructions_chars=0, tools=0, prompt_tokens=10, completion_tokens=2,
                      messages=[], response={})
     result = Result(case_id="a", seconds=4.0, messages=[{"role": "user"}, {"role": "assistant"}], model_calls=[call])
     (cases / "a.json").write_text(CaseRecord(scenario=Scenario(id="a"), result=result).model_dump_json())

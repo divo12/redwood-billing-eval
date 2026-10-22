@@ -1,5 +1,7 @@
 """The verifier's conversation loop, with scripted model replies and a scripted customer."""
 import shutil
+
+import pytest
 import sys
 from pathlib import Path
 
@@ -157,7 +159,7 @@ def test_generate_sends_messages_api_tools_and_turns(monkeypatch):
         def create(self, **request):
             sent.update(request)
             return gateway.AnthropicMessage.model_validate({
-                "id": "m", "type": "message", "role": "assistant", "model": "claude-opus-5-5",
+                "id": "m", "type": "message", "role": "assistant", "model": "claude-sonnet-5-5",
                 "content": [{"type": "text", "text": "hi"},
                             {"type": "tool_use", "id": "toolu_2", "name": "find_account", "input": {"q": "x"}}],
                 "stop_reason": "tool_use", "stop_sequence": None,
@@ -172,13 +174,53 @@ def test_generate_sends_messages_api_tools_and_turns(monkeypatch):
     history = [SystemMessage("be nice"), AssistantMessage(content="Hi! How can I help?"), UserMessage(content="hello"),
                AssistantMessage(tool_calls=[ToolCall("toolu_1", "find_account", {})]),
                ToolMessage(id="toolu_1", content="{}")]
-    reply = gateway.generate("claude-opus-5-5", history, [tool], "required")
+    reply = gateway.generate("claude-sonnet-5-5", history, [tool], "required")
     assert (reply.content, reply.tool_calls) == ("hi", [ToolCall("toolu_2", "find_account", {"q": "x"})])
-    assert reply.usage == {"prompt_tokens": 10, "completion_tokens": 3}
-    assert sent["system"] == "be nice"
+    assert reply.usage == {"prompt_tokens": 10, "completion_tokens": 3, "cache_write_tokens": 0,
+                           "cache_read_tokens": 0}
+    assert sent["system"] == [{"type": "text", "text": "be nice", "cache_control": {"type": "ephemeral"}}]
     assert sent["tools"] == [{"name": "find_account", "description": "d", "input_schema": tool["parameters"]}]
     assert sent["tool_choice"] == {"type": "auto"}  # the model rejects forced choices
     assert [turn["role"] for turn in sent["messages"]] == ["user", "assistant", "user", "assistant", "user"]
     assert sent["messages"][0]["content"][0]["text"] == gateway.OPENING
     assert sent["messages"][4]["content"] == [{"type": "tool_result", "tool_use_id": "toolu_1", "content": "{}",
-                                               "is_error": False}]
+                                               "is_error": False, "cache_control": {"type": "ephemeral"}}]
+    assert all("cache_control" not in block for turn in sent["messages"][:4] for block in turn["content"])
+
+
+def _status_error(kind, status, message):
+    import httpx
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    return kind(message, response=httpx.Response(status, request=request), body=None)
+
+
+@pytest.mark.parametrize("error, provider", [
+    (lambda: _status_error(gateway.BadRequestError, 400, "Your credit balance is too low"), True),
+    (lambda: _status_error(gateway.RateLimitError, 429, "slow down"), True),
+    (lambda: _status_error(gateway.InternalServerError, 529, "overloaded"), True),
+    (lambda: _status_error(gateway.BadRequestError, 400, "tools.0.name: invalid"), False),
+])
+def test_provider_failures_invalidate_the_run_but_bad_agent_requests_do_not(monkeypatch, error, provider):
+    class Messages:
+        def create(self, **request):
+            raise error()
+
+    class Client:
+        messages = Messages()
+
+    monkeypatch.setattr(gateway, "_anthropic", lambda: Client())
+    expected = gateway.ProviderError if provider else gateway.BadRequestError
+    with pytest.raises(expected):
+        gateway.generate("claude-sonnet-5-5", [UserMessage(content="hi")], None, None)
+
+
+def test_a_provider_failure_escapes_the_conversation_instead_of_scoring_it(monkeypatch, tmp_path):
+    def generate(model, messages, tools, tool_choice, **kwargs):
+        raise gateway.ProviderError("credit balance is too low")
+
+    monkeypatch.setattr(gateway, "generate", generate)
+    monkeypatch.setattr(run_agent, "KIT_PATH", str(TASK / "environment"))
+    workspace = tmp_path / "workspace"
+    shutil.copytree(TASK / "environment" / "app" / "workspace", workspace)
+    with pytest.raises(gateway.ProviderError):
+        run_agent.run_case(Scenario(id="t"), workspace, tmp_path, ScriptedCustomer("Help.", "OK. ###STOP###"))

@@ -10,8 +10,8 @@ from typing import Any
 import lancedb
 from redwood_kit.embeddings import embed
 
-MODEL = "text-embedding-3-small"
-MAX_EMBED_BYTES = 1500
+MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+MAX_EMBED_BYTES = 1000  # the model reads at most 256 tokens
 MAX_EMBED_REQUEST_BYTES = 250_000
 TERMS = {
     "billing": ("billing", "bill", "billed"),
@@ -306,24 +306,36 @@ def _record_chunks(prefix: str, sections: list[tuple[str, str]], limit: int) -> 
     return chunks
 
 
-def build_index(roots: list[Path], workspace: Path) -> tuple[int, int, int]:
+def _existing_table(workspace: Path) -> Any:
+    """The index already in the workspace, or None. R only grows, so its chunks stay valid."""
+    if not (workspace / "evidence.lance").exists():
+        return None
+    return lancedb.connect(str(workspace / "evidence.lance")).open_table("evidence")
+
+
+def build_index(roots: list[Path], workspace: Path, only_new: bool = False) -> tuple[int, int, int]:
+    """Index billing-relevant records. With only_new, embed just the records the index lacks and append them."""
     start = time.perf_counter()
     records = selected_records(roots)
+    existing = _existing_table(workspace) if only_new else None
+    if existing is not None:
+        known = set(existing.to_arrow().column("source").to_pylist())
+        records = [(source, record) for source, record in records if source not in known]
     chunks = []
     for source, record in records:
         status, date, prefix = _metadata(source, record)
         budget = MAX_EMBED_BYTES - len(prefix.encode("utf-8"))
-        for text in _record_chunks(prefix, _sections(record), budget):
+        for number, text in enumerate(_record_chunks(prefix, _sections(record), budget)):
             chunks.append(
                 {
-                    "id": f"{source}#{len(chunks)}",
+                    "id": f"{source}#{number}",
                     "source": source,
                     "status": status,
                     "date": date,
                     "text": text,
                 }
             )
-    if not chunks:
+    if not chunks and existing is None:
         raise ValueError("no billing-relevant source chunks were selected")
 
     vectors = []
@@ -342,8 +354,12 @@ def build_index(roots: list[Path], workspace: Path) -> tuple[int, int, int]:
         vectors.extend(embed(model=MODEL, inputs=batch))
     for chunk, vector in zip(chunks, vectors, strict=True):
         chunk["vector"] = vector
-    database = lancedb.connect(str(workspace / "evidence.lance"))
-    table = database.create_table("evidence", chunks, mode="overwrite")
+    if existing is not None:
+        table = existing
+        if chunks:
+            table.add(chunks)
+    else:
+        table = lancedb.connect(str(workspace / "evidence.lance")).create_table("evidence", chunks, mode="overwrite")
     table.create_fts_index("text", replace=True, with_position=True)
     elapsed = time.perf_counter() - start
     byte_count = sum(len(chunk["text"].encode("utf-8")) for chunk in chunks)
@@ -355,9 +371,11 @@ def build_index(roots: list[Path], workspace: Path) -> tuple[int, int, int]:
 
 
 def main() -> None:
-    roots = [Path(path) for path in sys.argv[1:]] or [Path("/app/R")]
+    args = sys.argv[1:]
+    only_new = "--new" in args
+    roots = [Path(path) for path in args if path != "--new"] or [Path("/app/R")]
     workspace = Path(__file__).resolve().parent
-    build_index(roots, workspace)
+    build_index(roots, workspace, only_new=only_new)
 
 
 if __name__ == "__main__":

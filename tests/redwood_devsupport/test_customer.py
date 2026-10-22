@@ -107,3 +107,9 @@ def test_no_value_the_agent_must_say_is_in_the_developers_script():
             said = " ".join([script.opening, *script.agenda, *script.facts.values(), script.confirm_reply]).lower()
             leaked = [form for forms in scenario.communicate for form in forms if form.lower() in said]
             assert not leaked, (scenario.id, leaked)
+
+
+def test_fields_that_name_the_same_fact_get_the_same_answer():
+    customer = Customer(CustomerScript(opening="Hi.", facts={"billing_period": "March 2027."}))
+    answer = customer.handle({"op": "ask", "fields": ["invoice_month", "billing_period"]}, order=0)
+    assert answer == {"answers": {"invoice_month": "March 2027.", "billing_period": "March 2027."}}

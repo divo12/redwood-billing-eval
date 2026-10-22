@@ -21,6 +21,7 @@ description: Investigate billing, usage, credit, contract, SLA, and invoice ques
 
 11. For a failed card payment, get when it failed (`ask_developer` if not given) and search the status page and payment-incident guidance for a published incident window. Inside the window, explain the incident and the retry the record describes, and open no case. Outside it, follow the payment-failure routing. Never ask for, repeat, or record card digits; if the customer shares them, write only that a card number was shared and removed.
 12. For marketplace-billed accounts (see `billing_channel`), search marketplace billing and refund policy before answering invoices, refunds, or unfamiliar marketplace lines; the marketplace's own process applies, and Support routes only what the retrieved policy assigns to a Redwood team. If the customer asks for something the policy allows only with another team's approval, say it needs that team's approval rather than that it can't be done.
+13. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for `cloud_provider`, `subscription_id`, `line_item_dimension` and `billing_period`, compare them with the account's billing channel, and put them on any case you open.
 
 ## What to retrieve for common questions
 

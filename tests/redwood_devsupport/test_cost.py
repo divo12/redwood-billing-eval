@@ -13,7 +13,7 @@ MANIFEST = TESTS.parent / "environment" / "app" / "framework" / "deployment_mani
 
 
 def _call(prompt, completion):
-    return ModelCall(model="claude-opus-5-5", kwargs={}, instructions_chars=0, tools=0, prompt_tokens=prompt,
+    return ModelCall(model="claude-sonnet-5-5", kwargs={}, instructions_chars=0, tools=0, prompt_tokens=prompt,
                      completion_tokens=completion, messages=[], response={})
 
 
@@ -26,7 +26,7 @@ def test_rates_and_budget_mirror_the_published_manifest():
 
 
 def test_credits_price_prompt_and_completion_tokens_per_million():
-    assert grade.credits([_call(1_000_000, 0), _call(0, 100_000)]) == 15.0 + 7.5
+    assert grade.credits([_call(1_000_000, 0), _call(0, 100_000)]) == 2.0 + 1.0
 
 
 def test_overage_is_the_fraction_of_the_mean_over_budget():

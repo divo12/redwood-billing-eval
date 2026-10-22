@@ -10,7 +10,6 @@ Everything the builder's container is made of.
 | `r1/` | Everything R1-only that the builder may see at R1, installed at root-only `/opt/redwood-overlays/R1` with the R1 records (`R/`) and graded delta (`db_r1.json`). `advance.py` copies `r1/framework/` over `/app/framework` and writes the R1 `schema.json`; the practice service reads `r1/development_seed.json` once the release is R1. |
 | `app/workspace/` | The starter agent the builder begins from (becomes `/app/workspace`). |
 | `advance.py` | Run as root after `build_r0` is scored: copies the R1 overlay into `/app/R`, records the release, and seals `/tests` so the next session cannot read the verifier. Running it twice does nothing. |
-| `probe_key/` | Private references for scoring retrieval probes; not visible to the builder. |
 
 ## app/ (copied to /app, visible to the builder)
 
@@ -50,7 +49,6 @@ Installed at `/opt/redwood_kit`. A workspace's `agent.py` imports it; the verifi
 | `agent_context.py` | The active workspace context and typed gateways (model, embeddings, billing) passed to agent code. |
 | `candidate.py` | The sandboxed side of the wire protocol: reads `init`/`turn`/`tools` requests from the host, answers in JSON. |
 | `embeddings.py` | Embedding models the runtime serves; calls go back to the host. |
-| `retrieval_score.py` | Bounded local service that scores retrieval probes against private references. |
 | `jsontypes.py` | `Json` / `JsonObject` aliases for data that crosses a JSON boundary. |
 | `billing/` | The billing console, see below. |
 

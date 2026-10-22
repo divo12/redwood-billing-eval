@@ -9,12 +9,12 @@ See `RUN_REPORT.md` for the idea, fairness rationale, runs and limitations.
 
 ## Run
 
-Secrets come from your shell (Harbor resolves `${VAR}` from the host):
+Secrets come from your shell (Harbor resolves `${VAR}` from the host). Embeddings run on a local
+sentence-transformer (`sentence-transformers/all-MiniLM-L6-v2`) baked into the image, so no other key is needed:
 
 | Secret | Used by | Hosts |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | the builder (Claude Code) and the support agent A during grading (`claude-opus-5-5`) | `api.anthropic.com` (+ Claude Code's own install/telemetry hosts) |
-| `OPENAI_API_KEY` | embeddings (`text-embedding-3-*`) for the builder's index and A's runtime search, and the builder's optional retrieval score service | `api.openai.com` |
+| `ANTHROPIC_API_KEY` | the builder (Claude Code) and the support agent A during grading (`claude-sonnet-5-5`, prompt-cached) | `api.anthropic.com` (+ Claude Code's own install/telemetry hosts) |
 
 ```sh
 cd <repo root>
@@ -26,6 +26,9 @@ harbor view ./jobs
 ```
 
 Harbor 0.22.0 has no agent named `claude`: Claude Code is `claude-code`.
+
+`REDWOOD_DIAGNOSTICS=0` in your shell skips the 20 unscored `maintain_r1` diagnostic conversations
+(Q01, Q10; see `tests/README.md`). The reward is the same either way.
 
 ## Shape
 

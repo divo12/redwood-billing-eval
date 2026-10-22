@@ -18,6 +18,7 @@ description: Investigate billing, usage, credit, contract, SLA, and invoice ques
 9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.
 
 10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.
+11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for `cloud_provider`, `subscription_id`, `line_item_dimension` and `billing_period`, compare them with the account's billing channel, and put them on any case you open.
 
 ## What to retrieve for common questions
 

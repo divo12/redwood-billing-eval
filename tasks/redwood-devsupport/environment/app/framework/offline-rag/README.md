@@ -108,10 +108,10 @@ as truth. [HyDE](https://aclanthology.org/2023.acl-long.99/).
 
 The [agent contract](../agent_contract.md) lists what is installed: LanceDB,
 NumPy, and `redwood_kit.embeddings.embed` at build time
-(`self.gateway.embed` at runtime). LanceDB stores those vectors and a
-full-text index on the same table, and can search with either or both. Pass
-the texts to `embed` in one call; the runtime batches the provider requests.
-Use the same model and dimensions for documents and queries. Write the index
+(`self.gateway.embed` at runtime), both running the same local model. LanceDB
+stores those vectors and a full-text index on the same table, and can search
+with either or both. Pass the texts to `embed` in one call; it batches
+internally. Use the same model for documents and queries. Write the index
 yourself and keep it in the workspace. The deployed agent cannot import files
 from `/app/framework` and cannot read `/app/R`.
 
@@ -130,7 +130,7 @@ new dependency can be installed.
 Test the workflow the support agent actually uses, including subsequent reads
 and any delegated retrieval. Separate three questions: did it retrieve enough
 evidence, did it interpret authority/scope correctly, and did it answer or act
-correctly? Practice questions and a score service are in [Checking retrieval quality](#checking-retrieval-quality).
+correctly? Practice questions are in [Checking retrieval quality](#checking-retrieval-quality): run them through your retrieval and read the results.
 
 | Observation | Investigation |
 |---|---|
@@ -158,27 +158,29 @@ contract-specific questions.
 
 ## Checking retrieval quality
 
-`retrieval_probes.json` holds billing questions and a separate `general_retrieval` group. Each question names the releases it applies to. When you want to see whether a retrieval design is finding the evidence, pass a question through unchanged and pass the passages your workflow actually returns, including follow-up reads:
+`retrieval_probes.json` holds practice questions: billing ones and a separate `general_retrieval` group. Each names the releases it applies to. There are no reference answers and no scoring service: you read the results and judge them. Run each applicable question through the retrieval your agent ships, including follow-up reads, and look at what comes back:
 
 ```python
-from redwood_kit.retrieval_score import score, ScoreError
-try:
-    result = score(question, chunks)
-except ScoreError as error:
-    print(error.code, str(error))
+import json
+from pathlib import Path
+
+release = Path("/etc/redwood-release").read_text().strip()
+probes = json.loads(Path("/app/framework/retrieval_probes.json").read_text())["probes"]
+for probe in probes:
+    if release not in probe["releases"]:
+        continue
+    print(f"\n## {probe['id']} [{probe['group']}/{probe['category']}] {probe['question']}")
+    for rank, chunk in enumerate(search(probe["question"])[:8], start=1):  # your retrieval
+        print(f"{rank}. {chunk['source']} ({chunk['status']}, {chunk['date']})\n   {chunk['text'][:200]!r}")
 ```
 
-Submit up to 8 strings, at most 12000 characters in total, including metadata and whitespace. Over-budget requests are rejected. The response includes `context_precision`, `context_recall`, `release`, `group`, and `elapsed_seconds`. The reference answers stay on the service.
-
-Context precision is about whether useful passages are ranked ahead of the rest. One useful passage first can score 1.0 even when later passages are irrelevant. Context recall is about how much of the reference those passages support. It does not grade the customer's final answer, and it does not by itself decide which source is current policy.
-
-A request can make up to 9 sequential judge calls. The scoring operation has a 240-second deadline; the client allows 270 seconds. Call one at a time. Provider failures, timeouts, and invalid judge output raise errors rather than zero scores. Elapsed scoring time comes out of the build session. Run a check when you want a reading while you change retrieval. The evaluator scores held-out support conversations.
+For each question ask: is the record that answers it in the results; is it ranked where the agent will read it, or buried; is it current policy or a superseded, draft or contradicted source; and does the chunk carry the fact (the number, the date, the team), or only the title? Keep the questions you change a design for and re-run them after each change. A question you can't answer from the results is a finding about your index, not a score. The evaluator grades held-out support conversations, not these questions.
 
 Build-time embeddings:
 
 ```python
 from redwood_kit.embeddings import embed
-vectors = embed(model="text-embedding-3-small", inputs=["text to index"])
+vectors = embed(model="sentence-transformers/all-MiniLM-L6-v2", inputs=["text to index"])
 ```
 
-At runtime, call `self.gateway.embed` with the same arguments. Use the same model and dimensions for documents and queries. Allowed models are in `deployment_manifest.json`. Pass every text in one call; the runtime batches the provider requests.
+At runtime, call `self.gateway.embed` with the same arguments. Use the same model for documents and queries. The allowed model is in `deployment_manifest.json`: a local sentence-transformer (384 dimensions) that needs no API key. It reads at most 256 tokens (about 1,000 characters) of each text, and embeds roughly 28 such texts per second on this container, so embedding every record in R takes several minutes: decide what to embed, and when R grows, embed what changed. Pass every text in one call; it batches internally.

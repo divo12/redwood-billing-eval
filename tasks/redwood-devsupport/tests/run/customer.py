@@ -23,6 +23,8 @@ UNKNOWN_FACT = "I don't have that."
 DECLINE_REPLY = "No, please don't do that."
 APPROVE_REPLY = "Yes, go ahead."
 STOP_MESSAGE = "Thanks, that's what I needed. ###STOP###"
+# Fields that name the same fact: asking for either gets the developer's answer to whichever the script has.
+SAME_FACT = {"invoice_month": "billing_period", "billing_period": "invoice_month"}
 TRANSFER_MESSAGE = "Thanks for passing it on. ###TRANSFER###"
 
 
@@ -85,7 +87,9 @@ class Customer:
         if not isinstance(fields, list) or not all(isinstance(f, str) and f in FIELDS for f in fields):
             raise ValueError(f"fields must be a list drawn from {list(FIELDS)}")
         names = [f for f in fields if isinstance(f, str)]
-        answers: JsonObject = {name: self.script.facts.get(name, UNKNOWN_FACT) for name in names}
+        facts = self.script.facts
+        answers: JsonObject = {name: facts.get(name) or facts.get(SAME_FACT.get(name, ""), UNKNOWN_FACT)
+                               for name in names}
         self.calls.append(DeveloperCall(op="ask", order=order, fields=names, answer={"answers": answers}))
         return {"answers": answers}
 

@@ -18,8 +18,8 @@ with a runnable synthetic self-check. Consult it when designing or debugging
 agent components; the runtime contract remains authoritative.
 `/app/framework/offline-rag/README.md` and
 `/app/framework/offline-rag/architectures.md` describe retrieval architectures
-and practice questions with a score service you can use when you want to see
-how well retrieval is finding evidence.
+and practice questions you can run through your retrieval to see
+how well it is finding evidence; you read the results and judge them.
 `/app/workspace/` contains a minimal starting agent. Deliver a working agent
 there, using `agent.py` and `tools.py` as the evaluator's entry points. You may
 change the starter and add files. Deliver at least one functional skill and

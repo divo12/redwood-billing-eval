@@ -19,4 +19,4 @@ harbor run -y -c tasks/redwood-devsupport/run-config.claude.json -o "$PWD/jobs" 
 harbor view ./jobs
 ```
 
-Needs `ANTHROPIC_API_KEY` and `OPENAI_API_KEY`; see `tasks/redwood-devsupport/README.md`.
+Needs only `ANTHROPIC_API_KEY`; embeddings run on a local model. See `tasks/redwood-devsupport/README.md`.

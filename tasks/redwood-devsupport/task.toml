@@ -20,25 +20,21 @@ category = "agent-building"
 timeout_sec = 7200.0
 user = "harbor"
 network_mode = "allowlist"
-# The builder's harness (Claude Code: Anthropic hosts) plus OpenAI for embeddings and the score service.
-allowed_hosts = ["api.openai.com", "api.anthropic.com", "statsig.anthropic.com", "downloads.claude.ai", "claude.ai", "console.anthropic.com"]
+# The builder's harness (Claude Code). Embeddings are a local model baked into the image.
+allowed_hosts = ["api.anthropic.com", "statsig.anthropic.com", "downloads.claude.ai", "claude.ai", "console.anthropic.com"]
 
 
 [environment]
 network_mode = "allowlist"
-allowed_hosts = ["api.openai.com", "api.anthropic.com", "statsig.anthropic.com", "downloads.claude.ai", "claude.ai", "console.anthropic.com", "registry.npmjs.org", "nodejs.org", "github.com", "*.githubusercontent.com"]
+allowed_hosts = ["api.anthropic.com", "statsig.anthropic.com", "downloads.claude.ai", "claude.ai", "console.anthropic.com", "registry.npmjs.org", "nodejs.org", "github.com", "*.githubusercontent.com"]
 build_timeout_sec = 1800.0
 os = "linux"
 cpus = 2
 memory_mb = 8192
 storage_mb = 20480
 
-[environment.env]
-# The builder embeds R with redwood_kit.embeddings.embed, which reads this key.
-OPENAI_API_KEY = "${OPENAI_API_KEY}"
-
 [environment.healthcheck]
-command = "test -f /app/workspace/agent.py && test -f /app/workspace/tools.py && test -S /run/redwood/retrieval-score.sock && python -c \"import redwood_kit.candidate\""
+command = "test -f /app/workspace/agent.py && test -f /app/workspace/tools.py && test -S /run/redwood/practice-console.sock && python -c \"import redwood_kit.candidate\""
 interval_sec = 5.0
 timeout_sec = 10.0
 start_period_sec = 20.0
@@ -49,15 +45,23 @@ timeout_sec = 3600.0
 user = "root"
 environment_mode = "shared"
 network_mode = "allowlist"
-# The support agent under test runs on Anthropic; embeddings stay on OpenAI.
-allowed_hosts = ["api.anthropic.com", "api.openai.com"]
+# The support agent under test runs on Anthropic; embeddings run locally. The OpenAI/Azure hosts are
+# only for REDWOOD_SUPPORT_OVERRIDE, a testing switch that official runs leave unset.
+allowed_hosts = ["api.anthropic.com", "api.openai.com", "*.services.ai.azure.com", "*.openai.azure.com"]
 
 [verifier.env]
-OPENAI_API_KEY = "${OPENAI_API_KEY}"
 ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}"
+# 0 skips the unscored maintain_r1 diagnostics (Q01: A0 on R1 cases, Q10: A1 on R0 cases).
+REDWOOD_DIAGNOSTICS = "${REDWOOD_DIAGNOSTICS:-1}"
+# 1 skips grading in both steps (reward 0.0 = not graded); grade the saved workspaces afterwards with scripts/grade_snapshots.sh.
+REDWOOD_DEFER_GRADING = "${REDWOOD_DEFER_GRADING:-0}"
+# Testing only: "openai:<model>" serves the support agent with an OpenAI model (tests/run/openai_gateway.py).
+REDWOOD_SUPPORT_OVERRIDE = "${REDWOOD_SUPPORT_OVERRIDE:-}"
+REDWOOD_OPENAI_REASONING_EFFORT = "${REDWOOD_OPENAI_REASONING_EFFORT:-}"
+OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
+OPENAI_BASE_URL = "${OPENAI_BASE_URL:-}"
 
 [solution.env]
-OPENAI_API_KEY = "${OPENAI_API_KEY}"
 ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}"
 
 [[steps]]

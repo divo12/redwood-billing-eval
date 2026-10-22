@@ -1,9 +1,8 @@
 #!/bin/sh
 set -eu
 umask 077
-python -m redwood_kit.retrieval_score --serve 2>>/logs/verifier/retrieval-score.jsonl &
 python -m redwood_kit.billing.store --serve 2>>/logs/verifier/practice-console.log &
-for sock in retrieval-score practice-console; do
+for sock in practice-console; do
   i=0
   while [ ! -S "/run/redwood/$sock.sock" ]; do
     i=$((i + 1))

@@ -82,8 +82,8 @@ def create_agent():
   order. `.embedding_models` lists the allowed embedding models. Calls must
   satisfy `framework/deployment_manifest.json`: a fixed value is applied for
   you (passing a different one is an error), and a constraint of the form
-  `{"one_of": [...]}` is a choice you pass on every call. `dimensions` is
-  optional on an embedding call.
+  `{"one_of": [...]}` is a choice you pass on every call. Embedding calls
+  take no extra arguments.
 - `runtime_config`: `{"company": "Redwood Inference", "role": "billing_support"}`.
 - `billing`: Redwood's billing console (see "Billing console"), also
   available to tools as `self.billing`.
@@ -144,20 +144,23 @@ table.search(query_type="hybrid").vector(query_vector).text(query_text).limit(8)
 ```
 
 Compute the stored vectors and `query_vector` with `redwood_kit.embeddings.embed`
-at build time and `self.gateway.embed` at runtime. Pass the texts in one call;
-the runtime batches the provider requests. Do not use LanceDB's own
-embedding functions. Use the models in the deployment manifest. Use matching
-model and dimensions for document and query vectors. NumPy is installed.
+at build time and `self.gateway.embed` at runtime. Both run the same local
+model (`sentence-transformers/all-MiniLM-L6-v2`, 384 dimensions, CPU; no API key).
+It reads at most 256 tokens (about 1,000 characters) per text and ignores the
+rest, and embeds roughly 28 such texts per second on this container. Pass the
+texts in one call; it batches internally. Do not use LanceDB's own embedding
+functions. Use the model in the deployment manifest for document and query
+vectors. NumPy is installed.
 
-Practice questions and
-`retrieval_score.score(question, chunks)` are described in
-`framework/offline-rag/README.md`, for when you want to check retrieval quality.
+Practice questions (`framework/retrieval_probes.json`) and how to read your
+retrieval's results on them are described in `framework/offline-rag/README.md`.
+There is no scoring service: you judge the retrieved passages yourself.
 
 ## Resource limits
 
 The builder has 7200 seconds in R0 and 3600 seconds in R1, in a container with
-2 CPUs, 8 GiB memory, and 20 GiB storage. Besides your own model provider, its
-network access is limited to `api.openai.com` (embeddings and the score service). The support process has a 4 GiB address-space limit, a
+2 CPUs, 8 GiB memory, and 20 GiB storage. Besides your own model provider, it
+has no network access; embeddings run locally. The support process has a 4 GiB address-space limit, a
 128 MiB per-file write limit, and no direct external network access. Runtime
 libraries include LanceDB and `numpy`; nothing can be installed after freezing.
 

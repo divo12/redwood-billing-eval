@@ -53,6 +53,7 @@ from redwood_kit.messages import (
 from run import gateway
 from run.customer import OUT_OF_SCOPE_TOKEN, STOP_TOKENS, TRANSFER_TOKEN, DeveloperCall, Speaker
 from run.gateway import json_list
+from run.provider import ProviderError
 
 GREETING = "Hi! How can I help you today?"
 MAX_STEPS = 40  # agent turns, including tool rounds, per conversation
@@ -374,6 +375,8 @@ class Candidate:
         while (reply := self._read()).get("call"):
             try:
                 self._write({"ok": True, **self._dispatch(reply)})
+            except ProviderError:
+                raise  # not the agent's doing: the run is invalid
             except Exception as error:
                 self._write({"ok": False, "error": str(error)[:2000]})
         if not reply.get("ok"):
@@ -407,7 +410,8 @@ class Conversation:
     """One simulated case: greeting, agent turns with tool rounds, then the wrap-up.
 
     The loop ends when the developer sends a stop token, the agent stops
-    itself, or the conversation hits `MAX_STEPS`. Any error becomes `agent_error` on the result.
+    itself, or the conversation hits `MAX_STEPS`. A ProviderError propagates (an invalid run);
+    any other error becomes `agent_error` on the result.
     """
 
     def __init__(self, case: Scenario, workspace: Path, log_dir: Path, customer: Speaker,
@@ -428,6 +432,8 @@ class Conversation:
         started = time.monotonic()
         try:
             self._converse()
+        except ProviderError:
+            raise
         except Exception as error:
             self.result.termination = Termination.AGENT_ERROR
             self.result.error = f"{type(error).__name__}: {error}"[:4000]

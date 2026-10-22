@@ -6,7 +6,7 @@ from typing import Any
 
 import lancedb
 
-MODEL = "text-embedding-3-small"
+MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 RRF_K = 60
 MAX_RESULTS = 8
 MAX_CHARS = 12_000

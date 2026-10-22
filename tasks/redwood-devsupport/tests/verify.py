@@ -241,6 +241,9 @@ def diagnose(step: Step, frozen: Path, graded: list[ScenarioGrade], evidence: Ev
     if step is Step.BUILD_R0:
         keep_a0(frozen, graded)
         return
+    if os.environ.get("REDWOOD_DIAGNOSTICS", "1") == "0":  # skip Q01/Q10: 20 unscored conversations
+        evidence.evolution_error = "skipped: REDWOOD_DIAGNOSTICS=0"
+        return
     try:
         evidence.evolution = evolution_report(frozen, graded)
     except Exception as error:  # a diagnostic failure is reported, not scored
@@ -258,24 +261,43 @@ def _real(workspace: Path, pattern: str, stub: str) -> list[str]:
             if path.relative_to(workspace).as_posix() != stub or _differs(workspace, stub)]
 
 
-def artifact_checks(workspace: Path, graded: list[ScenarioGrade]) -> list[ArtifactCheck]:
-    """The deliverables the instruction promises, checked by code: sizes, components, and their use."""
-    called = {name for g in graded for name in g.tools_called}
+def _exposes(workspace: Path, mixin: str, tool: str) -> bool:
+    """tools.py gives the model this tool: through the kit mixin or a method of its own."""
+    path = workspace / "tools.py"
+    text = path.read_text() if path.is_file() else ""
+    return mixin in text or f"def {tool}(" in text
+
+
+def _size_checks(workspace: Path) -> list[ArtifactCheck]:
+    return [ArtifactCheck(name=f"{name} under {limit} characters", passed=size is not None and size.chars < limit,
+                          detail=f"{size.chars if size else 'missing'} characters")
+            for name, limit in SIZE_LIMITS.items() for size in [_size(workspace / name)]]
+
+
+def _hook_check(workspace: Path) -> ArtifactCheck:
     hooks = workspace / "hooks.py"
-    checks = [ArtifactCheck(name=f"{name} under {limit} characters", passed=size is not None and size.chars < limit,
-                            detail=f"{size.chars if size else 'missing'} characters")
-              for name, limit in SIZE_LIMITS.items() for size in [_size(workspace / name)]]
+    return ArtifactCheck(name="a @hook guardrail",
+                         passed=hooks.is_file() and "@hook" in hooks.read_text() and _differs(workspace, "hooks.py"))
+
+
+def artifact_checks(workspace: Path, graded: list[ScenarioGrade]) -> list[ArtifactCheck]:
+    """The deliverables the instruction promises, checked by code: sizes, components, and that the agent can
+    reach them. Whether a conversation used them is reported (`detail`), not required: "when appropriate"."""
+    called = {name for g in graded for name in g.tools_called}
     skills = _real(workspace, "skills/*/SKILL.md", STUB_SKILL)
     subagents = _real(workspace, "subagents/*.md", STUB_SUBAGENT)
-    checks += [
+    return [
+        *_size_checks(workspace),
         ArtifactCheck(name="a non-stub skill", passed=bool(skills), detail=", ".join(skills)),
         ArtifactCheck(name="a non-stub subagent", passed=bool(subagents), detail=", ".join(subagents)),
-        ArtifactCheck(name="a @hook guardrail", passed=hooks.is_file() and "@hook" in hooks.read_text()
-                      and _differs(workspace, "hooks.py")),
-        ArtifactCheck(name="the skill was loaded in some conversation", passed="load_skill" in called),
-        ArtifactCheck(name="the subagent was delegated to in some conversation", passed="delegate" in called),
+        _hook_check(workspace),
+        ArtifactCheck(name="the agent can load the skill (load_skill)",
+                      passed=bool(skills) and _exposes(workspace, "SkillTools", "load_skill"),
+                      detail=f"loaded in a graded conversation: {'load_skill' in called}"),
+        ArtifactCheck(name="the agent can delegate to the subagent (delegate)",
+                      passed=bool(subagents) and _exposes(workspace, "SubagentTools", "delegate"),
+                      detail=f"delegated in a graded conversation: {'delegate' in called}"),
     ]
-    return checks
 
 
 def reward_of(summary: StepSummary | None, artifacts: list[ArtifactCheck]) -> Reward:
@@ -311,6 +333,12 @@ def run(step: Step) -> int:
     except ValueError as error:
         evidence.artifact_error = str(error)
         finish(evidence)
+        return 0
+    if os.environ.get("REDWOOD_DEFER_GRADING") == "1":  # graded later: scripts/grade_snapshots.sh
+        evidence.artifacts = artifact_checks(APP / "workspace", [])
+        evidence.scrubbed = scrub()
+        finish(evidence)  # reward 0.0 here only means "not graded yet"
+        print(f"{step}: grading deferred; the workspace is kept in the step artifacts")
         return 0
     try:
         summary, graded = run_step(step, frozen, LOGS)

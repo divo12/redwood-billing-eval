@@ -6,7 +6,7 @@ from redwood_kit.skills import load_skills
 from redwood_kit.subagents import load_subagents
 
 HERE = Path(__file__).parent
-MODEL = "claude-opus-5-5"
+MODEL = "claude-sonnet-5-5"
 
 
 class Agent:

@@ -1,9 +1,9 @@
 #!/bin/sh
-# Oracle: overlay the R1 console rule, rebuild evidence across R0 and R1, and resume the same Pi session.
+# Oracle: overlay the R1 console rule, embed only the records R1 added, and resume the same Pi session.
 # /logs/agent only for resumed agents, so the oracle rewrites its session, one line longer.
 set -eu
 cp -R /solution/workspace/. /app/workspace/
-python /app/workspace/build_index.py /app/R
+python /app/workspace/build_index.py --new /app/R
 if [ "$(id -u)" -eq 0 ]; then
   chown -R harbor:harbor /app/workspace
 fi

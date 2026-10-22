@@ -25,7 +25,7 @@ You may add any other files or modules under `workspace/`.
 | `agent_examples.py` | Synthetic executable kit self-check: validated tools, a hook, skill loading, and a scripted delegate; no API calls |
 | `offline-rag/README.md` | Versioned offline engineering pack: architectures, inspection, chunking, retrieval, working examples, and testing guidance |
 | `deployment_manifest.json` | Allowed agent models, embedding models, and their inference constraints |
-| `retrieval_probes.json` | Optional practice questions grouped by domain and applicable release |
+| `retrieval_probes.json` | Practice questions grouped by domain and applicable release; run them through your retrieval and read the results (no scorer) |
 
 The deployment generates `client_api/schema.json` for the current console and
 `client_api/practice_cases.json` for its synthetic development cases.

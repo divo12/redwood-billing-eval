@@ -203,7 +203,7 @@ def test_a_subagents_escalation_is_recorded_and_it_uses_the_default_model(monkey
     assert "Never promise a credit." in tool_results[0] and "unknown skill 'refunds'" in tool_results[1]
     assert '"answer": "Sent to finance."' in tool_results[2]
     model, kwargs, messages, tools = calls[3]  # the subagent's first call
-    assert (model, kwargs, tools) == ("claude-opus-5-5", {}, ["escalate"])
+    assert (model, kwargs, tools) == ("claude-sonnet-5-5", {}, ["escalate"])
     assert messages[0].content == "You route credit requests."
 
 
@@ -330,15 +330,15 @@ class Tools(ToolKitBase):
         Args:
             query: What to look up.
         """
-        vectors = self.gateway.embed(model="text-embedding-3-small", inputs=[query], dimensions=3)
+        vectors = self.gateway.embed(model="sentence-transformers/all-MiniLM-L6-v2", inputs=[query])
         return {"dimensions": len(vectors[0])}
 '''
 
 
 def test_a_tool_embeds_through_the_gateway(monkeypatch, tmp_path):
     def embed(model, inputs, **kwargs):
-        assert (model, inputs, kwargs) == ("text-embedding-3-small", ["refund window"], {"dimensions": 3})
-        return [[0.1, 0.2, 0.3]], 4
+        assert (model, inputs, kwargs) == ("sentence-transformers/all-MiniLM-L6-v2", ["refund window"], {})
+        return [[0.1, 0.2, 0.3]], 0
 
     monkeypatch.setattr(gateway, "embed", embed)
     turns = [tool_calls(("search", {"query": "refund window"})), AssistantMessage(content="The window is 30 days.")]
@@ -347,7 +347,7 @@ def test_a_tool_embeds_through_the_gateway(monkeypatch, tmp_path):
     assert result.termination == "customer_stop"
     assert '"dimensions": 3' in next(m["content"] for m in result.messages if m["role"] == "tool")
     assert [c.model_dump() for c in result.embedding_calls] == [
-        {"model": "text-embedding-3-small", "kwargs": {"dimensions": 3}, "inputs": 1, "prompt_tokens": 4}
+        {"model": "sentence-transformers/all-MiniLM-L6-v2", "kwargs": {}, "inputs": 1, "prompt_tokens": 0}
     ]
 
 
@@ -356,9 +356,9 @@ def test_the_host_rejects_embedding_calls_outside_the_contract():
     host.embedding_calls = []
     refused = [
         ({"model": "text-embedding-ada-002", "inputs": ["policy"], "kwargs": {}}, "not allowed"),
-        ({"model": "text-embedding-3-small", "inputs": ["  "], "kwargs": {}}, "non-empty"),
-        ({"model": "text-embedding-3-small", "inputs": "policy", "kwargs": {}}, "non-empty"),
-        ({"model": "text-embedding-3-small", "inputs": ["policy"], "kwargs": {"encoding_format": "base64"}}, "unsupported"),
+        ({"model": "sentence-transformers/all-MiniLM-L6-v2", "inputs": ["  "], "kwargs": {}}, "non-empty"),
+        ({"model": "sentence-transformers/all-MiniLM-L6-v2", "inputs": "policy", "kwargs": {}}, "non-empty"),
+        ({"model": "sentence-transformers/all-MiniLM-L6-v2", "inputs": ["policy"], "kwargs": {"dimensions": 3}}, "unsupported"),
     ]
     for request, problem in refused:
         with pytest.raises(ValueError, match=problem):
@@ -370,35 +370,14 @@ def test_build_time_embed_uses_the_manifest_and_keeps_input_order(monkeypatch, t
     from redwood_kit import embeddings
 
     manifest = tmp_path / "deployment_manifest.json"
-    manifest.write_text(json.dumps({"allowed_embedding_models": [
-        {"model": "text-embedding-3-small", "constraints": {"dimensions": 2}}
-    ]}))
+    manifest.write_text(json.dumps({"allowed_embedding_models": [{"model": "sentence-transformers/all-MiniLM-L6-v2", "constraints": {}}]}))
     monkeypatch.setattr(embeddings, "MANIFEST", manifest)
-
-    class Item:
-        def __init__(self, index, embedding):
-            self.index, self.embedding = index, embedding
-
-    class Response:
-        data = [Item(1, [0.2, 0.0]), Item(0, [0.1, 0.0])]
-
-    class Client:
-        class embeddings:
-            @staticmethod
-            def create(model, input, **kwargs):
-                assert (model, input, kwargs) == (
-                    "text-embedding-3-small",
-                    ["a", "b"],
-                    {"extra_body": {"dimensions": 2}},
-                )
-                return Response()
-
-    monkeypatch.setattr(embeddings, "_client", lambda: Client())
-    assert embeddings.embed(model="text-embedding-3-small", inputs=["a", "b"]) == [[0.1, 0.0], [0.2, 0.0]]
+    monkeypatch.setattr(embeddings, "encode", lambda model, texts: [[float(len(t)), 0.0] for t in texts])
+    assert embeddings.embed(model="sentence-transformers/all-MiniLM-L6-v2", inputs=["a", "bb"]) == [[1.0, 0.0], [2.0, 0.0]]
     with pytest.raises(ValueError, match="not allowed"):
-        embeddings.embed(model="text-embedding-3-large", inputs=["a"])
-    with pytest.raises(ValueError, match="must be 2"):
-        embeddings.embed(model="text-embedding-3-small", inputs=["a"], dimensions=8)
+        embeddings.embed(model="text-embedding-3-small", inputs=["a"])
+    with pytest.raises(ValueError, match="unsupported"):
+        embeddings.embed(model="sentence-transformers/all-MiniLM-L6-v2", inputs=["a"], dimensions=8)
 
 
 def test_the_oracle_routes_to_exactly_the_schema_teams(monkeypatch):
@@ -414,11 +393,11 @@ def test_the_oracle_routes_to_exactly_the_schema_teams(monkeypatch):
         assert tuple(tool.parameters["properties"]["team"]["enum"]) == TEAMS
 
 
-def test_maintain_r1_overlay_replaces_billing_rules_and_rebuilds_index():
+def test_maintain_r1_overlay_replaces_billing_rules_and_indexes_the_new_records():
     workspace = TASK / "steps" / "maintain_r1" / "solution" / "workspace"
     assert {path.name for path in workspace.iterdir() if path.is_file()} == {
         "AGENTS.md", "billing_rules.py", "hooks.py", "system_prompt.md", "tools.py"}
     assert "DUPLICATE_CREDIT_LIMIT_CENTS = 25_000" in (workspace / "billing_rules.py").read_text()
     solve = (TASK / "steps" / "maintain_r1" / "solution" / "solve.sh").read_text()
     assert "cp -R /solution/workspace/. /app/workspace/" in solve
-    assert "python /app/workspace/build_index.py /app/R" in solve
+    assert "python /app/workspace/build_index.py --new /app/R" in solve
