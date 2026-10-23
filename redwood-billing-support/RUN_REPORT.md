@@ -2,15 +2,27 @@
 
 ## Summary
 
-`claude-opus-5-5` at `reasoning_effort=high` (Claude Code) scores **reward 0 in 3/3 runs**; the oracle scores **1.0
-in 4/4**. The evolution failure: when R1 revises Finance's approvals matrix in place (**$250** for invoices on the
-2027 price book, **"Invoices rated on an earlier price book: up to $500"** on the same page), Opus notices the change
-but maintains it **by instruction, not by mechanism**: it adds "check which version applies" to the agent's prompts
-instead of encoding the date boundary. The maintained agent then can't decide which version governs an older
-invoice: on the same 2026 duplicate charges its R0 build handled correctly, it hands off instead (runs 5 and 6;
-run 6's subagent: the limit "cannot be established from sources valid as of Sep 15, 2026"). The oracle encodes the
-boundary as code (`duplicate_credit_limit_cents(period_start)`) and passes these cases every time. Same cases, same
-accounts: **A0 passes, A1 fails**. A maintained agent that quietly breaks what used to work.
+`claude-opus-5-5` at `reasoning_effort=high` (Claude Code) scores **reward 0 in 3/3 runs**; the oracle scores
+**1.0 in 4/4**. Two evolution failures:
+
+**1. Maintenance only adds, it never repairs (3/3 runs).** A rule Opus's first build fails to follow stays broken
+after the update, in every run. When a developer reports more billed tokens than they counted and asks "can someone
+check the meter?", the routing page says *"Answer, don't hand off: how billed tokens are counted (model-native
+tokenizer, full request payload) … explain it and stop there, even if the customer calls it a bug."* The rule is the
+same in R0 and R1. Opus's A0 escalates these cases to Billing Engineering (a0-01 and its variants, a0-09-T), and
+after a full maintenance pass its A1 still fails them, in all three runs (3, 3 and 5 cases): the update rewrites
+what changed and never re-tests what was already wrong.
+
+**2. A change inside an existing page is only half-adopted (2/3 runs).** R1 revises the failed-payments page in
+place: a payment that fails inside a processor incident now needs **no case**, and its retry date follows from past
+status cards (3 business days after the window ends: April 12). Run 5's maintained agent still followed the
+superseded procedure and opened a Billing Ops case; run 6's dropped the case but counted calendar days and told the
+developer **April 10**; only run 7 got both right. The same pattern shows on Finance's approvals matrix, also
+revised in place: in runs 5 and 6 the maintained agent lost the $500 limit that still applies to 2026 invoices and
+handed off duplicates its R0 build had credited (that evidence comes from Q10, which replays 2026 conversations
+against 2027 knowledge, so we weight it less).
+
+The oracle passes all of these cases in every run.
 
 The failure survives the fairness audit below: rescored with every case or verifier defect it found removed, all
 three runs still score 0.
