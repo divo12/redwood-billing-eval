@@ -1,0 +1,240 @@
+{
+ "id": "a1-03",
+ "grade": {
+  "id": "a1-03",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": false,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "insert:cases",
+      "at": 11,
+      "ok": false
+     },
+     {
+      "op": "insert:cases",
+      "at": 13,
+      "ok": false
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": false,
+    "problem": "never said any of ['2027-04-12', 'April 12', '12 April', 'Apr 12', '12 Apr']",
+    "observed": []
+   },
+   {
+    "kind": "never_say",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "escalate_case",
+   "find_account",
+   "list_invoices",
+   "load_skill",
+   "search_policy"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 29.77942691500016,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Our autopay payment for invoice INV-BG-202703-020 failed with processor_unavailable. Can you open a billing case? Org tidewell-labs."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_U1f5BLD4exoNPJ3yhhfHN3m4",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    },
+    {
+     "id": "call_rlzuaeACg78v5NfSAixUIpKq",
+     "name": "find_account",
+     "arguments": {
+      "org": "tidewell-labs",
+      "account_id": ""
+     }
+    },
+    {
+     "id": "call_bsU4dNljTDSEcvUNERrnnDQ4",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current billing case routing for failed autopay invoice payment processor_unavailable, payment processor outage; team and trigger for escalation, intake requirements"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. A confirmed duplicate accepted by the console may be credited; report the amount only after the tool confirms it. For a confirmed duplicate over the console limit, submit the `duplicate_charge` dispute and escalate to `billing_ops` with its dispute ID. Promise no outcome or timeline.\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, UTC window, and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for Support's credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"tidewell-labs\", \"org\": \"tidewell-labs\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\", \"billing_timezone\": \"UTC\"}, \"contracts\": [], \"credit_grants\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\", \"status\": \"published\", \"date\": \"2026-04-20\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\\ntitle: Billing Support: Failed Card Payments and Card Updates\\nstatus/authority: published; unspecified\\ndate: 2026-04-20\\n[section: body 2]\\n## Purpose\\nHow Support handles a card payment that failed and a request to change the card used for autopay. Invoice disputes and usage questions are covered on the billing case routing page.\\n\\n[section: body 3]\\n## Failed card payments\\nWhen a customer's card payment fails, open a Billing Ops case with the invoice number, the decline code and the time the payment failed. Billing Ops retries the payment or contacts the customer. Tell the customer Billing Ops has it; don't promise a date.\"}, {\"source\": \"sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\\ntitle: Failed autopay \\u2014 request for split-billing plan and acquirer evidence\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 1]\\nFrom: Sima Patel <sima@orbitanalytics.com>\\\\nTo: Neha Kapoor <neha_kapoor@redwood.com>\\\\nCc: Priya Natarajan <priya_natarajan@redwood.com>, Ben Carter <ben_carter@redwood.com>\\\\nDate: Sun, 14 Sep 2025 15:12:34 -0700\\\\nSubject: Failed autopay for Invoice #3378 \\u2014 need VAT breakout & next steps\\\\n\\\\nHi Neha,\\\\n\\\\nOur finance team ran the scheduled autopay for invoice #3378 this morning but the payment failed at the acquirer layer. Stripe shows a generic decline (code: acq_decline) and they have placed the settlement on hold until we provide additional evidence.\\\\n\\\\nWe're trying to avoid a manual refund/chargeback cycle \\u2014 our accounts payable asked whether Redwood can:\\\\n- split the invoice into two line items (service vs. VAT) so VAT can be settled \"}, {\"source\": \"sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\\ntitle: Failed autopay \\u2014 request for split-billing plan and acquirer evidence\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nTentative retry window: Thu 2025-09-18 08:00\\u201312:00 UTC (we'll coordinate with you before the attempt).\\\\n\\\\nBen / Priya \\u2014 can you prepare the VAT breakout (use the attached template) and the evidence bundle? Priya, please own the upload to Stripe and ping me when done so I can confirm with Sima and schedule the retry.\\\\n\\\\nNeha\\\\nHead of Revenue Operations\\\\nRedwood Inference\\\\n\\\\nOn Sun, 14 Sep 2025 at 15:12, Sima Patel <sima@orbitanalytics.com> wrote:\\\\n> Our finance team ran the scheduled autopay for invoice #3378 this morning but the payment failed at the acquirer layer. Stripe shows a generic decline (code: acq_decline) and they have placed the settlement on hold until we provide additional evidence.\\\\n>\\\\n> Attached: invoice_3378.pdf and a brief \"}, {\"source\": \"sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\\ntitle: Promotional waiver applied to next billing cycle instead of current after dedicated fallback\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: description 1]\\nshows the overage charge applied; the promo waiver did not offset the current invoice but shows a provisional credit pending for the next billing cycle.\\n\\nObserved behavior:\\n- Waiver appears in billing ledger as a provisional credit with effective_period starting 2026-04-01.\\n- Postback logs show waiver acceptance event processed at 2026-03-04T18:23:47Z but linked to a future period idempotency key.\\n- Autopay attempted on 2026-03-06 and failed due to mismatch between expected balance and posted charges.\\n\\nExpected behavior:\\n- Waiver requested and accepted before invoice finalization should be applied to the current open invoice and reduce the total due immediately.\\n\\nAttachments / Logs:\\n- Customer \"}, {\"source\": \"sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\\ntitle: Promotional waiver applied to next billing cycle instead of current after dedicated fallback\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: comments 5]\\n2026-03-11 08:30 - Kate O'Neill (Customer Success): Informed BrightLearn that we have a temporary workaround: manual credit applied to the current invoice while engineering continues root-cause. Customer requested written confirmation and timeline.\\n\\n[section: comments 6]\\n2026-03-12 10:15 - Diego Martinez (Billing): Applied manual invoice adjustment and triggered refund/autopay retry. Ticket remains open pending permanent fix and postmortem.\\n\\n[section: investigation_notes 1]\\nInitial hypothesis: postback-reconciler attached waiver to billing period based on pricing_tag at time of ingestion. The dedicated-fallback caused a pricing tag refresh which flipped period mapping for in-flight postbacks.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\n## Routing table\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Disputed or duplicated line on a direct Redwood invoice | Billing Ops | Invoice number, the line(s), UTC window, request IDs |\\n| Refund request on a direct invoice line the customer says was billed in error | Billing Ops | Billing Ops confirms the charge and requests approval where needed |\\n| Invoice total doesn't match the customer's usage export | Billing Ops | Note the export's timezone and filters |\\n| Payment failures, holds, receipts | Billing Ops | |\\n| Meter discrepancy the related pages don't explain: request IDs whose billed tokens still don't match after the tokenizer, payload and retry rules are applied | Billing Engineering | Billing Eng checks meter correctness and hands any \"}, {\"source\": \"sources/confluence/customer-success-and-support/escalation-playbook/major-cloud-provider-outage-customer-communication-and-remediation-playbook-2025.json\", \"status\": \"published\", \"date\": \"2026-01-12\", \"text\": \"source: sources/confluence/customer-success-and-support/escalation-playbook/major-cloud-provider-outage-customer-communication-and-remediation-playbook-2025.json\\ntitle: Major Cloud Provider Outage \\u2014 Customer Communication & Remediation Playbook\\nstatus/authority: published; unspecified\\ndate: 2026-01-12\\n[section: body 1]\\nstatus broadcast | Cross-region failover or capacity changes | Route escalations | Coordinate billing/credits if needed | Hourly updates |\\n| 6h+ | Owner: CS Lead prepares post-incident plan | Continued recovery and RCA | Keep customers informed daily | Approve remediation credits | Prepare QBR/RCAs |\\n\\nSeverity to customer SLA / credit guidance (example):\\n\\n- If customer experiences unavailability > 99.9% monthly for a billable product in a paid environment, follow the Enterprise SLA credit workflow. CS prepares a provisional credit estimate and routes to Finance/Legal.\\n\\nPost-incident follow-up and QBR material:\\n\\n- 72-hour post-incident: share timeline, root cause \"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-08-17.json\", \"status\": \"published\", \"date\": \"2026-08-18\", \"text\": \"source: sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-08-17.json\\ntitle: INC: Card payments failing (processor_unavailable)\\nstatus/authority: published; unspecified\\ndate: 2026-08-18\\n[section: content 1]\\nh1. INC: Card payments failing (processor_unavailable)\\n\\nStatus: resolved.\\n\\nh1. Window\\n2026-08-17 22:00 UTC to 2026-08-18 06:00 UTC.\\n\\nh1. Impact\\nCard payments attempted in the window failed with `processor_unavailable`. Other billing operations were unaffected.\\n\\nh1. Resolution\\nThe payment processor restored availability. Payments that failed in the window were retried automatically; the last retries completed on 2026-08-21. No late fees were applied.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_k0wncWF1OdFM43731lVktLhP",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "time_of_issue"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"time_of_issue\": \"2027-04-06 14:30 UTC.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_mGgNqFFhF2pKXd5jpsL8LeCp",
+     "name": "list_invoices",
+     "arguments": {
+      "account_id": "tidewell-labs"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoices\": [{\"invoice_id\": \"INV-2026-0831-114\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total\": {\"value\": \"3517.00\", \"currency\": \"USD\"}, \"total_dollars\": \"$3517.00\"}, {\"invoice_id\": \"INV-BG-202603-020\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total\": {\"value\": \"2479.16\", \"currency\": \"USD\"}, \"total_dollars\": \"$2479.16\"}, {\"invoice_id\": \"INV-BG-202604-020\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total\": {\"value\": \"2682.77\", \"currency\": \"USD\"}, \"total_dollars\": \"$2682.77\"}, {\"invoice_id\": \"INV-BG-202605-020\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total\": {\"value\": \"1244.31\", \"currency\": \"USD\"}, \"total_dollars\": \"$1244.31\"}, {\"invoice_id\": \"INV-BG-202606-020\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total\": {\"value\": \"1877.49\", \"currency\": \"USD\"}, \"total_dollars\": \"$1877.49\"}, {\"invoice_id\": \"INV-BG-202607-020\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total\": {\"value\": \"1366.22\", \"currency\": \"USD\"}, \"total_dollars\": \"$1366.22\"}, {\"invoice_id\": \"INV-BG-202609-020\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2026-09-01\", \"period_end\": \"2026-09-30\", \"issued_on\": \"2026-10-01\", \"status\": \"paid\", \"total\": {\"value\": \"1889.73\", \"currency\": \"USD\"}, \"total_dollars\": \"$1889.73\"}, {\"invoice_id\": \"INV-BG-202610-020\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2026-10-01\", \"period_end\": \"2026-10-31\", \"issued_on\": \"2026-11-01\", \"status\": \"paid\", \"total\": {\"value\": \"2175.76\", \"currency\": \"USD\"}, \"total_dollars\": \"$2175.76\"}, {\"invoice_id\": \"INV-BG-202611-020\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2026-11-01\", \"period_end\": \"2026-11-30\", \"issued_on\": \"2026-12-01\", \"status\": \"paid\", \"total\": {\"value\": \"2477.15\", \"currency\": \"USD\"}, \"total_dollars\": \"$2477.15\"}, {\"invoice_id\": \"INV-BG-202612-020\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2026-12-01\", \"period_end\": \"2026-12-31\", \"issued_on\": \"2027-01-01\", \"status\": \"paid\", \"total\": {\"value\": \"2301.24\", \"currency\": \"USD\"}, \"total_dollars\": \"$2301.24\"}, {\"invoice_id\": \"INV-BG-202701-020\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2027-01-01\", \"period_end\": \"2027-01-31\", \"issued_on\": \"2027-02-01\", \"status\": \"paid\", \"total\": {\"value\": \"3242.08\", \"currency\": \"USD\"}, \"total_dollars\": \"$3242.08\"}, {\"invoice_id\": \"INV-BG-202702-020\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2027-02-01\", \"period_end\": \"2027-02-28\", \"issued_on\": \"2027-03-01\", \"status\": \"paid\", \"total\": {\"value\": \"2418.35\", \"currency\": \"USD\"}, \"total_dollars\": \"$2418.35\"}, {\"invoice_id\": \"INV-BG-202703-020\", \"account_id\": \"tidewell-labs\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"issued_on\": \"2027-04-01\", \"status\": \"open\", \"total\": {\"value\": \"2886.44\", \"currency\": \"USD\"}, \"total_dollars\": \"$2886.44\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_puc4IU5vIbJ2lUT8YYeI0elr",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "tidewell-labs",
+      "team": "billing_ops",
+      "summary": "Autopay failed for invoice INV-BG-202703-020 with processor_unavailable",
+      "details": {
+       "invoice_id": "INV-BG-202703-020",
+       "invoice_status": "open",
+       "invoice_total": "$2,886.44 USD",
+       "payment_failure_code": "processor_unavailable",
+       "time_of_failure_utc": "2027-04-06 14:30 UTC",
+       "billing_channel": "direct",
+       "payment_method": "card"
+      },
+      "unresolved": "Billing Ops needs to handle the failed payment and determine next steps. Support cannot confirm a retry or resolution time.",
+      "routing_rule": "Payment failures, holds, receipts | Billing Ops |"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for cases"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_GMvIXAFgLQnRiXsTJz5awavw",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "tidewell-labs",
+      "team": "billing_ops",
+      "summary": "Autopay failed for invoice INV-BG-202703-020 with processor_unavailable",
+      "details": {
+       "invoice_id": "INV-BG-202703-020",
+       "invoice_status": "open",
+       "invoice_total": "$2,886.44 USD",
+       "payment_failure_code": "processor_unavailable",
+       "time_of_failure_utc": "2027-04-06 14:30 UTC",
+       "billing_channel": "direct",
+       "payment_method": "card"
+      },
+      "unresolved": "Billing Ops needs to handle the failed payment and determine next steps. Support cannot confirm a retry or resolution time.",
+      "routing_rule": "Payment failures, holds, receipts | Billing Ops |"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for cases"
+  },
+  {
+   "role": "assistant",
+   "content": "I tried to open a Billing Ops case, but the billing console returned an error, so **no case was opened**.\n\nThe invoice is open for **$2,886.44 USD**, and the payment failure was recorded as `processor_unavailable` at **2027-04-06 14:30 UTC**. Redwood\u2019s published guidance routes failed card payments to Billing Ops; they handle retries or contact you. I can\u2019t confirm that a retry will occur or give a timeline."
+  },
+  {
+   "role": "user",
+   "content": "When will the payment go through?"
+  },
+  {
+   "role": "assistant",
+   "content": "I can\u2019t tell when the payment will go through. The invoice is still open, and our published guidance says Billing Ops handles failed card payments by retrying or contacting the customer, but it doesn\u2019t give a retry timeline.\n\nI attempted to open a Billing Ops case, but the console returned an error, so the case was **not** created."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

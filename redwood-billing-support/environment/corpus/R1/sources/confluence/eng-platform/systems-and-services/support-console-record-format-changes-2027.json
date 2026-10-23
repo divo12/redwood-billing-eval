@@ -1,0 +1,25 @@
+{
+  "title": "Support Console: Record Format Changes (April 2027)",
+  "space": "eng-platform",
+  "author": "Dylan Brooks",
+  "owner_team": "engineering",
+  "status": "published",
+  "reviewers": [
+    "Owen Phillips",
+    "Nadia Rahman"
+  ],
+  "labels": [
+    "billing",
+    "support-console",
+    "changelog",
+    "api-change"
+  ],
+  "related_pages": [
+    "confluence://customer-success-and-support/support-process/support-console-duplicate-charges-and-disputes-2027",
+    "confluence://customer-success-and-support/support-process/billing-case-routing-and-handoffs"
+  ],
+  "confidentiality": "internal",
+  "created_at": "2027-03-18",
+  "last_updated": "2027-03-29",
+  "body": "## Summary\nFrom 1 April 2027 the support console's billing record store uses a new money format, and escalated cases need a priority. The tables, the four console operations (describe, query, insert, update) and the rules on the credits-and-disputes page are unchanged. Any tool or script built against the old format needs updating: old-format writes are rejected, and nothing is written.\n\n## Money fields\n- Every money field drops its `_cents` suffix and becomes an object with a decimal string and a currency: `amount_cents: 34000` is now `amount: {\"value\": \"340.00\", \"currency\": \"USD\"}`. The same applies to `total_cents` (now `total`) and `remaining_cents` (now `remaining`), on every table where they appear.\n- `value` always has exactly two decimal places. The currency is always `USD`.\n- Reads return the new shape. Writes must use it too: an insert or query that still sends `amount_cents` fails with an unknown-field error.\n- Compare amounts as money, not as strings. `\"90.00\"` is less than `\"250.00\"` even though it sorts after it as text.\n\n## Account field on writes\n- On the writable tables (`cases`, `credit_notes`, `disputes`) the account field is now `billing_account_id`, on reads and writes. Its value is the account's `account_id`.\n- A write or query on those tables that still sends `account_id` fails with an unknown-field error. Read-only tables keep `account_id`.\n\n## Billing timezone\n- Accounts have a `billing_timezone` (an IANA name such as `America/Los_Angeles`; `UTC` unless set).\n- Which billing month and invoice line a request belongs to is set by Finance's invoice period rules; see Finance's 2027 Close Calendar and Invoice Periods (Finance shared drive).\n\n## Case priority\n- A case can only be set to `escalated` with a `priority` of `normal` or `urgent`, whether it is escalated when first inserted or by a later update. A draft case can still leave it empty.\n- Which priority Support sets on a billing handoff was announced by Dev Patel in #support on 2027-03-30.\n\n## Checking the format\n`describe()` always returns the live field names, types, required fields and defaults. Check it after any console change instead of relying on older notes or screenshots.\n\n## Timeline\n| Date | Change |\n|---|---|\n| 2027-03-18 | New format announced |\n| 2027-03-25 | New format accepted alongside the old one in the practice console |\n| 2027-04-01 | New format only; old-format writes rejected |\n\n## Examples\nA credit note insert, before:\n```json\n{\"account_id\": \"acme\", \"amount_cents\": 34000, \"reason\": \"duplicate\"}\n```\nand after:\n```json\n{\"billing_account_id\": \"acme\", \"amount\": {\"value\": \"340.00\", \"currency\": \"USD\"}, \"reason\": \"duplicate\"}\n```\n\n## Errors you may see\n- `unknown field: amount_cents`: the write still uses the old money field.\n- `unknown field: account_id`: a writable table was given the old account field.\n- `priority required for escalated case`: set `priority` when escalating.\nNothing is written when a write fails, so fix it and send it again.\n\n## Questions\nAsk in #support-tooling. Page owner: Dev Patel.\n\n_Last reviewed 2027-03-29._"
+}

@@ -1,0 +1,35 @@
+services:
+  main:
+    build:
+      context: ..
+      dockerfile: environment/Dockerfile
+      args:
+        SUPPORT_MODEL: ${SUPPORT_MODEL:-openai/gpt-6-luna}
+        USER_MODEL: ${USER_MODEL:-openai/gpt-6-luna}
+    command: ["sleep", "infinity"]
+    volumes:
+      - practice-model:/run/redwood-model
+  # The practice model service: the only container with the provider key. The builder reaches it through
+  # /run/redwood-model/practice-model.sock (redwood_kit.practice). Same image, its own process.
+  practice-model:
+    build:
+      context: ..
+      dockerfile: environment/Dockerfile
+      args:
+        SUPPORT_MODEL: ${SUPPORT_MODEL:-openai/gpt-6-luna}
+        USER_MODEL: ${USER_MODEL:-openai/gpt-6-luna}
+    entrypoint: ["python", "/opt/redwood-practice/server.py"]
+    environment:
+      # SUPPORT_MODEL and USER_MODEL come from the image (build args above); keys for whichever provider they name.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      SUPPORT_REASONING_EFFORT: ${SUPPORT_REASONING_EFFORT:-high}
+      REDWOOD_PRACTICE_CONVERSATIONS: ${REDWOOD_PRACTICE_CONVERSATIONS:-5}
+      REDWOOD_PRACTICE_MODEL_CALLS: ${REDWOOD_PRACTICE_MODEL_CALLS:-60}
+      REDWOOD_PRACTICE_SAY_CALLS: ${REDWOOD_PRACTICE_SAY_CALLS:-40}
+    volumes:
+      - practice-model:/run/redwood-model
+volumes:
+  practice-model:

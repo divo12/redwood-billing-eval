@@ -1,0 +1,102 @@
+schema_version = "1.4"
+multi_step_reward_strategy = "final"  # maintain_r1 grades both steps and writes the gate
+artifacts = ["/app/workspace"]
+
+[task]
+name = "collinear-candidate/redwood-billing-support"
+version = "1.0.0"
+description = "Build Redwood Inference's billing support agent from company knowledge R0, then maintain it when the knowledge grows to R1."
+keywords = ["agent-building", "billing-support", "continual", "redwood"]
+
+[[task.authors]]
+name = "Divyansh Bhadauria"
+email = "divyanshbhadauria3@gmail.com"
+
+[metadata]
+difficulty = "hard"
+category = "agent-building"
+
+[agent]
+timeout_sec = 7200.0
+user = "harbor"
+network_mode = "allowlist"
+# The builder's harness (Claude Code). Embeddings are a local model baked into the image. The practice-model
+# service shares this network namespace and calls the deployed support model's provider; only that container has
+# the key (environment/docker-compose.yaml), so the builder can reach the host but not use it.
+allowed_hosts = ["api.anthropic.com", "statsig.anthropic.com", "downloads.claude.ai", "claude.ai", "console.anthropic.com", "*.services.ai.azure.com", "*.openai.azure.com", "api.openai.com", "openrouter.ai"]
+
+
+[environment]
+network_mode = "allowlist"
+allowed_hosts = ["api.anthropic.com", "statsig.anthropic.com", "downloads.claude.ai", "claude.ai", "console.anthropic.com", "registry.npmjs.org", "nodejs.org", "github.com", "*.githubusercontent.com", "*.services.ai.azure.com", "*.openai.azure.com", "api.openai.com", "openrouter.ai"]
+build_timeout_sec = 1800.0
+os = "linux"
+cpus = 2
+memory_mb = 8192
+storage_mb = 20480
+
+[environment.healthcheck]
+command = "test -f /app/workspace/agent.py && test -f /app/workspace/tools.py && test -S /run/redwood/practice-console.sock && python -c \"import redwood_kit.candidate\""
+interval_sec = 5.0
+timeout_sec = 10.0
+start_period_sec = 20.0
+retries = 12
+
+[verifier]
+timeout_sec = 3600.0
+user = "root"
+environment_mode = "shared"
+network_mode = "allowlist"
+# ponytail: the verifier no longer talks to a model (grading runs after the job, scripts/grade_snapshots.sh);
+# this allowlist is left as is until a smoke run shows no-network is safe with environment_mode = "shared".
+allowed_hosts = ["api.anthropic.com", "api.openai.com", "*.services.ai.azure.com", "*.openai.azure.com", "openrouter.ai"]
+
+[solution.env]
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}"
+
+[[steps]]
+name = "build_r0"
+
+[steps.agent]
+timeout_sec = 7200.0
+user = "harbor"
+
+[steps.verifier]
+timeout_sec = 3600.0
+user = "root"
+environment_mode = "shared"
+
+[steps.healthcheck]
+command = "grep -qx R0 /etc/redwood-release"
+interval_sec = 5.0
+timeout_sec = 10.0
+start_period_sec = 5.0
+retries = 6
+
+[[steps]]
+name = "maintain_r1"
+
+[steps.agent]
+timeout_sec = 3600.0
+user = "harbor"
+
+[steps.verifier]
+# Grades Q00, Q10 and Q11 (90 conversations) on the support model: ~70-90 min at 2 workers.
+timeout_sec = 10800.0
+user = "root"
+environment_mode = "shared"
+
+[steps.verifier.env]
+OPENAI_API_KEY = "${OPENAI_API_KEY:-}"
+OPENAI_BASE_URL = "${OPENAI_BASE_URL:-}"
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY:-}"
+OPENROUTER_API_KEY = "${OPENROUTER_API_KEY:-}"
+SUPPORT_REASONING_EFFORT = "${SUPPORT_REASONING_EFFORT:-high}"
+GRADE_WORKERS = "${GRADE_WORKERS:-2}"
+
+[steps.healthcheck]
+command = "grep -qx R1 /etc/redwood-release"
+interval_sec = 5.0
+timeout_sec = 10.0
+start_period_sec = 5.0
+retries = 6

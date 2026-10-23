@@ -1,0 +1,344 @@
+{
+ "id": "a1-04-M",
+ "grade": {
+  "id": "a1-04-M",
+  "category": "normal",
+  "termination": "customer_transfer",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:contacts",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:credit_ledger",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "query:cases",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "insert:cases",
+      "at": 22,
+      "ok": true
+     }
+    ]
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "escalate_case",
+   "get_account_activity",
+   "get_invoice",
+   "get_usage",
+   "load_skill",
+   "lookup_account",
+   "search_knowledge"
+  ]
+ },
+ "termination": "customer_transfer",
+ "invalid": null,
+ "seconds": 86.98986206900008,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "One of our invoice line items appears to be incorrect."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_ZVKUydrMkuRWEqnr7wiayY1Z",
+     "name": "load_skill",
+     "arguments": {
+      "name": "duplicate-charge-resolution"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"duplicate-charge-resolution\", \"steps\": \"Goal: decide from the console and the current policy whether Support credits the copy line, opens a dispute and hands off, or hands off without a dispute \\u2014 then do exactly that, once.\\n\\n1. Collect identifiers. If the developer hasn't given them, call `ask_developer` for `org_id`, `invoice_id` (or `invoice_month`), `line_items`/`amounts` and `request_ids` in one call.\\n2. Read the console.\\n   - `lookup_account`: note `billing_channel`, `plan`, `contracts`, `billing_timezone`. If the account isn't billed directly by Redwood (marketplace or reseller), stop: search how that channel's bills are handled, explain it, route only if the policy says so.\\n   - `get_invoice`: read `duplicate_analysis` (original line = the one the usage records point to; copy line = the other), each line's amount and `already_credited`, existing credit notes. If you only have a month, pick the invoice whose period covers it.\\n   - `get_account_activity` for existing credit notes, disputes and cases.\\n3. Retrieve the rules with `search_knowledge`, and read the current published pages only:\\n   - the current support-console procedure for duplicate charges (the newest version that amends the routing page);\\n   - who may be credited at all (the current Support charter: account types, contract accounts);\\n   - Finance's approval-matrix limit for this invoice, and how to tell which price book rated it (Finance's close calendar);\\n   Ignore archived pages, drafts, proposals, Slack opinions and limits that belong to other teams or channels.\\n4. Classify from the console only (a matching description or amount is not proof):\\n   - Confirmed duplicate: two lines on the same direct invoice bill the same request ids AND the usage records point to exactly one of them (`console_confirms_duplicate: true`). Act only on the copy line.\\n   - Not confirmed: different request ids, one line, or usage pointing to neither/both lines.\\n   Don't tell the developer a credit is likely before this step confirms the duplicate.\\n5. Act according to the retrieved procedure:\\n   - Confirmed, the account is one Support may credit, and the copy line's full amount is within the limit for this invoice \\u2192 `confirm_with_developer` naming the invoice, the copy line id and the exact amount \\u2192 `issue_duplicate_credit` for the copy line's full amount (dollars, e.g. \\\"60.00\\\"). Never split a line.\\n   - Confirmed, but Support may not credit this account (e.g. a signed contract) or the line is over the limit \\u2192 `confirm_with_developer` that you will open a dispute on the copy line and pass it to the team the procedure names \\u2192 `open_dispute` (reason `duplicate_charge`, copy line only, the request ids, window) \\u2192 `escalate_case` to that team with invoice, original and copy line ids, request ids, window, the ask and the dispute id.\\n   - Not confirmed \\u2192 do not credit. Explain what the console shows (e.g. the lines bill different request ids, with their times), then do what the procedure says for unconfirmed duplicates (collect intake, hand off). A handoff with no credit or dispute needs no confirmation.\\n   - Already credited or disputed \\u2192 say so; do nothing twice. If a credit \\\"didn't arrive\\\", check the credit notes first and explain when credits apply (per the procedure / close calendar).\\n   - If the developer says no: write nothing for it (no credit, dispute or case); tell them nothing changed and they can come back.\\n6. Windows in a handoff or dispute are in the account's billing timezone: use `at_billing_timezone` from `get_usage`, or the developer's answer converted.\\n7. Reply: what the console showed, what you did (credit note id and amount, or dispute id and the team that has the case), when a credit shows up if the procedure says so. Don't promise a dispute outcome or a date.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_Kalkay2DIxRMhZiIxruiRyuZ",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "org_id",
+       "invoice_id",
+       "invoice_month",
+       "line_items",
+       "amounts",
+       "request_ids"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"org_id\": \"bluefin-labs\", \"invoice_id\": \"INV-2027-0331-240\", \"invoice_month\": \"Mar 1-31 2027.\", \"line_items\": \"L2, Embeddings, Mar 1-31.\", \"amounts\": \"$180 on the invoice; about $126 in our export.\", \"request_ids\": \"req_f40\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_Vp6jff10f8jSl4fgLOJ7UnuX",
+     "name": "load_skill",
+     "arguments": {
+      "name": "usage-and-charge-explanations"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"usage-and-charge-explanations\", \"steps\": \"Goal: explain the charge from the account's own records and the current documented behaviour, and hand off only what the documents don't explain.\\n\\n1. Get identifiers with `ask_developer` if missing: `org_id`, and as relevant `invoice_id`/`billing_period`, `request_ids`, `response_status`, `time_of_issue`, `timezone`, `checks_done` (filters, how they counted, client retries/timeouts).\\n2. Read the console: `lookup_account` (plan, channel, billing timezone, credits), then `get_invoice` and/or `get_usage` for the named requests or lines. Note each request's HTTP status, billed and cached tokens, time (UTC and billing timezone) and whether it has an invoice line. For balances use `get_credit_balance` (per grant: balance and expiry).\\n3. `search_knowledge` for the documented behaviour behind what you see (e.g. \\\"how billed tokens are counted\\\", \\\"retries and stream cancellation billing\\\", \\\"usage export columns and filters\\\", \\\"API error reference status code\\\", \\\"free tier monthly limit\\\", \\\"credit ledger balance expiry\\\", \\\"missing usage threshold\\\", \\\"invoice periods billing timezone price book\\\"). Use current published pages; if an older page conflicts, say which page is current.\\n4. Which month a request belongs to follows Finance's invoice-period rules (billing timezone from the date they give); late usage can appear on the next invoice. Compare: apply the documented rules to the developer's own checks (timezone used to cut the month, project filters, counting prompt tokens only, client retries or timeouts, cancelled streams, cached tokens). Show the specific cause you can see in their records.\\n5. Answer with the cause, the evidence (request ids, times, statuses, amounts as the console shows them) and the fix or mitigation the documents give.\\n6. Hand off (use the billing-handoff skill) only when the documented rules don't explain the numbers, or the developer asks for something Support can't do (a credit or waiver for correctly billed usage, meter correction, missing usage after the documented delay).\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_SW0m9mo2YRjjqjFQ23W24KXs",
+     "name": "lookup_account",
+     "arguments": {
+      "account_id": "",
+      "org": "bluefin-labs"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"accounts\": [{\"account\": {\"account_id\": \"bluefin-labs\", \"org\": \"bluefin-labs\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\", \"billing_timezone\": \"UTC\"}, \"contacts\": [{\"contact_id\": \"CONTACT-bluefin-labs-1\", \"account_id\": \"bluefin-labs\", \"name\": \"bluefin-labs Owner\", \"email\": \"owner@bluefin-labs.dev\", \"role\": \"owner\"}, {\"contact_id\": \"CONTACT-bluefin-labs-2\", \"account_id\": \"bluefin-labs\", \"name\": \"bluefin-labs Billing Admin\", \"email\": \"billing_admin@bluefin-labs.dev\", \"role\": \"billing_admin\"}], \"contracts\": [], \"credits\": {\"source\": \"credit_ledger (sum of entries per grant)\", \"grants\": [], \"total_available\": \"$0.00\", \"note\": \"credit_grants is not shown: the ledger is the console's source of truth for balances.\"}, \"invoices\": [{\"invoice_id\": \"INV-2026-0831-088\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total\": \"$1,800.00\"}, {\"invoice_id\": \"INV-2027-0331-240\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"issued_on\": \"2027-04-01\", \"status\": \"open\", \"total\": \"$1,140.00\"}, {\"invoice_id\": \"INV-BG-202603-027\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total\": \"$1,720.19\"}, {\"invoice_id\": \"INV-BG-202604-027\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total\": \"$1,923.07\"}, {\"invoice_id\": \"INV-BG-202605-027\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total\": \"$3,837.98\"}, {\"invoice_id\": \"INV-BG-202606-027\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total\": \"$1,577.00\"}, {\"invoice_id\": \"INV-BG-202607-027\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total\": \"$1,965.34\"}, {\"invoice_id\": \"INV-BG-202609-027\", \"period_start\": \"2026-09-01\", \"period_end\": \"2026-09-30\", \"issued_on\": \"2026-10-01\", \"status\": \"paid\", \"total\": \"$2,566.15\"}, {\"invoice_id\": \"INV-BG-202610-027\", \"period_start\": \"2026-10-01\", \"period_end\": \"2026-10-31\", \"issued_on\": \"2026-11-01\", \"status\": \"paid\", \"total\": \"$2,358.22\"}, {\"invoice_id\": \"INV-BG-202611-027\", \"period_start\": \"2026-11-01\", \"period_end\": \"2026-11-30\", \"issued_on\": \"2026-12-01\", \"status\": \"paid\", \"total\": \"$977.81\"}, {\"invoice_id\": \"INV-BG-202612-027\", \"period_start\": \"2026-12-01\", \"period_end\": \"2026-12-31\", \"issued_on\": \"2027-01-01\", \"status\": \"paid\", \"total\": \"$2,224.05\"}, {\"invoice_id\": \"INV-BG-202701-027\", \"period_start\": \"2027-01-01\", \"period_end\": \"2027-01-31\", \"issued_on\": \"2027-02-01\", \"status\": \"paid\", \"total\": \"$2,835.39\"}, {\"invoice_id\": \"INV-BG-202702-027\", \"period_start\": \"2027-02-01\", \"period_end\": \"2027-02-28\", \"issued_on\": \"2027-03-01\", \"status\": \"paid\", \"total\": \"$2,230.87\"}]}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_VA8r4RADma9FiKMadKABRKa7",
+     "name": "get_invoice",
+     "arguments": {
+      "invoice_id": "INV-2027-0331-240"
+     }
+    },
+    {
+     "id": "call_TDptmyuZWDpIJAiFpvWvq2HE",
+     "name": "get_usage",
+     "arguments": {
+      "account_id": "bluefin-labs",
+      "request_ids": [
+       "req_f40"
+      ],
+      "line_id": ""
+     }
+    },
+    {
+     "id": "call_YKfMuKhCEQCUG5KQ8XzK4vV5",
+     "name": "get_account_activity",
+     "arguments": {
+      "account_id": "bluefin-labs"
+     }
+    },
+    {
+     "id": "call_5lH4WeFBOuVe8pPSmSecBMFW",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "Embeddings invoice charged amount usage export mismatch billed tokens price book March 2027 billing period rounding usage export",
+      "wider": false
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"invoice\": {\"invoice_id\": \"INV-2027-0331-240\", \"account_id\": \"bluefin-labs\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"issued_on\": \"2027-04-01\", \"status\": \"open\", \"total\": \"$1,140.00\"}, \"account_billing_timezone\": \"UTC\", \"lines\": [{\"line_id\": \"INV-2027-0331-240/L1\", \"invoice_id\": \"INV-2027-0331-240\", \"description\": \"Hosted API usage, Mar 1-31\", \"product\": \"hosted_api\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"amount\": \"$960.00\", \"request_ids\": [\"req_f31\"], \"already_credited\": \"$0.00\"}, {\"line_id\": \"INV-2027-0331-240/L2\", \"invoice_id\": \"INV-2027-0331-240\", \"description\": \"Embeddings, Mar 1-31\", \"product\": \"embeddings\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"amount\": \"$180.00\", \"request_ids\": [\"req_f40\"], \"already_credited\": \"$0.00\"}], \"credit_notes\": [], \"duplicate_analysis\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"rows\": [{\"request_id\": \"req_f40\", \"account_id\": \"bluefin-labs\", \"at\": \"2027-03-19T15:27:40Z\", \"http_status\": 200, \"billed_tokens\": 14400000, \"cached_tokens\": 0, \"line_id\": \"INV-2027-0331-240/L2\", \"billing_timezone\": \"UTC\", \"at_billing_timezone\": \"2027-03-19 15:27 UTC\"}], \"not_found\": [], \"truncated\": false}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"credit_notes\": [], \"disputes\": [], \"cases\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"documents\": [{\"source\": \"google_drive/shared_drives/finance/2027-close-calendar-and-invoice-periods\", \"title\": \"2027 Close Calendar and Invoice Periods\", \"kind\": \"google_drive\", \"status\": \"final\", \"date\": \"2027-02-22\", \"authority\": \"published\", \"section\": \"content > Late usage\", \"passage\": \"## Purpose\\nThis page sets the 2027 monthly close for usage-based invoices: when each month's invoices are cut, which usage lands in which invoice period, and how late usage is handled. Billing Ops, Telemetry and Support use it when a customer asks what a month's invoice covers.\\n\\n## Monthly close calendar\\n| Business day | Step | Owner |\\n|---|---|---|\\n| BD1 | Usage for the closed month is frozen in the metering warehouse | Telemetry |\\n| BD2 | Usage is rated against the account's price book and invoice lines are drafted | Billing Ops |\\n| BD3 | Variance review: lines more than 25% above the prior month are checked against usage | Billing Ops |\\n| BD4 | Invoices are issued and autopay is attempted on the due date shown on the invoice | Billing Ops |\\n| BD5 | Revenue for the month is booked and the period is closed | Accounting |\\n\\nContracted accounts invoiced in arrears follow the same calendar; prepaid commitments are drawn down on BD2.\\n\\n## Invoice periods and billing timezones\\nUntil February 2027 every invoice period ran on UTC. From March 2027 usage onward, an account's invoice period runs from midnight to midnight in the account's billing timezone (`billing_timezone` on the account record; UTC unless set). A request belongs to the billing month, and to the invoice line, in which its timestamp falls in that timezone. For an account on America/Los_Angeles, a request at 03:00 UTC on 1 April 2027 is 20:00 on 31 March local time, so it is March usage and is billed on the March invoice.\\n\\nAnything that reports a month of usage uses the same rule: the monthly total on the Console usage page, the invoice, and the figure Support gives a customer for a month. Usage before March 2027 stays on UTC periods and is not re-cut.\\n\\n## Late usage\\nUsage that reaches the warehouse after BD1 is not added to an issued invoice. It is billed on the next month's invoice as a separate line marked \\\"prior-period usage\\\" with the original dates, so a customer comparing a month's export to its invoice may see those requests a month later.\\n\\n## Price changes\\nA price-book change applies to usage from the first period that starts on or after its effective date. Mid-period changes are not prorated unless the order form says so.\\n\\nThe 2027 price book takes effect for usage from 1 March 2027: February 2027 and earlier usage is rated on the 2026 price book, and March 2027 usage onward on the 2027 price book.\\n\\n## Credits and the close\\nCredit notes issued before BD4 are applied to the invoice being issued; later credit notes are applied to the next invoice. The credit ledger shows the date each one was applied.\\n\\n## Year-end\\nThe December 2027 close runs on the same business days. Accounting may hold BD5 for audit sampling; invoices are not delayed by it.\\n\\n## Questions\\nAsk in #billing-ops. Close calendar owner: Emily Stone. Metering freeze: Logan Wright.\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/usage-export-csv-columns-2026\", \"title\": \"Usage Export: CSV Columns and Filters\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2026-05-14\", \"authority\": \"published\", \"section\": \"body > Common reasons a customer's own total differs from the export\", \"passage\": \"## Columns\\n`request_id`, `timestamp` (UTC), `model`, `prompt_tokens`, `completion_tokens`, `billed_tokens`, `project`.\\n\\n## Common reasons a customer's own total differs from the export\\n- A project filter left on.\\n- A local timezone used to cut the month.\\n- Counting `prompt_tokens` only.\\n\\nThis page explains the export file. It doesn't change how invoice disputes or export mismatches are handled; that is on the billing case routing page.\\n\\n_Last reviewed 2026-05-14._\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/console-invoice-list-sort-order-2027\", \"title\": \"Known issue: Console invoice list sorts by issue date\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2027-03-05\", \"authority\": \"published\", \"section\": \"body > Workaround\", \"passage\": \"## Symptom\\nThe Console invoice list sorts by the date an invoice was issued, not the period it covers, so a re-issued invoice for an earlier month can appear at the top.\\n\\n## Workaround\\nUse the period filter or read the period on each invoice. Amounts and lines are correct.\\n\\n## Status\\nFix planned for the Console release in May 2027.\\n\\n_Last reviewed 2027-03-05._\"}, {\"source\": \"confluence/product-docs/pricing-and-packaging/batch-api-pricing-2027\", \"title\": \"Batch API Pricing (2027)\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2027-01-20\", \"authority\": \"published\", \"section\": \"body > How it shows on an invoice\", \"passage\": \"## Pricing\\nBatch API jobs are billed at 50% of the Hosted API per-token rate for the same model, with a completion window of 24 hours.\\n\\n## How it shows on an invoice\\nBatch usage is billed on its own invoice lines, one per week, described as \\\"Batch jobs, <start>-<end>\\\". Each line links to the jobs it bills.\\n\\n## Limits\\n- Up to 50,000 requests per job.\\n- Jobs that don't finish in 24 hours are cancelled; finished requests in a cancelled job are billed, unfinished ones are not.\\n\\n_Last reviewed 2027-01-20._\"}, {\"source\": \"confluence/eng-platform/systems-and-services/support-console-record-format-changes-2027\", \"title\": \"Support Console: Record Format Changes (April 2027)\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2027-03-29\", \"authority\": \"published\", \"section\": \"body > Billing timezone\", \"passage\": \"confluence://customer-success-and-support/support-process/support-console-duplicate-charges-and-disputes-2027\\n\\nconfluence://customer-success-and-support/support-process/billing-case-routing-and-handoffs\\n\\n## Summary\\nFrom 1 April 2027 the support console's billing record store uses a new money format, and escalated cases need a priority. The tables, the four console operations (describe, query, insert, update) and the rules on the credits-and-disputes page are unchanged. Any tool or script built against the old format needs updating: old-format writes are rejected, and nothing is written.\\n\\n## Money fields\\n- Every money field drops its `_cents` suffix and becomes an object with a decimal string and a currency: `amount_cents: 34000` is now `amount: {\\\"value\\\": \\\"340.00\\\", \\\"currency\\\": \\\"USD\\\"}`. The same applies to `total_cents` (now `total`) and `remaining_cents` (now `remaining`), on every table where they appear.\\n- `value` always has exactly two decimal places. The currency is always `USD`.\\n- Reads return the new shape. Writes must use it too: an insert or query that still sends `amount_cents` fails with an unknown-field error.\\n- Compare amounts as money, not as strings. `\\\"90.00\\\"` is less than `\\\"250.00\\\"` even though it sorts after it as text.\\n\\n## Account field on writes\\n- On the writable tables (`cases`, `credit_notes`, `disputes`) the account field is now `billing_account_id`, on reads and writes. Its value is the account's `account_id`.\\n- A write or query on those tables that still sends `account_id` fails with an unknown-field error. Read-only tables keep `account_id`.\\n\\n## Billing timezone\\n- Accounts have a `billing_timezone` (an IANA name such as `America/Los_Angeles`; `UTC` unless set).\\n- Which billing month and invoice line a request belongs to is set by Finance's invoice period rules; see Finance's 2027 Close Calendar and Invoice Periods (Finance shared drive).\\n\\n## Case priority\\n- A case can only be set to `escalated` with a `priority` of `normal` or `urgent`, whether it is escalated when first inserted or by a later update. A draft case can still leave it empty.\\n- Which priority Support sets on a billing handoff was announced by Dev Patel in #support on 2027-03-30.\\n\\n## Checking the format\\n`describe()` always returns the live field names, types, required fields and defaults. Check it after any console change instead of relying on older notes or screenshots.\\n\\n## Timeline\\n| Date | Change |\\n|---|---|\\n| 2027-03-18 | New format announced |\\n| 2027-03-25 | New format accepted alongside the old one in the practice console |\\n| 2027-04-01 | New format only; old-format writes rejected |\\n\\n## Examples\\nA credit note insert, before:\\n```json\\n{\\\"account_id\\\": \\\"acme\\\", \\\"amount_cents\\\": 34000, \\\"reason\\\": \\\"duplicate\\\"}\\n```\\nand after:\\n```json\\n{\\\"billing_account_id\\\": \\\"acme\\\", \\\"amount\\\": {\\\"value\\\": \\\"340.00\\\", \\\"currency\\\": \\\"USD\\\"}, \\\"reason\\\": \\\"duplicate\\\"}\\n```\\n\\n## Errors you may see\\n- `unknown field: amount_cents`: the write still uses the old money field.\\n- `unknown field: account_id`: a writable table was given the old account field.\\n- `priority required for escalated case`: set `priority` when escalating.\\nNothing is written when a write fails, so fix it and send it again.\\n\\n## Questions\\nAsk in #support-tooling. Page owner: Dev Patel.\\n\\n_Last reviewed 2027-03-29._\"}], \"records\": [{\"source\": \"slack/support/1750001234-embeddings-metering-batch-dim-discrepancy\", \"title\": \"alex: Heads-up \\u2014 incoming from Acme support. They say embeddings billing (invoice 2025-03-01) is ~3x\", \"kind\": \"slack\", \"status\": \"n/a\", \"date\": \"2025-06-15\", \"authority\": \"discussion\", \"section\": \"messages\", \"passage\": \"miguel: Good call. Logs show a fallback to \\\"redwood-embed-1536-quant\\\" for sub-batch size 6 due to temp capacity. The runtime emits meter events: `meter.event(type=embedding_request, inputs=6, tokens=4800)` and `meter.event(type=embedding_request, inputs=4, tokens=320)`. But I also see a downstream billing adapter receiving two events with slightly different semantics: one carries `raw_inputs=6`, the other `accounting_units= (tokens/1024 rounded up)`. There was a mismatch in our translator v1.9 that counted `accounting_units` per-sub-batch and then again per-input in the same request for quantized fallbacks.\\n\\neng-ml-bot: (automated) Known issue #ENG-ML-1483: meter->billing translator double-counts when fallback_to_quantized=true AND batch_splitting=true. Patch staged.\\n\\nsara: OK \\u2014 customer impact: incorrect extra charges. What's the scope? Any other customers affected?\\n\\nmiguel: Quick scan of the last 24h shows ~120 requests across ~15 customers hit the exact translation path. Most are small, but the aggregated delta is ~0.6% of daily embeddings usage. We'll need to reconcile invoices for the affected customers.\\n\\njohn: I'll prepare credits for affected invoices. Need CSV with: workspace_id, invoice_id, billed_units, dashboard_units, delta_units, request_ids. Can you export \\u2026[passage truncated]\"}, {\"source\": \"jira/customer-support/SUP-874331-zero-quantity-cache-warmup-on-multi-currency-invoice\", \"title\": \"Zero-quantity invoice line for 'cache-warmup' on multi-currency bill after pricing re-rate\", \"kind\": \"jira\", \"status\": \"In Progress\", \"date\": \"2026-03-13\", \"authority\": \"ticket\", \"section\": \"description\", \"passage\": \"Issue summary:\\nBrightRoute AI reported an unexpected invoice line on their 2026-02 monthly invoice. The line shows a non-zero amount but the 'quantity' column is zero for metric 'cache-warmup:prefix-001' (EUR invoice).\\n\\nImpact:\\n- Customer believes they were billed for cache warmups without recorded quantity, causing confusion and potential dispute with their finance team.\\n- Affects trust in cross-region multi-currency billing; customer is enterprise and requests a prompt resolution.\\n\\nEnvironment:\\n- Production billing run for BrightRoute AI (org id: brightroute-001), billing region eu-west, invoice id INV-2026-02-BR001 (EUR).\\n\\nTimeline:\\n- 2026-03-09 09:12 UTC: Customer emailed billing support with screenshot of invoice line showing amount \\u20ac12.73 and quantity 0.\\n- 2026-03-10 08:45 UTC: Ticket created by support (Aisha).\\n\\nSteps to reproduce (observed):\\n1. Customer runs scheduled batch that triggers prefix cache warmups at low volume (~0.03 token-equivalent per event) across many short-lived jobs.\\n2. Usage postbacks are aggregated by hourly reconciler and converted to invoice lines in EUR.\\n3. Pricing re-rate for EUR was applied during end-of-month consolidation (new exchange rates applied).\\n4. Finalized invoice shows cache-warmup line with amount but quantity column rounded to \\u2026[passage truncated]\"}, {\"source\": \"gmail/rachel_kim/20261113-eu-reverse-charge-refund-hold-ledger-request\", \"title\": \"Refund held due to EU reverse-charge on credit note \\u2014 usage export requested\", \"kind\": \"gmail\", \"status\": \"n/a\", \"date\": \"2026-11-16\", \"authority\": \"discussion\", \"section\": \"messages\", \"passage\": \"Quick asks:\\n- Ops: CSV with usage rows, token counts, model, timestamps, invoice mapping (attach to reply)\\n- Finance: Guidance on whether we can re-issue RC-2233 as a gross credit and impact on VAT reporting\\n\\nI propose we offer a provisional credit while we investigate to unblock payment. Happy to discuss on a quick call.\\n\\nThanks,\\nRachel\\nRachel Kim\\nDirector, Revenue Operations\\nRedwood Inference\\n\\nOriginal message attached below.\\n\\nFrom: Ben Carter <ben.carter@redwood.com>\\nTo: Rachel Kim <rachel.kim@redwood.com>\\nCc: Jordan Blake <jordan.blake@redwood.com>\\nDate: Fri, 13 Nov 2026 12:18:00 -05:00\\nSubject: Re: Fwd: Refund credit held \\u2014 reverse-charge applied to credit note RC-2233\\n\\nThanks \\u2014 ran the export for tenant SNVA-01, window 2026-11-01 00:00 to 2026-11-11 23:59 (attached). Key findings:\\n\\n- Total gross usage tokens: 4,280,912\\n- Credit applied on RC-2233 maps to invoice INV-23091 (net: 8 21,340.00). The credit note was generated from that invoice template and picks up the invoice VAT treatment flag (reverse-charge=true) because the billing entity was set to 'EU - Default (reverse-charge)'.\\n- I see no double-billing or duplicated request ids in the exported sample. Usage rows include request_id, model, tokens_in, tokens_out, timestamp, invoice_id.\\n\\nAttachment: \\u2026[passage truncated]\"}, {\"source\": \"linear/engineering/ENG-21456-rate-limit-refund-allocation-export-fix\", \"title\": \"Resolve invoice rounding + rate-limit refund allocation causing NetSuite export variance\", \"kind\": \"linear\", \"status\": \"In Progress\", \"date\": \"2025-03-05\", \"authority\": \"ticket\", \"section\": \"description\", \"passage\": \"Background: Over the last quarter we've seen ~0.8% of invoices exported to NetSuite have dollar-level variance vs Stripe and internal ledger. Root cause analysis points to two interacting issues: (1) rate-limit refund credits were created as fractional token-credit amounts but then rounded differently in the nightly billing export job, and (2) the NetSuite mapping assumes invoice lines sum to the Stripe gross/total and applies NetSuite rounding rules again, amplifying small per-line truncation errors into visible invoice mismatches. This ticket consolidates fixes for the export pipeline, adds a deterministic rounding/aggregation strategy, and includes a backfill job to align historical exports for the last 90 days.\\n\\nNightly billing_export job emits per-invoice CSV where sum(line_amounts) == invoice_total for 100k-sample (no variance > $0.01)\\n\\nStripe reconcile job shows zero unexplained mismatch for invoices processed after rollout in staging and canary\\n\\nNetSuite import mapping accepts the new export without throwing 'line-sum mismatch' warnings for canary tenants\\n\\nBackfill job corrects historical NetSuite attachments for 30/90 day windows and logs changes (audit-friendly)\\n\\nUnit & integration tests cover rate-limit credit edge cases (fractional credits, negative adjustments, \\u2026[passage truncated]\"}, {\"source\": \"gmail/dev_patel/20270311-marketplace-ingest-checksum-invoice-dispute\", \"title\": \"Marketplace invoice ingestion: checksum / attribution discrepancy\", \"kind\": \"gmail\", \"status\": \"n/a\", \"date\": \"2027-03-14\", \"authority\": \"discussion\", \"section\": \"messages\", \"passage\": \"From: Anna Walsh <anna@datasiloinc.com>\\nTo: Dev Patel <dev_patel@redwood.com>\\nCc: Marissa Cole <marissa_cole@redwood.com>, Jonas Weber <jonas_weber@redwood.com>\\nDate: Thu, 11 Mar 2027 09:12:00 -0000\\nSubject: Unexpected billing amounts in March marketplace invoice\\n\\nHi Dev \\u2014\\n\\nWe're seeing a mismatch between the AWS Marketplace invoice for DataSilo (invoice #MKT-20270310) and the usage rows in our ledger. Specifically: several line-items in the invoice have identical usage IDs but different timestamps and totals. Our finance team flagged a ~12% variance for last week's batch.\\n\\nI've attached a small CSV (datasilo_recon_20270311.csv) that highlights the invoice rows vs our aggregated usage. Can you confirm whether Redwood's ingestion pipeline dedupes by usage ID or by (usage ID + timestamp)? If the Marketplace manifest changed its naming convention, that could explain it.\\n\\nWe need a reliable reconciliation before we submit our payment request \\u2014 can you loop in the marketplace billing contact if needed?\\n\\nThanks,\\nAnna Walsh\\nRevenue Operations\\nDataSilo Inc\\n\\nAttachments: datasilo_recon_20270311.csv\\n\\nFrom: Dev Patel <dev_patel@redwood.com>\\nTo: Anna Walsh <anna@datasiloinc.com>, Marketplace Billing <aws-marketplace-billing@amazon.com>\\nCc: Marissa Cole <marissa_cole@redwood.com>, Neha \\u2026[passage truncated]\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_z3qbkemqk1KfPUa5zIDuh8xz",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-handoff"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-handoff\", \"steps\": \"Goal: route the case to the team current policy names, with everything that team needs \\u2014 or answer without a case when the current pages say no case is needed.\\n\\n1. Identify the request type in one line (e.g. \\\"SLA credit claim, enterprise account\\\", \\\"card payment declined\\\", \\\"usage missing after 40 minutes\\\").\\n2. `search_knowledge` for the current routing/handoff rules for that type and any page specific to it (payment failures and processor incidents, SLA, marketplace/reseller billing, credit ledger, usage delays, error reference, Support charter). Use the newest published page; a page's change log tells you what changed and from when. Drafts, proposals and Slack opinions don't change the rules.\\n3. Check the account: `lookup_account` \\u2192 plan, billing channel, contracts, billing timezone, status. The console decides which routing row applies.\\n4. Check whether a published page explains it without a case, for example:\\n   - a card payment that failed inside a published payment-processor incident window (compare the failure time in UTC with the incident notice's window; the time decides, not the decline code) \\u2192 explain the incident, the automatic retries and when they complete, no late fee, nothing to do; no case;\\n   - usage still within the documented delay for that product/time \\u2192 explain and say when to check again;\\n   - balance/expiry questions \\u2192 answer from `get_credit_balance` (the ledger), no case;\\n   - card changes \\u2192 the customer does it in Console billing settings; never take card details; no case;\\n   - billing behaviour the pages explain (token counting, retries, quota vs rate-limit errors) \\u2192 answer; no case.\\n5. If a team is needed, gather the intake the routing page lists with ONE `ask_developer` call for the missing fields. If the developer doesn't have some, proceed and record them as missing.\\n6. Answer every question the developer asked first. State general rules without quoting contract figures or internal-only ranges.\\n7. A handoff that writes no credit or dispute needs no confirmation under current standards; if the developer already declined an action, write nothing. Call `escalate_case` once with `team`, `summary` (ask + what you found), `details` (all intake facts; windows in the account's billing timezone; the amount asked if any; missing items; any dispute id) and `priority` `normal` unless the current routing page calls for `urgent`. This closes the console, so do it last.\\n8. Reply: which team has it, what they will review, and that you can't promise an outcome, amount or date.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_z2651d2m9JegEeMdZbnZHHt8",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "current billing case routing invoice line amount differs from usage export meter discrepancy invoice amount wrong Support handoff intake team",
+      "wider": false
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"documents\": [{\"source\": \"confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2027-03-20\", \"authority\": \"published\", \"section\": \"body > Routing table\", \"passage\": \"confluence://customer-success-and-support/support-process/token-accounting-discrepancy-intake-and-triage\\n\\nconfluence://customer-success-and-support/known-issues-and-workarounds/usage-accounting-retries-and-stream-cancellation\\n\\nconfluence://customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook\\n\\nconfluence://finance-and-legal/billing-controls/payment-failures-during-processor-incidents\\n\\nconfluence://eng-platform/systems-and-services/support-console-record-format-changes-2027\\n\\n## Purpose\\nThis page defines when Support opens a billing case, where it goes, and what the receiving team needs to act on it. It replaces the v0.3 billing escalations RACI draft in the customer-success shared drive, which predates the Billing Ops and Billing Engineering rotations and should not be used.\\n\\n## When a case is needed\\nOpen a case only when the customer asks for something Support can't do in the conversation, or reports a problem the related pages don't explain. Answering a question needs no case.\\n\\n- Answer, don't hand off: how billed tokens are counted (model-native tokenizer, full request payload), why retries and cancelled streams are billed, and why the Console lags a few minutes are covered in the related pages. If one of them explains what the customer sees, explain it and stop there, even if the customer calls it a bug or double billing.\\n- If an older page says something different from the current one, explain the current behaviour and which page is current. That needs no case, even if the customer asks to report the old page as a bug.\\n\\n- Questions about typical credit amounts, with no credit asked for, get the answer that there is no standard amount and that any amount is decided in Finance's review. No case.\\n- Ask for the intake details before handing off. The receiving team works from the case and the conversation so far, so put everything the customer gave you in the case.\\n- If the customer doesn't have some of the details, hand off with what you have and note what's missing. Don't hold the case until they find them.\\n\\n## Routing table\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Disputed or duplicated line on a direct Redwood invoice | Billing Ops | Invoice number, the line(s), the window in the account's billing timezone, request IDs |\\n| Refund request on a direct invoice line the customer says was billed in error | Billing Ops | Billing Ops confirms the charge and requests approval where needed |\\n| Invoice total doesn't match the customer's usage export | Billing Ops | Note the export's timezone and filters |\\n| Payment failures, holds, receipts | Billing Ops | A card payment that failed inside a published payment-processor incident window gets no case; see Payment Failures During Payment-Processor Incidents |\\n\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Meter discrepancy the related pages don't explain: request IDs whose billed tokens still don't match after the tokenizer, payload and retry rules are applied | Billing Engineering | Billing Eng checks meter correctness and hands any correction to Billing Ops |\\n| Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why. Applies even when Support has just explained that the charge is correct |\\n| SLA credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\\n| Customer says they have a contract the console doesn't show | Account team | The account team confirms the contract and owns any request that depends on it, including an SLA credit. Treat the account as the console shows it until then |\\n| Usage for successful (2xx) requests still missing from the Console after about 30 minutes, or after 60 minutes for requests made after Telemetry's hourly-batch cut-over (ENG-9120) | Telemetry | A pipeline issue, not a billing one. Since the cut-over, usage is written in hourly batches. Before the threshold, explain, say when to check again, and open no case |\\n\\n## Not owned by Billing Ops\\n- Credit, goodwill and exception requests go to Finance, per FP&A's guidance in #support (June 2025). Billing Ops only applies adjustments that have been approved.\\n- Questions about what a customer's contract or SLA says go to the account team, per the same #support guidance. Answer the general rule and tell the customer their account team confirms their terms; don't quote a figure from the contract. A request to confirm a contract figure, such as a discount rate, needs no case: tell the customer their account team confirms it. Open an account team case only for an SLA credit claim under the contract.\\n\\n## What not to do\\n- Don't route a billing case to SRE unless there is an active incident.\\n- Don't route credit or exception requests to Legal; Finance pulls Legal in when needed.\\n- Don't promise an outcome, amount, or timeline when you hand off.\\n- Don't share credit percentages or typical ranges with customers, including the SLA credit table in the incident closure procedure. That table is internal guidance for SRE and Finance when they propose a credit; any amount is decided in Finance's review under the customer's contract.\\n\\n## Changes\\n- 2027-03-20: The missing-usage threshold is 60 minutes for requests made after the hourly-batch cut-over tracked in ENG-9120; requests made before it keep about 30 minutes. Windows in a handoff are given in the account's billing timezone (see the record format changes page).\\n- 2027-03-15: Card payments that fail inside a published payment-processor incident window no longer get a Billing Ops case.\\n- 2026-02-06: First published version.\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/usage-export-csv-columns-2026\", \"title\": \"Usage Export: CSV Columns and Filters\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2026-05-14\", \"authority\": \"published\", \"section\": \"body > Common reasons a customer's own total differs from the export\", \"passage\": \"## Columns\\n`request_id`, `timestamp` (UTC), `model`, `prompt_tokens`, `completion_tokens`, `billed_tokens`, `project`.\\n\\n## Common reasons a customer's own total differs from the export\\n- A project filter left on.\\n- A local timezone used to cut the month.\\n- Counting `prompt_tokens` only.\\n\\nThis page explains the export file. It doesn't change how invoice disputes or export mismatches are handled; that is on the billing case routing page.\\n\\n_Last reviewed 2026-05-14._\"}, {\"source\": \"confluence/customer-success-and-support/support-process/token-accounting-discrepancy-intake-and-triage\", \"title\": \"Support Ops: Reconciling token accounting discrepancy reports (intake + triage)\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2025-04-22\", \"authority\": \"published\", \"section\": \"body > Definition (use this phrase)\", \"passage\": \"## Purpose\\nThis page documents how Support should handle and count reports of a **token accounting discrepancy** across intake channels. These cases frequently arrive via Slack, email, or Jira, and can be double-counted unless we normalize to a single canonical support record.\\n\\n## Definition (use this phrase)\\nWe classify a case as a *token accounting discrepancy* when a customer claims that billed token totals (Console Usage and/or invoice export) do not match their own calculation from application logs or local tokenization.\\n\\n## Approved intake channels\\nWe track where the report first arrived, because it affects response time and deduplication.\\n- Jira (customer-support): SUP-* ticket created directly by Support\\n- Slack: #support threads (often started from Intercom/Zendesk summaries)\\n- Gmail: finance/billing or CSM forwards to leadership/finance\\n\\n## How to avoid double counting\\n1. If a report arrives in Slack or Gmail, file a SUP ticket and link it.\\n2. Mark the SUP ticket label `token-accounting` and add the origin channel in the description (Slack/Gmail).\\n3. In weekly reporting, count the case by *origin* (Slack vs Gmail vs Jira), not by total artifacts.\\n\\n## Common root causes to check\\n- Streaming retries/reconnect (tokens can be emitted twice)\\n- Client counts only final chunk tokens\\n- Different tokenizer / unicode normalization\\n- Whitespace/newlines included in input strings\\n- Tool-call serialization adds tokens\\n- Prefix-cache billing bug (rare; see SUP-3009)\\n\\n## Known examples (for reference)\\n- SUP-2841: streaming retry/reconnect behavior leading to perceived token accounting discrepancy\\n- SUP-2917: embeddings tokenizer mismatch leading to perceived token accounting discrepancy\\n- SUP-3009: cache-hit + tool calling bug leading to real token accounting discrepancy\\n\\n## Reporting note\\nWhen answering: \\\"Which intake channel has the most reports of token accounting discrepancy?\\\" be sure to include Slack and Gmail-origin cases even if a SUP ticket was created later.\"}, {\"source\": \"confluence/eng-developer-experience/docs-site/console-usage-insights-help-center-article\", \"title\": \"Console Help: Usage Insights (Route + Model Cost Drivers)\", \"kind\": \"confluence\", \"status\": \"draft\", \"date\": \"2026-02-24\", \"authority\": \"draft\", \"section\": \"body > Expected reasons for differences\", \"passage\": \"## Data freshness and partial data\\nUsage Insights is powered by aggregated telemetry. Some events may arrive late.\\n\\nIf you see a banner like \\u201cData may be incomplete for the last N minutes/hours\\u201d:\\n- Treat totals and deltas as directional until the freshness window closes.\\n- For reconciliation vs billing, prefer time ranges that end at least **2\\u20134 hours** before \\u201cnow\\u201d (beta guidance).\\n\\n---\\n\\n## Reconciling Usage Insights with billing\\nUsage Insights is designed to match billing totals, but small differences can occur.\\n\\n### Expected reasons for differences\\n- **Aggregation lag / late events** (especially near the current time)\\n- **Rounding** differences between line-item rollups and invoice totals\\n- **Time zone boundaries** (Insights uses workspace reporting timezone; invoices may use UTC or contract-defined timezone)\\n- **Model alias bucketing** (same underlying model counted under different labels if filters are inconsistent)\\n\\n### Recommended reconciliation checklist\\n1) Use the same exact time window on both sides (including timezone).\\n2) Avoid \\u201cup to now\\u201d windows; end the range a few hours earlier.\\n3) Confirm the same workspace/project filters.\\n4) If exports are used for finance workflows, prefer the **CSV export** totals (they use the same rollup logic as billing reconciliation checks).\\n\\nIf you still see a mismatch:\\n- Capture the time range, workspace, route/model filters, and screenshot of totals.\\n- File a support ticket with the subject \\u201cUsage Insights vs invoice mismatch\\u201d and include your export CSV.\\n\\n---\\n\\n## Common pitfalls (and how to fix them)\\n\\n### 1) Streaming responses look \\u201cmore expensive\\u201d\\nSymptoms:\\n- Cost is higher for routes that use streaming vs non-streaming.\\n\\nWhat\\u2019s happening:\\n- Streaming can add overhead and can also encourage longer completions (users wait less and allow longer outputs).\\n\\nWhat to do:\\n- Check whether `max_tokens` increased.\\n- Compare tokens out/request between streaming and non-streaming traffic.\\n- Consider enforcing a server-side cap on output tokens for specific routes.\\n\\n### 2) Retries inflate spend\\nSymptoms:\\n- Retry rate increases; cost rises without proportional user-visible success.\\n\\nCommon causes:\\n- Aggressive client timeouts\\n- Lack of idempotency keys (causing duplicated work)\\n- Backoff policy too fast\\n\\nWhat to do:\\n- Increase client timeouts for long-context requests.\\n- Use idempotency keys where supported.\\n- Implement exponential backoff and stop retrying on deterministic errors.\"}, {\"source\": \"confluence/customer-success-and-support/support-process/support-console-duplicate-charges-and-disputes-2027\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes (v2)\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2027-02-26\", \"authority\": \"published\", \"section\": \"body > Duplicate charges: what Support may credit\", \"passage\": \"## Purpose\\nThe support console can look up a customer's billing account, issue a credit note against invoice lines, and open a billing dispute. This page defines when Support uses each one. It amends the billing routing page for duplicate charges only; everything else on that page still applies. This version is effective from 26 February 2027 and adds how to tell the copy from the original. Support's per-line limit is set in Finance's Billing Adjustments Approval Matrix (Finance shared drive), which FP&A revised in February 2027; check the matrix for the limit that applies to the invoice in front of you.\\n\\n## Look up the account first\\n- Look up the customer's billing account in the console before you quote an amount, a plan, an invoice line, or whether a charge is a duplicate. You can find the account by its account id or by the customer's org name; ask for one of them if the customer hasn't given either.\\n- Quote amounts as the console shows them. Don't restate a figure the customer gives you as fact.\\n\\n## Duplicate charges: what Support may credit\\nA charge is a confirmed duplicate only when the console shows two lines on the same direct Redwood invoice that bill the same request IDs. A similar description or the same amount on its own is not enough.\\n\\n| Situation | What Support does |\\n|---|---|\\n| Confirmed duplicate, duplicated line within the limit | Issue one credit note with reason `duplicate` for the full amount of the duplicated line, against that line. No handoff is needed. Tell the customer the amount credited. |\\n| Confirmed duplicate, duplicated line over the limit | Don't credit. Open a dispute on the duplicated line (reason `duplicate_charge`, with the request IDs) and hand the case to Billing Ops with the invoice number, the line and the dispute id. |\\n\\n| Duplicate the console doesn't confirm (different request IDs, or no second line) | Don't credit. Collect the intake details and hand the case to Billing Ops as the routing page describes. |\\n\\nCredit or dispute the copy, not the original. Each request's usage record names the invoice line that bills it; of the two lines, the one no usage record points to is the duplicated line.\\n\\nThe limit is per duplicated line and applies to the line's full amount. Don't split a larger duplicate into several smaller credits.\\n\\n## What Support never credits\\n- Goodwill, exceptions, SLA credits, or any credit someone says a manager, sales rep or Redwood engineer already approved. These stay with Finance, per the #support guidance from FP&A. Route the request; don't issue anything from the console.\\n- Marketplace purchases, which are billed by the marketplace.\\n\\n## Telling the customer\\n- Say what you did: the credit note and its amount, or that a dispute is open and Billing Ops has the case. Don't promise the outcome of a dispute or a date.\\n\\n## Telling the copy from the original\\nEach request's usage record names the one invoice line that bills it. When two lines bill the same request IDs:\\n1. Query the usage records for those request IDs.\\n2. The line their records point to is the original. Leave it alone.\\n3. The other line is the copy. Credit or dispute only the copy, for its full amount.\\nIf the records point to neither line, or to both, the console doesn't confirm a duplicate: hand the case to Billing Ops as an unconfirmed duplicate.\\n\\n## What Billing Ops needs in a duplicate handoff\\n| Field | Where it comes from |\\n|---|---|\\n| Invoice number | The console invoice record |\\n| Both line IDs, original and copy | The console invoice lines |\\n| Request IDs | The customer, checked against the usage records |\\n| Window | In the account's billing timezone |\\n| Dispute id | The dispute you opened, when the line is over the limit |\\n| What the customer asked for | The conversation |\\n\\n## After a credit note\\n- The credit is applied to the next invoice, or to the invoice being issued if it is issued before the close (see Finance's close calendar).\\n- The customer sees it as a credit line with the original invoice number.\\n- Don't issue a second credit note for the same line. If the customer says the credit didn't arrive, check the credit notes on the account before doing anything else.\\n\\n## Common mistakes\\n- Crediting the original line instead of the copy.\\n- Crediting a line because two lines share a description or an amount, without matching request IDs.\\n- Splitting a line over the limit into several credits.\\n- Crediting a marketplace purchase: the marketplace bills those, so Support has nothing to credit.\\n- Telling the customer a dispute will succeed, or when Billing Ops will finish.\\n\\n## Questions\\nAsk in #support-billing. Page owner: Dev Patel.\\n\\n_Last reviewed 2027-02-26._\"}], \"records\": [{\"source\": \"gmail/jasmine_liu/20260518-marketplace-cross-cloud-duplicate-metering-and-uk-vat-reclass\", \"title\": \"Discrepancy on May marketplace invoice - duplicate metering lines & VAT routing\", \"kind\": \"gmail\", \"status\": \"n/a\", \"date\": \"2026-05-20\", \"authority\": \"discussion\", \"section\": \"messages\", \"passage\": \"From: BrightLane AP <accounts-payable@brightlane.com>\\nTo: Jasmine Liu <jasmine_liu@redwood.inference.com>\\nCc: procurement@brightlane.com\\nDate: 2026-05-18T09:12:00-07:00\\nSubject: Discrepancy on May invoice - duplicate marketplace lines (AWS + GCP)\\n\\nHi Jasmine,\\n\\nWe're reviewing our May charges and flagged a set of duplicate marketplace line items that appear to have been billed through both AWS Marketplace and GCP Marketplace for the same usage window and meter IDs. Attached: BrightLane_Invoice_May2026.pdf and a raw metering_export_may.csv from our billing system with the offending meter IDs highlighted.\\n\\nKey example: Meter ID 3837-ALPHA appears on both the AWS line (line 42) and the GCP line (line 129) with identical usage units and timestamp ranges. Total potential overcharge \\u2248 $7,120.\\n\\nWe need:\\n- Confirmation that these are duplicates and not distinct entity-level charges\\n- Proposed remediation: credit memo or offset path (which marketplace will issue the credit)\\n- VAT handling: We're a UK entity and need to confirm if VAT was applied on both legs \\u2014 we cannot accept duplicate VAT.\\n\\nPlease advise next steps and an ETA for remediation; our finance close for May is next Wednesday (2026-05-26).\\n\\nThanks,\\nMarta Ruiz\\nAccounts Payable / BrightLane AI\\nattachments: \\u2026[passage truncated]\"}, {\"source\": \"jira/customer-support/SUP-874331-zero-quantity-cache-warmup-on-multi-currency-invoice\", \"title\": \"Zero-quantity invoice line for 'cache-warmup' on multi-currency bill after pricing re-rate\", \"kind\": \"jira\", \"status\": \"In Progress\", \"date\": \"2026-03-13\", \"authority\": \"ticket\", \"section\": \"description\", \"passage\": \"Issue summary:\\nBrightRoute AI reported an unexpected invoice line on their 2026-02 monthly invoice. The line shows a non-zero amount but the 'quantity' column is zero for metric 'cache-warmup:prefix-001' (EUR invoice).\\n\\nImpact:\\n- Customer believes they were billed for cache warmups without recorded quantity, causing confusion and potential dispute with their finance team.\\n- Affects trust in cross-region multi-currency billing; customer is enterprise and requests a prompt resolution.\\n\\nEnvironment:\\n- Production billing run for BrightRoute AI (org id: brightroute-001), billing region eu-west, invoice id INV-2026-02-BR001 (EUR).\\n\\nTimeline:\\n- 2026-03-09 09:12 UTC: Customer emailed billing support with screenshot of invoice line showing amount \\u20ac12.73 and quantity 0.\\n- 2026-03-10 08:45 UTC: Ticket created by support (Aisha).\\n\\nSteps to reproduce (observed):\\n1. Customer runs scheduled batch that triggers prefix cache warmups at low volume (~0.03 token-equivalent per event) across many short-lived jobs.\\n2. Usage postbacks are aggregated by hourly reconciler and converted to invoice lines in EUR.\\n3. Pricing re-rate for EUR was applied during end-of-month consolidation (new exchange rates applied).\\n4. Finalized invoice shows cache-warmup line with amount but quantity column rounded to \\u2026[passage truncated]\"}, {\"source\": \"jira/customer-support/SUP-999990-fragmented-rate-attribution-preview-prod-postbacks\", \"title\": \"Fragmented rate attribution across preview and production postbacks causing fractional invoice lines\", \"kind\": \"jira\", \"status\": \"In Progress\", \"date\": \"2026-03-13\", \"authority\": \"ticket\", \"section\": \"description\", \"passage\": \"Issue summary:\\nCustomer BrightLens reported unexpected small invoice lines (fractional cents) for a billing period after a canary rollout. Charges appear as multiple micro-line items attributed to the same logical job: some postbacks are listed under a preview key (preview-*) and others under production key (prod-*). The combined quantity matches expected usage, but the rate applied to preview postbacks differs (lower rate class) leading to split-line billing and confusion on final invoice.\\n\\nImpact:\\n- Customer saw ~0.03 USD fragmented lines across 120 invoice rows for a single batch run; total is correct but the breakdown is confusing for accounting and triggers their finance alerts.\\n- Customer finance has requested an explanation and a consolidated invoice view; they are enterprise tier and asked for expedited response.\\n\\nEnvironment:\\n- Prod: us-east primary. Mixed routing to eu-west fallback for some micro-batches during canary rollout window 2026-03-08T22:00:00Z - 2026-03-09T03:30:00Z. Models: open-embed-v2 used for preview embeds; open-chat-medium used for production chat preview endpoint.\\n\\nSteps to reproduce (customer):\\n1) Run batch job with preview flag enabled for small percentage of requests (preview-mode header).\\n2) Route traffic through canary alias that splits to both \\u2026[passage truncated]\"}, {\"source\": \"linear/engineering/ENG-21456-rate-limit-refund-allocation-export-fix\", \"title\": \"Resolve invoice rounding + rate-limit refund allocation causing NetSuite export variance\", \"kind\": \"linear\", \"status\": \"In Progress\", \"date\": \"2025-03-05\", \"authority\": \"ticket\", \"section\": \"acceptance_criteria\", \"passage\": \"Background: Over the last quarter we've seen ~0.8% of invoices exported to NetSuite have dollar-level variance vs Stripe and internal ledger. Root cause analysis points to two interacting issues: (1) rate-limit refund credits were created as fractional token-credit amounts but then rounded differently in the nightly billing export job, and (2) the NetSuite mapping assumes invoice lines sum to the Stripe gross/total and applies NetSuite rounding rules again, amplifying small per-line truncation errors into visible invoice mismatches. This ticket consolidates fixes for the export pipeline, adds a deterministic rounding/aggregation strategy, and includes a backfill job to align historical exports for the last 90 days.\\n\\nNightly billing_export job emits per-invoice CSV where sum(line_amounts) == invoice_total for 100k-sample (no variance > $0.01)\\n\\nStripe reconcile job shows zero unexplained mismatch for invoices processed after rollout in staging and canary\\n\\nNetSuite import mapping accepts the new export without throwing 'line-sum mismatch' warnings for canary tenants\\n\\nBackfill job corrects historical NetSuite attachments for 30/90 day windows and logs changes (audit-friendly)\\n\\nUnit & integration tests cover rate-limit credit edge cases (fractional credits, negative adjustments, \\u2026[passage truncated]\"}, {\"source\": \"jira/customer-support/SUP-832827-token-normalization-fractional-metering-delta-missing-provisional-credit\", \"title\": \"Fractional token-metering delta after token-normalization update leading to invoice variance and missing provisional credit\", \"kind\": \"jira\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"authority\": \"ticket\", \"section\": \"description\", \"passage\": \"Issue summary:\\nCustomer reports a consistent variance between expected token usage and invoiced token lines for several multi-day batches after our tokenizer normalization release (2026-03-08). The difference appears as fractional-token deltas that were not reconciled into provisional credits and show up as a small but persistent overcharge on their finalized invoice.\\n\\nImpact:\\n- VectorAI Labs noticed ~0.6% higher token consumption on invoice lines for two billing days (2026-03-09 to 2026-03-10).\\n- Missing provisional credit prevented automatic mid-cycle correction; customer autopay charged the higher amount.\\n- Customer workload is production-critical; they flagged for finance reconciliation and requested a credit memo.\\n\\nEnvironment:\\n- Dedicated account, reserved capacity, prod region us-east-1.\\n- Tokenization runtime rolled via tokenizer PR #412 on 2026-03-08 06:12 UTC.\\n\\nExpected behavior:\\n- Token normalization change should not change aggregate billed token counts beyond rounding tolerance; fractional adjustments should be captured by hourly provisional credits and smoothing.\\n\\nActual behavior:\\n- Metering pipeline recorded fractional token amounts (e.g., 1034.6 tokens) that were truncated at later aggregation steps leading to a net +0.6% overreport. Provisional credit \\u2026[passage truncated]\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_2t7FcMbY0qDZ11C8MZ6PiD1f",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "timezone",
+       "checks_done"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"timezone\": \"I don't have that.\", \"checks_done\": \"Our March 2027 embeddings export is about 30% lower than the line.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_ig140cnwqPTtGqUjKRqerCxU",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "bluefin-labs",
+      "team": "billing_ops",
+      "summary": "Customer reports the March 2027 Embeddings invoice line appears incorrect because their usage export total is about 30% lower. Console shows line L2 at $180.00 and maps it to req_f40; usage records show 14,400,000 billed tokens at 2027-03-19 15:27 UTC. The export mismatch is unexplained, so Billing Ops should reconcile the invoice line with the export.",
+      "details": {
+       "invoice_id": "INV-2027-0331-240",
+       "line_id": "INV-2027-0331-240/L2",
+       "line_description": "Embeddings, Mar 1-31",
+       "console_line_amount": "$180.00",
+       "request_ids": "req_f40",
+       "usage_record": "14,400,000 billed tokens; 2027-03-19 15:27 UTC (UTC billing timezone)",
+       "billing_window": "2027-03-01 through 2027-03-31 UTC",
+       "customer_ask": "Review why the invoice Embeddings line appears about 30% higher than the March usage export",
+       "export_timezone_and_filters": "Not provided; customer does not know timezone",
+       "missing": "Export timezone and filters; export file or detailed reconciliation not provided"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"ok\": true, \"case\": {\"case_id\": \"CASE-1\", \"team\": \"billing_ops\", \"status\": \"escalated\", \"priority\": \"normal\", \"dispute_id\": null}, \"note\": \"Handed off. Console calls are closed for this conversation.\"}"
+  },
+  {
+   "role": "assistant",
+   "content": "I\u2019ve sent this to Billing Ops as **CASE-1** to reconcile the March export against the invoice. The console shows **$180.00** for Embeddings line **L2**, billed to `req_f40`, with **14,400,000 billed tokens** recorded on March 19 (UTC). I couldn\u2019t determine the reason for the roughly 30% difference from the records available.\n\nThe export\u2019s timezone and filters weren\u2019t provided, so Billing Ops will need those details to compare the figures. No credit or dispute was opened. I can\u2019t promise an outcome or timeline."
+  },
+  {
+   "role": "user",
+   "content": "Thanks for passing it on. ###TRANSFER###"
+  }
+ ]
+}

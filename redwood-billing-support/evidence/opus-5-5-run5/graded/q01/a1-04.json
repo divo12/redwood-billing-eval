@@ -1,0 +1,458 @@
+{
+ "id": "a1-04",
+ "grade": {
+  "id": "a1-04",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": false,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": false,
+    "problem": "cases: extra [], missing [{'account_id': 'bluefin-labs', 'team': 'billing_ops', 'status': 'escalated', 'dispute_id': None}]",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": false,
+    "problem": "no successful write:cases(status=escalated, 'INV-2027-0331-240')",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:contacts",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:contacts",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 19,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 19,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 19,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 19,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 22,
+      "ok": false
+     },
+     {
+      "op": "query:usage",
+      "at": 24,
+      "ok": true
+     },
+     {
+      "op": "insert:cases",
+      "at": 30,
+      "ok": false
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 34,
+      "ok": false
+     }
+    ]
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "confirm_with_developer",
+   "escalate_case",
+   "get_account_activity",
+   "get_invoice",
+   "get_usage",
+   "load_skill",
+   "lookup_account",
+   "search_knowledge"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 152.75662773400018,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "We think Line L2 on invoice INV-2027-0331-240 is incorrect. Org bluefin-labs."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_U245u20BJwTgtkc693nLAjeV",
+     "name": "load_skill",
+     "arguments": {
+      "name": "duplicate-charge-resolution"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"duplicate-charge-resolution\", \"steps\": \"Goal: decide from the console and the current policy whether Support credits the line, opens a dispute and hands off, or hands off without a dispute \\u2014 then do exactly that, once.\\n\\n1. Collect identifiers. If the developer hasn't given them, call `ask_developer` for `org_id`, `invoice_id` (or `invoice_month`), `line_items`/`amounts` and `request_ids` in one call.\\n2. Read the console.\\n   - `lookup_account` (org or account id). Note `billing_channel` and `plan`. If the account is not billed directly by Redwood (marketplace or reseller), stop this procedure: search the knowledge base for how that channel's invoices are adjusted, explain it, and route only if the policy says so.\\n   - `get_invoice` for the invoice (if you only have a month, pick the invoice whose period covers it from `lookup_account`). Look at `lines_billing_identical_request_ids`, each line's amount and `already_credited`, and the credit notes.\\n   - `get_account_activity` to see existing credit notes, disputes and cases.\\n3. Retrieve the rules. `search_knowledge` for the current support-console procedure for duplicate charges and for Finance's approval limit on duplicate-charge credits (who issues it, the per-line limit, whether lines may be split). Read the published, current documents; ignore archived help articles, drafts and proposals, and limits that belong to other teams or channels.\\n4. Classify, using the console only (a matching description or amount is not proof):\\n   - Confirmed duplicate: two lines on the same direct invoice bill the same request ids.\\n   - Not confirmed: different request ids, only one line, or no request ids.\\n5. Act according to the retrieved procedure:\\n   - Confirmed and the duplicated line's full amount is within Support's limit \\u2192 `confirm_with_developer` naming the invoice, the line id and the exact amount \\u2192 `issue_duplicate_credit` for the repeated line's full amount. Never split a line into smaller credits.\\n   - Confirmed but over the limit \\u2192 `confirm_with_developer` that you will open a dispute on the duplicated line and pass it to the owning team \\u2192 `open_dispute` (reason `duplicate_charge`, the line, the request ids, submitted) \\u2192 `escalate_case` to the team the procedure names with the invoice, line(s), request ids and the dispute id.\\n   - Not confirmed \\u2192 do not credit. Explain what the console shows (e.g. the two lines bill different request ids, with their UTC times and statuses), then do what the retrieved procedure says for duplicates the console doesn't confirm (e.g. collect intake details and hand the case to the team it names). Answer \\\"is it a duplicate?\\\" plainly: not per the console.\\n   - Already credited or already disputed \\u2192 say so; do nothing twice.\\n   - For any handoff, include the UTC window: use the developer's answer, or the `at` times of the request ids from `get_usage` when they don't know it.\\n6. Reply: what the console showed, what you did (credit note id and amount, or dispute id and the team that has the case), and what happens next. Don't promise a dispute outcome, a refund date or timing. If the developer asks about money already paid on a credited invoice, answer only from what the documents say.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_rYAVH6wi0ETLPjtYY5EJALNP",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "line_items",
+       "amounts",
+       "request_ids"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"line_items\": \"L2, Embeddings, Mar 1-31.\", \"amounts\": \"$180 on the invoice; about $126 in our export.\", \"request_ids\": \"req_f40\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_k21g2USQjFNNFWbhbroJM9g9",
+     "name": "lookup_account",
+     "arguments": {
+      "account_id": "",
+      "org": "bluefin-labs"
+     }
+    },
+    {
+     "id": "call_4TmpeZX1CIyEx0EFeBcEKuk0",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "current support console procedure duplicate charges duplicate-charge credit Support per-line approval limit same request ids",
+      "wider": false
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: 'total_cents'"
+  },
+  {
+   "role": "tool",
+   "content": "{\"documents\": [{\"source\": \"confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2026-02-05\", \"authority\": \"published\", \"section\": \"body > Duplicate charges: what Support may credit\", \"passage\": \"## Purpose\\nThe support console can look up a customer's billing account, issue a credit note against invoice lines, and open a billing dispute. This page defines when Support uses each one. It amends the billing routing page for duplicate charges only; everything else on that page still applies.\\n\\n## Look up the account first\\n- Look up the customer's billing account in the console before you quote an amount, a plan, an invoice line, or whether a charge is a duplicate. You can find the account by its account id or by the customer's org name; ask for one of them if the customer hasn't given either.\\n- Quote amounts as the console shows them. Don't restate a figure the customer gives you as fact.\\n\\n## Duplicate charges: what Support may credit\\nA charge is a confirmed duplicate only when the console shows two lines on the same direct Redwood invoice that bill the same request IDs. A similar description or the same amount on its own is not enough.\\n\\n| Situation | What Support does |\\n|---|---|\\n| Confirmed duplicate, duplicated line within Support's limit | Issue one credit note with reason `duplicate` for the full amount of the duplicated line, against that line. No handoff is needed. Tell the customer the amount credited. |\\n| Confirmed duplicate, duplicated line over the limit | Don't credit. Open a dispute on the duplicated line (reason `duplicate_charge`, with the request IDs) and hand the case to Billing Ops with the invoice number, the line and the dispute id. |\\n\\n| Duplicate the console doesn't confirm (different request IDs, or no second line) | Don't credit. Collect the intake details and hand the case to Billing Ops as the routing page describes. |\\n\\nSupport's limit is set by Finance in the Billing Adjustments Approval Matrix (Finance shared drive) (the duplicate-charge credit row). It is per duplicated line and applies to the line's full amount. Don't split a larger duplicate into several smaller credits.\\n\\n## What Support never credits\\n- Goodwill, exceptions, SLA credits, or any credit someone says a manager, sales rep or Redwood engineer already approved. These stay with Finance, per the #support guidance from FP&A. Route the request; don't issue anything from the console.\\n- Marketplace purchases, which are billed by the marketplace.\\n\\n## Telling the customer\\n- Say what you did: the credit note and its amount, or that a dispute is open and Billing Ops has the case. Don't promise the outcome of a dispute or a date.\\n\\n_Last reviewed 2026-02-05._\"}, {\"source\": \"google_drive/shared_drives/finance/billing-adjustments-approval-matrix\", \"title\": \"Billing Adjustments Approval Matrix\", \"kind\": \"google_drive\", \"status\": \"final\", \"date\": \"2026-02-03\", \"authority\": \"published\", \"section\": \"content > Approval matrix\", \"passage\": \"## Purpose\\nThis matrix is the single place where Finance sets who may approve or issue a billing adjustment, and up to what amount. Team procedures (Support, Billing Ops, Partnerships) describe how to carry out an adjustment; the amounts and approvers come from here. When a team page and this matrix disagree on an amount, this matrix wins and the team page should be corrected.\\n\\n## Scope\\n- Direct Redwood invoices for Hosted API, Embeddings, Batch and Dedicated.\\n- Marketplace purchases are out of scope: adjustments go through the marketplace (see the marketplace invoicing notes).\\n- Contracted Enterprise accounts follow this matrix unless their order form names a different approver.\\n\\n## Definitions\\n- **Adjustment**: any change to what a customer owes after an invoice is issued: a credit note, a refund, a write-off or a re-issued invoice.\\n- **Per line**: the amount of one invoice line, taken whole. An adjustment is never split across several smaller ones to stay under a limit.\\n- **Billing error**: a line that bills the wrong rate, quantity or product, or bills the same usage twice.\\n- **Goodwill**: any reduction of a correct charge, for any reason.\\n\\n## Approval matrix\\n| Adjustment | Who issues it | Limit and approver |\\n|---|---|---|\\n| Duplicate-charge credit (console-confirmed duplicate line on a direct invoice) | Support, from the support console | Up to $500 per duplicated line. Over that, Support opens a dispute and Billing Ops takes it |\\n| Billing-error correction other than a duplicate (wrong rate, quantity or product) | Billing Ops | Up to $2,000 per invoice; above that, the Controller |\\n| Refund of a paid invoice line after an approved adjustment | Billing Ops | Up to $5,000; above that, the Controller |\\n| Goodwill credit, waiver, or exception to a billing rule | Finance (FP&A) | Any amount, decided in FP&A's review. Support and Billing Ops route these requests and never issue them |\\n| SLA credit on a self-serve account | Finance (FP&A) | Self-serve plans carry no SLA. FP&A reviews any request as goodwill |\\n\\n| Adjustment | Who issues it | Limit and approver |\\n|---|---|---|\\n| SLA credit under a signed contract | Account team files the claim; Finance approves | Per the contract's SLA terms. No amount is promised before Finance's review |\\n| Promotional or campaign credits | Growth marketing | Within the campaign budget FP&A approved |\\n| Partner program funds (MDF) | Partnerships | Per the partner agreement; never applied to invoices |\\n| Write-off of an uncollectible balance | Controller | Up to $10,000; above that, the CFO |\\n| Re-issued invoice (address, PO number, tax ID) | Billing Ops | No limit; no change to amounts |\\n\\n## Evidence each adjustment needs\\n- **Duplicate-charge credit**: the invoice number, both line IDs and the request IDs they bill. The console confirms the duplicate; a matching description or amount alone is not evidence.\\n- **Billing-error correction**: the line, the expected rate or quantity and where it comes from (price book, order form).\\n- **Goodwill and SLA credits**: the customer's ask, the amount if given, and the reason. The account team adds contract references for SLA claims.\\n- **Write-offs**: collections history and the Controller's note.\\n\\n## Audit trail\\nEvery adjustment is recorded on the invoice it changes, with the approver's name and the evidence above. Console credit notes record the issuing agent and the reason code automatically. Adjustments issued outside the console are logged by Billing Ops in the adjustments register within one business day.\\n\\n## Revenue recognition\\nCredits reduce the transaction price of the period they relate to. Adjustments over $10,000, or any adjustment to a closed quarter, need the Controller's sign-off before they are issued so that revenue can be restated where needed. Support-issued duplicate credits are always within an open period's tolerance and need no separate sign-off.\\n\\n## Reviewing this matrix\\nFP&A reviews the limits each quarter against adjustment volume and error rates. Changes are announced in #support and #billing-ops and logged below. A limit change applies from the date or period stated in the log; earlier adjustments keep the limit in force when they were issued.\\n\\n## Contacts\\n- FP&A: Rishi Malhotra\\n- Controller: Emily Stone\\n- CFO: Laura Bennett\\n\\n## Change log\\n| Date | Change | By |\\n|---|---|---|\\n| 2026-02-03 | Support issues duplicate-charge credits itself, up to the per-line limit above, instead of routing every duplicate to Billing Ops | Rishi Malhotra |\\n| 2025-09-08 | First version | Rishi Malhotra |\"}, {\"source\": \"confluence/product-docs/pricing-and-packaging/duplicate-charges-and-refunds-help-2025\", \"title\": \"Help Center: Duplicate Charges and Refunds (archived)\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2026-01-21\", \"authority\": \"archived\", \"section\": \"body\", \"passage\": \"> Archived 2026-01-21. This help-center article is no longer current. Support handles duplicate charges as described on \\\"Support Console: Duplicate-Charge Credits and Billing Disputes\\\".\\n\\n## Duplicate charges\\nIf your invoice bills the same usage twice, contact Support with the invoice number. Support refunds a duplicated line in full on request.\\n\\n## Refund timing\\nRefunds reach your card within 5-10 business days.\"}, {\"source\": \"google_drive/shared_drives/finance/support-credit-limit-increase-proposal\", \"title\": \"Proposal: raise Support's duplicate-credit limit to $1,500 (DRAFT)\", \"kind\": \"google_drive\", \"status\": \"draft\", \"date\": \"2026-06-05\", \"authority\": \"draft\", \"section\": \"content\", \"passage\": \"DRAFT for discussion - not approved\\n\\nIdea: let Support credit duplicated lines up to $1,500 so fewer duplicates need a dispute.\\n\\nOpen questions:\\n- FP&A hasn't reviewed this.\\n- Would need a change to the approvals matrix to take effect.\\n\\nStatus: parked.\"}, {\"source\": \"confluence/customer-success-and-support/support-process/reseller-billed-invoice-disputes-2026\", \"title\": \"Reseller-Billed Invoices: Disputes and Credits\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2026-04-02\", \"authority\": \"published\", \"section\": \"body > Scope\", \"passage\": \"## Scope\\nCustomers who buy Redwood through a reseller receive the reseller's invoice, not Redwood's. This page covers disputes and credits on those invoices only. It is not the procedure for duplicate charges on a direct Redwood invoice; for those, use the support console credits and disputes page.\\n\\n## What Support does\\n- Confirm in the console that the account is reseller-billed. A direct Redwood invoice in the console means this page does not apply.\\n- Point the customer to their reseller, who raises the dispute with Partnerships.\\n- Support issues no credit note and opens no dispute for a reseller-billed account: the reseller's invoice isn't in the console.\\n\\n## Partnerships limits\\nPartnerships may credit a reseller up to $2,500 per invoice under the partner agreement. That limit has nothing to do with Support's own limits.\\n\\n_Last reviewed 2026-04-02._\"}], \"records\": [{\"source\": \"slack/support/1725000000-retries-duplicate-charges-sdk-defaults\", \"title\": \"alice (Support): Hey team \\u2014 customer reported duplicate charges after a sequence of 429s + retries. \", \"kind\": \"slack\", \"status\": \"n/a\", \"date\": \"2024-08-30\", \"authority\": \"discussion\", \"section\": \"text\", \"passage\": \"diego (Infra): server-side notes: our quota/rate limiter is a token-bucket per-project with short burst allowance (burstTokens ~= 5 * normal rate) to avoid breaking steady small spikes. But when token bucket is exhausted we return 429. We do not automatically dedupe arbitrary POSTs unless an Idempotency-Key is present and the endpoint is configured for idempotency (payments, async jobs). For these endpoints we dedupe using (project, endpoint, idempotency-key) for a 24h window. If no key -> each successful request accepted and billed.\\n\\ndiego (Infra): Also important: if client retries while the original request is still pending server-side (race), the backend might process both if idempotency isn't provided. The x-request-id you posted shows three different request IDs \\u2014 that's consistent with 3 distinct processed requests.\\n\\nlina (AccountOps): On billing side: if the customer shows clear repro and duplicate charges within the same minute due to retries we can issue a credit while they remediate. For us to process a refund quickly we need: project id, customer txn id, timestamps, and the three x-request-ids (abc123/def456/ghi789). Send to billing@redwood with INC number.\\n\\nkevin (SDK): For immediate mitigation advise customer to: 1) set Idempotency-Key per business txn, 2) change \\u2026[passage truncated]\"}, {\"source\": \"slack/support/1991234567-embed-dim-billing-latency-debug\", \"title\": \"Alex (support): heads up \\u2014 ACME reported a sudden cost surge + 422 errors from our embeddings endpoi\", \"kind\": \"slack\", \"status\": \"n/a\", \"date\": \"2033-02-05\", \"authority\": \"discussion\", \"section\": \"messages\", \"passage\": \"Chris (eng-runtime): to mitigate: 1) pin routing for ACME to `embed-large-v2` if they need 1536 dims, or 2) create a transient alias that maps `embed-small-legacy` -> `embed-large-v2` (not ideal). Also added a quick fix to route malformed `Content-Length` requests into a fast-fail path rather than fallback slow-path \\u2014 will push a patch to canary.\\n\\nMaria (observability): for future, we should surface per-request `batching_hold_ms` in the per-request breakdown in the embedding dashboard (currently it's buried in traces). I'll add a small dashboard tile and an alert when average batching_hold_ms > 250ms for a route.\\n\\nJordan (billing): asked support to hold off on credit until we confirm retries and duplication. If confirmed, perform proportional credit. Also suggest we add a billing-dedupe window for identical request ids within 60s for high-retry cases (needs product approval).\\n\\nPriya (support-l2): next steps assigned: Alex to collect full headers + sample request-id(s); Maria to add dashboard tile and snapshot; Chris to push canary patch to short-circuit fallback; Jordan to run billing impact calc; customer asked for guidance on how to avoid future spikes.\\n\\nAlex (support): collected headers and full trace links from customer; attached sanitized headers and trace ids in the \\u2026[passage truncated]\"}, {\"source\": \"jira/customer-support/SUP-837420-onboarding-surcharge-after-key-rotation-postback-duplication\", \"title\": \"One-time onboarding surcharge line on finalized invoice after key-rotation triggered duplicate private postbacks\", \"kind\": \"jira\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"authority\": \"ticket\", \"section\": \"description\", \"passage\": \"- Invoice PDF: INV-2026-03-09-VER-001.pdf (customer attached).\\n\\nInvestigation notes so far:\\n- Billing team pulled postback trace for Veridian between 2026-03-08T02:50Z and 2026-03-08T04:00Z. Found ~1.2k postbacks flagged as 'onboarding-telemetry' origin, ~920 of which appear duplicated with similar payloads but different org tags.\\n- Reconciler behavior: duplicates are keyed by (external_request_id, org_id). Key rotation changed org_id mapping mid-replay causing the same external_request_id to be ingested twice.\\n- CRM waiver exists and was expected to suppress the onboarding surcharge at invoice finalization; waiver lookup uses canonical org id that matched the pre-rotation id only.\\n- Root cause hypothesis: telemetry adapter replays with mixed org identifiers after key-rotation, combined with reconciler dedup key that includes org_id and a waiver-lookup that queries pre-rotation canonical id.\\n\\nTemporary workaround suggested:\\n- We can issue a provisional credit for the onboarding line and place a hold on auto-pay pending final reconciliation.\\n- Recommend a hotfix to reconciler: dedupe on external_request_id independent of org_id for a 30-minute replay window for private adapters that report key-rotation in metadata.\\n\\nNext steps / ask:\\n- Confirm definitive list of duplicated \\u2026[passage truncated]\"}, {\"source\": \"jira/customer-support/SUP-581233-promotional-credit-applied-to-merged-subaccount-leading-to-unexpected-charge\", \"title\": \"Promotional credit applied to merged subaccount leading to unexpected charge on primary org invoice\", \"kind\": \"jira\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"authority\": \"ticket\", \"section\": \"steps_to_reproduce\", \"passage\": \"Observed: The invoice line shows a promotional credit line item labeled \\\"WELCOME_ECO_2026\\\" applied to Org ID: org-prod-870 and not to legacy subaccount id sub-1234. Postback audit shows the postback tag for the promo event was overwritten to \\\"sub-9012\\\" during an alias rewrite in the consolidation job.\\n\\nExpected: Promotional credit should remain associated with the original subaccount or be explicitly re-targeted to an org-level credit and reflected on the correct invoice.\\n\\nAdditional context: Customer provided CSV export of invoice and org-merge audit log (attached). They are requesting either (A) reallocation of the promo credit to the original subaccount invoice and an invoice correction/credit memo, or (B) a clear explanation and confirmation that the $2,340 will be refunded/waived if allocation cannot be changed.\\n\\n1) Simulate org consolidation via Console with alias mapping (old-sub -> new-sub) in staging mirror of production\\n\\n2) Trigger promotional credit issuance flow for old-sub (same promo ID WELCOME_ECO_2026),\\n\\n3) Observe postback tag transformation step in consolidation job and final event emitted to billing postback-queue\\n\\n4) Reconcile billing ledger to see which invoice received the credit line item\\n\\nbilling-service-postback.log: 2026-03-09T22:11:07Z INFO postback \\u2026[passage truncated]\"}, {\"source\": \"slack/support/1738214567-stark-invoice-clash-po-update-escalation\", \"title\": \"zendesk-bot: Incoming ticket from Stark Industries \\u2014 customer reports they were charged twice on ann\", \"kind\": \"slack\", \"status\": \"n/a\", \"date\": \"2025-01-30\", \"authority\": \"discussion\", \"section\": \"text > run by billing operator\", \"passage\": \"# run by billing operator\\nPOST /internal/refunds\\n{ \\\"invoice_id\\\": \\\"INV-2026-00124\\\", \\\"reason\\\": \\\"duplicate_charge\\\", \\\"initiated_by\\\": \\\"mike\\\" }\\n```\\n\\nbilling-bot: Refund initiated: RFD-98765 for invoice INV-2026-00124 \\u2014 status: pending.\\n\\nmike: quick sanity check: payments table shows two payment rows:\\n```\\nid | invoice | txn_id            | amount | status\\n---+---------+-------------------+--------+--------\\n101| INV-2026-00123 | txn_7a2b9c_INV123 | 1200.00 | settled\\n102| INV-2026-00124 | txn_8c3d4e_INV124 | 1200.00 | settled\\n```\\n\\nana: thanks. I'll message customer that refund has been started and estimate 3-5 business days to reflect. please update once billing-bot shows succeeded and CN is created.\\n\\nbilling-bot: Refund update: RFD-98765 -> succeeded, amount 1200.00 USD, refunded to txn_8c3d4e_INV124 (card). Credit note created: CN-2026-045 (VAT 20% reversed).\\n\\nana: notifying customer: \\\"Hi \\u2014 we discovered a race where a PO approval webhook retried and created a duplicate invoice. We've refunded INV-2026-00124 (RFD-98765). A credit note CN-2026-045 was issued to reverse VAT. Refund should appear in 3-5 business days; let us know if you need documentation for your accounting.\\\"\\n\\nzendesk-bot: Customer replied: \\\"Thanks \\u2014 can you also confirm the charge on card 4242 was reversed? Need proof \\u2026[passage truncated]\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_GCcuFZZEJRUztHzvohG2RtNW",
+     "name": "lookup_account",
+     "arguments": {
+      "account_id": "",
+      "org": "bluefin-labs"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: 'total_cents'"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_QinbbWd4xqbSGTBFaZrh0GIo",
+     "name": "get_invoice",
+     "arguments": {
+      "invoice_id": "INV-2027-0331-240"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: 'total_cents'"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_ibEPaNWqyeEXXa2Tk4O1ukqU",
+     "name": "load_skill",
+     "arguments": {
+      "name": "usage-and-charge-explanations"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"usage-and-charge-explanations\", \"steps\": \"Goal: explain the charge from the account's own records and the current documented behaviour, and hand off only what the documents don't explain.\\n\\n1. Get identifiers with `ask_developer` if missing: `org_id`, and as relevant `invoice_id`/`billing_period`, `request_ids`, `response_status`, `time_of_issue`, `timezone`, `checks_done` (filters, how they counted, client retries/timeouts).\\n2. Read the console: `lookup_account` (plan, channel, credit grants), then `get_invoice` and/or `get_usage` for the named requests or lines. Note each request's HTTP status, billed and cached tokens, time (UTC) and whether it has an invoice line.\\n3. `search_knowledge` for the documented behaviour behind what you see (e.g. \\\"how billed tokens are counted\\\", \\\"retries and stream cancellation billing\\\", \\\"usage export columns and filters\\\", \\\"free tier limit 429\\\", \\\"credit balances expiry\\\", \\\"console usage delay\\\"). Use current published pages; if an older page conflicts, say which page is current.\\n4. Compare: apply the documented rules to the developer's own checks (timezone used to cut the month, project filters, counting prompt tokens only, client retries or timeouts, cancelled streams, cached tokens). Show the specific cause you can see in their records.\\n5. Answer with the cause, the evidence (request ids, times, statuses, amounts as the console shows them) and the fix or mitigation the documents give.\\n6. Hand off (use the billing-handoff skill) only when the documented rules don't explain the numbers, or the developer asks for something Support can't do (a credit or waiver for correctly billed usage, meter correction, missing usage after the documented delay).\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_IzF7X1XkBgvmuVgeGvPRExQz",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-handoff"
+     }
+    },
+    {
+     "id": "call_5cXVmEzAvK352AHA3XBKjvDl",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "billing routing page incorrect invoice line meter discrepancy billing error intake details Support handoff Billing Ops",
+      "wider": false
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-handoff\", \"steps\": \"Goal: route the case to the team current policy names, with everything that team needs, or answer without a case when policy says no case is needed.\\n\\n1. Identify the request type in one line (e.g. \\\"SLA credit claim, enterprise account\\\", \\\"goodwill credit after correct retry charges\\\", \\\"card payment declined\\\").\\n2. `search_knowledge` for the billing case routing / handoff rules for that type, plus any page specific to it (payments, SLA, marketplace or reseller billing, credit balances, usage accounting). Prefer the current published routing page; note any later published page that amends it for this type.\\n3. Check the account first: `lookup_account` \\u2192 plan, billing channel, contracts (and `sla` / signed terms), status. The console decides which routing row applies (e.g. self-serve vs contract, direct vs marketplace). If the developer claims a contract the console doesn't show, use the routing rule for that situation.\\n4. Decide:\\n   - The documents answer the question (how tokens are counted, why retries or cancelled streams are billed, console lag, a credit balance, a general rule) \\u2192 answer it; no case.\\n   - The request needs a team \\u2192 note the team and the intake details the routing page lists for it.\\n   - The channel is billed by someone else (marketplace, reseller) \\u2192 tell the developer who adjusts or bills them and what to do; route only if the policy says Support routes it.\\n5. Gather intake with ONE `ask_developer` call for the missing fields (e.g. `invoice_id`, `line_items`, `amounts`, `request_ids`, `time_of_issue`, `timezone`, `error_code`, `checks_done`, `contract`). If the developer doesn't have some, proceed and record them as missing.\\n6. Answer every question the developer asked before the handoff. State general rules that apply (e.g. whether their plan carries an SLA) without quoting internal-only figures or ranges.\\n7. `confirm_with_developer`: \\\"I'll hand this to <team> with <key facts>.\\\" On \\\"yes\\\", call `escalate_case` once with `team`, a `summary` (ask + what you found) and `details` (all intake facts, the amount asked if any, the reason, missing items, any dispute id). This closes the console, so do it last.\\n8. Reply: which team has it, what they will review, and that you can't promise an outcome, amount or date.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"documents\": [{\"source\": \"confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2026-02-06\", \"authority\": \"published\", \"section\": \"body > Routing table\", \"passage\": \"confluence://customer-success-and-support/support-process/token-accounting-discrepancy-intake-and-triage\\n\\nconfluence://customer-success-and-support/known-issues-and-workarounds/usage-accounting-retries-and-stream-cancellation\\n\\nconfluence://customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook\\n\\n## Purpose\\nThis page defines when Support opens a billing case, where it goes, and what the receiving team needs to act on it. It replaces the v0.3 billing escalations RACI draft in the customer-success shared drive, which predates the Billing Ops and Billing Engineering rotations and should not be used.\\n\\n## When a case is needed\\nOpen a case only when the customer asks for something Support can't do in the conversation, or reports a problem the related pages don't explain. Answering a question needs no case.\\n\\n- Answer, don't hand off: how billed tokens are counted (model-native tokenizer, full request payload), why retries and cancelled streams are billed, and why the Console lags a few minutes are covered in the related pages. If one of them explains what the customer sees, explain it and stop there, even if the customer calls it a bug or double billing.\\n- If an older page says something different from the current one, explain the current behaviour and which page is current. That needs no case, even if the customer asks to report the old page as a bug.\\n\\n- Questions about typical credit amounts, with no credit asked for, get the answer that there is no standard amount and that any amount is decided in Finance's review. No case.\\n- Ask for the intake details before handing off. The receiving team works from the case and the conversation so far, so put everything the customer gave you in the case.\\n- If the customer doesn't have some of the details, hand off with what you have and note what's missing. Don't hold the case until they find them.\\n\\n## Routing table\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Disputed or duplicated line on a direct Redwood invoice | Billing Ops | Invoice number, the line(s), UTC window, request IDs |\\n| Refund request on a direct invoice line the customer says was billed in error | Billing Ops | Billing Ops confirms the charge and requests approval where needed |\\n| Invoice total doesn't match the customer's usage export | Billing Ops | Note the export's timezone and filters |\\n| Payment failures, holds, receipts | Billing Ops | |\\n| Meter discrepancy the related pages don't explain: request IDs whose billed tokens still don't match after the tokenizer, payload and retry rules are applied | Billing Engineering | Billing Eng checks meter correctness and hands any correction to Billing Ops |\\n\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why. Applies even when Support has just explained that the charge is correct |\\n| SLA credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\\n\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Customer says they have a contract the console doesn't show | Account team | The account team confirms the contract and owns any request that depends on it, including an SLA credit. Treat the account as the console shows it until then |\\n| Usage for successful (2xx) requests still missing from the Console after about 30 minutes | Telemetry | A pipeline issue, not a billing one; see the onboarding triage playbook |\\n\\n## Not owned by Billing Ops\\n- Credit, goodwill and exception requests go to Finance, per FP&A's guidance in #support (June 2025). Billing Ops only applies adjustments that have been approved.\\n- Questions about what a customer's contract or SLA says go to the account team, per the same #support guidance. Answer the general rule and tell the customer their account team confirms their terms; don't quote a figure from the contract. A request to confirm a contract figure, such as a discount rate, needs no case: tell the customer their account team confirms it. Open an account team case only for an SLA credit claim under the contract.\\n\\n## What not to do\\n- Don't route a billing case to SRE unless there is an active incident.\\n- Don't route credit or exception requests to Legal; Finance pulls Legal in when needed.\\n- Don't promise an outcome, amount, or timeline when you hand off.\\n- Don't share credit percentages or typical ranges with customers, including the SLA credit table in the incident closure procedure. That table is internal guidance for SRE and Finance when they propose a credit; any amount is decided in Finance's review under the customer's contract.\"}, {\"source\": \"confluence/customer-success-and-support/support-process/token-accounting-discrepancy-intake-and-triage\", \"title\": \"Support Ops: Reconciling token accounting discrepancy reports (intake + triage)\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2025-04-22\", \"authority\": \"published\", \"section\": \"body > Definition (use this phrase)\", \"passage\": \"## Purpose\\nThis page documents how Support should handle and count reports of a **token accounting discrepancy** across intake channels. These cases frequently arrive via Slack, email, or Jira, and can be double-counted unless we normalize to a single canonical support record.\\n\\n## Definition (use this phrase)\\nWe classify a case as a *token accounting discrepancy* when a customer claims that billed token totals (Console Usage and/or invoice export) do not match their own calculation from application logs or local tokenization.\\n\\n## Approved intake channels\\nWe track where the report first arrived, because it affects response time and deduplication.\\n- Jira (customer-support): SUP-* ticket created directly by Support\\n- Slack: #support threads (often started from Intercom/Zendesk summaries)\\n- Gmail: finance/billing or CSM forwards to leadership/finance\\n\\n## How to avoid double counting\\n1. If a report arrives in Slack or Gmail, file a SUP ticket and link it.\\n2. Mark the SUP ticket label `token-accounting` and add the origin channel in the description (Slack/Gmail).\\n3. In weekly reporting, count the case by *origin* (Slack vs Gmail vs Jira), not by total artifacts.\\n\\n## Common root causes to check\\n- Streaming retries/reconnect (tokens can be emitted twice)\\n- Client counts only final chunk tokens\\n- Different tokenizer / unicode normalization\\n- Whitespace/newlines included in input strings\\n- Tool-call serialization adds tokens\\n- Prefix-cache billing bug (rare; see SUP-3009)\\n\\n## Known examples (for reference)\\n- SUP-2841: streaming retry/reconnect behavior leading to perceived token accounting discrepancy\\n- SUP-2917: embeddings tokenizer mismatch leading to perceived token accounting discrepancy\\n- SUP-3009: cache-hit + tool calling bug leading to real token accounting discrepancy\\n\\n## Reporting note\\nWhen answering: \\\"Which intake channel has the most reports of token accounting discrepancy?\\\" be sure to include Slack and Gmail-origin cases even if a SUP ticket was created later.\"}, {\"source\": \"confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2026-02-05\", \"authority\": \"published\", \"section\": \"body > Purpose\", \"passage\": \"## Purpose\\nThe support console can look up a customer's billing account, issue a credit note against invoice lines, and open a billing dispute. This page defines when Support uses each one. It amends the billing routing page for duplicate charges only; everything else on that page still applies.\\n\\n## Look up the account first\\n- Look up the customer's billing account in the console before you quote an amount, a plan, an invoice line, or whether a charge is a duplicate. You can find the account by its account id or by the customer's org name; ask for one of them if the customer hasn't given either.\\n- Quote amounts as the console shows them. Don't restate a figure the customer gives you as fact.\\n\\n## Duplicate charges: what Support may credit\\nA charge is a confirmed duplicate only when the console shows two lines on the same direct Redwood invoice that bill the same request IDs. A similar description or the same amount on its own is not enough.\\n\\n| Situation | What Support does |\\n|---|---|\\n| Confirmed duplicate, duplicated line within Support's limit | Issue one credit note with reason `duplicate` for the full amount of the duplicated line, against that line. No handoff is needed. Tell the customer the amount credited. |\\n| Confirmed duplicate, duplicated line over the limit | Don't credit. Open a dispute on the duplicated line (reason `duplicate_charge`, with the request IDs) and hand the case to Billing Ops with the invoice number, the line and the dispute id. |\\n\\n| Duplicate the console doesn't confirm (different request IDs, or no second line) | Don't credit. Collect the intake details and hand the case to Billing Ops as the routing page describes. |\\n\\nSupport's limit is set by Finance in the Billing Adjustments Approval Matrix (Finance shared drive) (the duplicate-charge credit row). It is per duplicated line and applies to the line's full amount. Don't split a larger duplicate into several smaller credits.\\n\\n## What Support never credits\\n- Goodwill, exceptions, SLA credits, or any credit someone says a manager, sales rep or Redwood engineer already approved. These stay with Finance, per the #support guidance from FP&A. Route the request; don't issue anything from the console.\\n- Marketplace purchases, which are billed by the marketplace.\\n\\n## Telling the customer\\n- Say what you did: the credit note and its amount, or that a dispute is open and Billing Ops has the case. Don't promise the outcome of a dispute or a date.\\n\\n_Last reviewed 2026-02-05._\"}, {\"source\": \"google_drive/shared_drives/finance/billing-adjustments-approval-matrix\", \"title\": \"Billing Adjustments Approval Matrix\", \"kind\": \"google_drive\", \"status\": \"final\", \"date\": \"2026-02-03\", \"authority\": \"published\", \"section\": \"content > Approval matrix\", \"passage\": \"## Purpose\\nThis matrix is the single place where Finance sets who may approve or issue a billing adjustment, and up to what amount. Team procedures (Support, Billing Ops, Partnerships) describe how to carry out an adjustment; the amounts and approvers come from here. When a team page and this matrix disagree on an amount, this matrix wins and the team page should be corrected.\\n\\n## Scope\\n- Direct Redwood invoices for Hosted API, Embeddings, Batch and Dedicated.\\n- Marketplace purchases are out of scope: adjustments go through the marketplace (see the marketplace invoicing notes).\\n- Contracted Enterprise accounts follow this matrix unless their order form names a different approver.\\n\\n## Definitions\\n- **Adjustment**: any change to what a customer owes after an invoice is issued: a credit note, a refund, a write-off or a re-issued invoice.\\n- **Per line**: the amount of one invoice line, taken whole. An adjustment is never split across several smaller ones to stay under a limit.\\n- **Billing error**: a line that bills the wrong rate, quantity or product, or bills the same usage twice.\\n- **Goodwill**: any reduction of a correct charge, for any reason.\\n\\n## Approval matrix\\n| Adjustment | Who issues it | Limit and approver |\\n|---|---|---|\\n| Duplicate-charge credit (console-confirmed duplicate line on a direct invoice) | Support, from the support console | Up to $500 per duplicated line. Over that, Support opens a dispute and Billing Ops takes it |\\n| Billing-error correction other than a duplicate (wrong rate, quantity or product) | Billing Ops | Up to $2,000 per invoice; above that, the Controller |\\n| Refund of a paid invoice line after an approved adjustment | Billing Ops | Up to $5,000; above that, the Controller |\\n| Goodwill credit, waiver, or exception to a billing rule | Finance (FP&A) | Any amount, decided in FP&A's review. Support and Billing Ops route these requests and never issue them |\\n| SLA credit on a self-serve account | Finance (FP&A) | Self-serve plans carry no SLA. FP&A reviews any request as goodwill |\\n\\n| Adjustment | Who issues it | Limit and approver |\\n|---|---|---|\\n| SLA credit under a signed contract | Account team files the claim; Finance approves | Per the contract's SLA terms. No amount is promised before Finance's review |\\n| Promotional or campaign credits | Growth marketing | Within the campaign budget FP&A approved |\\n| Partner program funds (MDF) | Partnerships | Per the partner agreement; never applied to invoices |\\n| Write-off of an uncollectible balance | Controller | Up to $10,000; above that, the CFO |\\n| Re-issued invoice (address, PO number, tax ID) | Billing Ops | No limit; no change to amounts |\\n\\n## Evidence each adjustment needs\\n- **Duplicate-charge credit**: the invoice number, both line IDs and the request IDs they bill. The console confirms the duplicate; a matching description or amount alone is not evidence.\\n- **Billing-error correction**: the line, the expected rate or quantity and where it comes from (price book, order form).\\n- **Goodwill and SLA credits**: the customer's ask, the amount if given, and the reason. The account team adds contract references for SLA claims.\\n- **Write-offs**: collections history and the Controller's note.\\n\\n## Audit trail\\nEvery adjustment is recorded on the invoice it changes, with the approver's name and the evidence above. Console credit notes record the issuing agent and the reason code automatically. Adjustments issued outside the console are logged by Billing Ops in the adjustments register within one business day.\\n\\n## Revenue recognition\\nCredits reduce the transaction price of the period they relate to. Adjustments over $10,000, or any adjustment to a closed quarter, need the Controller's sign-off before they are issued so that revenue can be restated where needed. Support-issued duplicate credits are always within an open period's tolerance and need no separate sign-off.\\n\\n## Reviewing this matrix\\nFP&A reviews the limits each quarter against adjustment volume and error rates. Changes are announced in #support and #billing-ops and logged below. A limit change applies from the date or period stated in the log; earlier adjustments keep the limit in force when they were issued.\\n\\n## Contacts\\n- FP&A: Rishi Malhotra\\n- Controller: Emily Stone\\n- CFO: Laura Bennett\\n\\n## Change log\\n| Date | Change | By |\\n|---|---|---|\\n| 2026-02-03 | Support issues duplicate-charge credits itself, up to the per-line limit above, instead of routing every duplicate to Billing Ops | Rishi Malhotra |\\n| 2025-09-08 | First version | Rishi Malhotra |\"}, {\"source\": \"confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026\", \"title\": \"Billing Support: Failed Card Payments and Card Updates\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2026-04-20\", \"authority\": \"published\", \"section\": \"body > Failed card payments\", \"passage\": \"## Purpose\\nHow Support handles a card payment that failed and a request to change the card used for autopay. Invoice disputes and usage questions are covered on the billing case routing page.\\n\\n## Failed card payments\\nWhen a customer's card payment fails, open a Billing Ops case with the invoice number, the decline code and the time the payment failed. Billing Ops retries the payment or contacts the customer. Tell the customer Billing Ops has it; don't promise a date.\\n\\n## Changing the autopay card\\nSupport can change the autopay card for a customer. Take the new card number and expiry date and put them in a Billing Ops case; Billing Ops updates the payment method and confirms to the customer.\\n\\n_Last reviewed 2026-04-20._\"}], \"records\": [{\"source\": \"gmail/jasmine_liu/20260518-marketplace-cross-cloud-duplicate-metering-and-uk-vat-reclass\", \"title\": \"Discrepancy on May marketplace invoice - duplicate metering lines & VAT routing\", \"kind\": \"gmail\", \"status\": \"n/a\", \"date\": \"2026-05-20\", \"authority\": \"discussion\", \"section\": \"messages\", \"passage\": \"From: BrightLane AP <accounts-payable@brightlane.com>\\nTo: Jasmine Liu <jasmine_liu@redwood.inference.com>\\nCc: procurement@brightlane.com\\nDate: 2026-05-18T09:12:00-07:00\\nSubject: Discrepancy on May invoice - duplicate marketplace lines (AWS + GCP)\\n\\nHi Jasmine,\\n\\nWe're reviewing our May charges and flagged a set of duplicate marketplace line items that appear to have been billed through both AWS Marketplace and GCP Marketplace for the same usage window and meter IDs. Attached: BrightLane_Invoice_May2026.pdf and a raw metering_export_may.csv from our billing system with the offending meter IDs highlighted.\\n\\nKey example: Meter ID 3837-ALPHA appears on both the AWS line (line 42) and the GCP line (line 129) with identical usage units and timestamp ranges. Total potential overcharge \\u2248 $7,120.\\n\\nWe need:\\n- Confirmation that these are duplicates and not distinct entity-level charges\\n- Proposed remediation: credit memo or offset path (which marketplace will issue the credit)\\n- VAT handling: We're a UK entity and need to confirm if VAT was applied on both legs \\u2014 we cannot accept duplicate VAT.\\n\\nPlease advise next steps and an ETA for remediation; our finance close for May is next Wednesday (2026-05-26).\\n\\nThanks,\\nMarta Ruiz\\nAccounts Payable / BrightLane AI\\nattachments: \\u2026[passage truncated]\"}, {\"source\": \"jira/customer-support/SUP-208404-toolcall-aggregation-margin-invoice-breakdown-question\", \"title\": \"Discrepancy: tool-invoke line items vs aggregated token lines producing ~12% higher May invoice\", \"kind\": \"jira\", \"status\": \"Resolved\", \"date\": \"2026-03-10\", \"authority\": \"ticket\", \"section\": \"next_steps\", \"passage\": \"Until fix, customers could: 1) disable streaming partials for tool calls and use synchronous tool invocation (reduces risk), or 2) include invocation_id explicitly in request metadata to help dedupe. We communicated this as temporary guidance in a direct support note on 2026-03-06.\\n\\n1) Post-deploy monitor for May-equivalent window to ensure no residual duplicate meters for NeonRetail (owner: Ravi).\\n2) Add automated integration test that simulates streaming + tool invocation and checks postback dedupe (owner: QA).\\n3) Add console alert for >1% month-over-month divergence between Console estimate and finalized invoice at account level (owner: Billing).\\n4) Follow-up with Finance to confirm refund bookkeeping and provide memo ID FIN-2026-0310 (owner: Finance Ops).\\n\\n2026-03-05 10:14 - Laila Thompson (Support): Customer reported unexpected $18k vs $15.9k estimate; attached itemized invoice and two sample trace IDs. Asked for urgent review (enterprise SLA).\\n\\n2026-03-06 09:02 - Ravi Patel (Billing Eng): Reproduced locally. Noting duplicated meters emitted in postback pipeline. Escalating to infra for PR review. Linked PR observed: infra/pull/2621.\\n\\n2026-03-07 13:45 - Priya Menon (Infra): Confirmed PR 2621 adjusted streaming chunk headers; missing invocation_id on continued chunks for \\u2026[passage truncated]\"}, {\"source\": \"slack/support/1975314820-aggregate-quota-lag-project-vs-org-tiles\", \"title\": \"olivia_support: FYI customer 'AcmeMaps' (org: acme-01) opened an escalation \\u2014 they see repeated 429s\", \"kind\": \"slack\", \"status\": \"n/a\", \"date\": \"2032-08-05\", \"authority\": \"discussion\", \"section\": \"text\", \"passage\": \"GROUP BY commit_ts ORDER BY commit_ts;\\n```\\n\\nkevin_data: enforcement stream shows a burst of ~250k tokens at 18:12-18:14 from project acme-01-batch (they thought it was acme-01-prod but we see batch job key). that pushed org window over threshold and enforcement acted on other projects under the same org.\\n\\nolivia_support: customer insists batch job is in a separate project but they used the same org-level key for cross-project calls. they said \\\"we thought project isolation would prevent this\\\".\\n\\nmatt_prod: note: org-level shared pool is intended to protect orgs from runaway projects; if multiple projects share org pool, burst from one project can cause 429s in another. might be a docs gap.\\n\\nsophie_billing: on the invoice discrepancy \\u2014 i'll open a billing probe to validate invoice line reconciles to ledger increments and timestamp of last reprocess. if ledger reprocessed after dashboard snapshot, that matches. i'll report back with invoice-run-id.\\n\\nben_oncall: immediate mitigation for customer: we can lift org-level throttle for 1 hour or grant the project a dedicated quota while they fix their batch job keys. but both options need approvals.\\n\\nolivia_support: customer asked for temporary bypass. they granted support access. can we do a 1-hour org bypass?\\n\\nmatt_prod: we have a \\u2026[passage truncated]\"}, {\"source\": \"jira/customer-support/SUP-135790-per-model-rounding-led-to-multi-line-invoice-delta\", \"title\": \"Mid-cycle per-model rounding caused multi-line invoice delta and provisional credit hold\", \"kind\": \"jira\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"authority\": \"ticket\", \"section\": \"description\", \"passage\": \"Issue summary: Customer reporting a $4,312.57 discrepancy across three invoice line items after they changed reserved capacity and model variant pins mid-billing-window. Impact: Customer billing shows duplicate-looking microbatch line items with fractional token rounding that sum to an unexpected delta. Provisional credit that normally applies during postback reconciliation was withheld pending investigation.\\n\\nContext: Novus Retail migrated a portion of traffic from mixlm-13b-v1 to redwood/quantized-medium-7b on 2026-03-08 at ~18:40 UTC to reduce cost. They are on a Dedicated contract with hourly reserved capacity. The pricing tier change happened roughly in the middle of the hourly accumulation window which led to blended per-token rates for the same API key. The customer expects the platform to attribute usage to a single effective tier and apply smoothing/rounding consistently; instead the invoice contains three separate lines for similar microbatch events and a withheld provisional credit labeled \\\"auto-reconcile-hold\\\".\\n\\n1) Customer has Dedicated reserved capacity with hourly aggregation enabled.\\n\\n2) At T0 (2026-03-08 18:40 UTC) customer changes model pin for route /v1/chat from mixlm-13b-v1 to redwood/quantized-medium-7b and reduces reserved GPUs by 20%.\\n\\n3) Billing pipeline \\u2026[passage truncated]\"}, {\"source\": \"jira/customer-support/SUP-776001-hybrid-peak-hour-tariff-flagged-for-reserved-job\", \"title\": \"Peak-hour dynamic tariff applied to reserved-capacity hybrid job; customer billed premium rate\", \"kind\": \"jira\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"authority\": \"ticket\", \"section\": \"description\", \"passage\": \"Issue summary: Customer BrightGuide Inc. reports a premium 'peak-hour dynamic tariff' line on their finalized invoice for a mixed-hosted/dedicated inference job that ran across the 18:00\\u201319:00 US\\u2011EST peak window. They claim the workload was pinned to their reserved Dedicated pool and should have been billed at the reserved rate without peak surcharge.\\n\\nImpact: One high-volume nightly batch job (~1.2M tokens) billed with a 1.5x peak tariff for ~22 minutes (partial window), resulting in an unexpected charge of $4,300. Customer requests correction or credit and a root-cause explanation. This is affecting their finance team and could impact renewal conversations.\\n\\nEnvironment: prod/us-east-1, Dedicated pool: brightguide-dedicated-01, Job ID: bg-20260309-embed-11, Invoice: INV-2026-03-09-BG.\\n\\nSteps to reproduce / immediate checks performed by support: 1) Reviewed job metadata and saw reserved_pool_id present in job manifest. 2) Checked routing logs \\u2014 job shows a short sequence of requests routed to hosted fallback (hosted-us-east) between 2026-03-09T22:38:12Z and 2026-03-09T22:60:45Z. 3) Queried meter tags for affected requests; several entries had pricing_tag=null. 4) Compared Console estimate (shows reserved rate) vs finalized invoice (shows peak-tariff line).\\n\\nAttached logs/links: \\u2026[passage truncated]\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_Mjby421gwwhzWLwQVxiukLVn",
+     "name": "get_usage",
+     "arguments": {
+      "account_id": "",
+      "request_ids": [
+       "req_f40"
+      ],
+      "line_id": ""
+     }
+    },
+    {
+     "id": "call_kZt9rWBxboiOHDX0mQQHTRHj",
+     "name": "get_invoice",
+     "arguments": {
+      "invoice_id": "INV-2027-0331-240"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"rows\": [{\"request_id\": \"req_f40\", \"account_id\": \"bluefin-labs\", \"at\": \"2027-03-19T15:27:40Z\", \"http_status\": 200, \"billed_tokens\": 14400000, \"cached_tokens\": 0, \"line_id\": \"INV-2027-0331-240/L2\"}], \"not_found\": [], \"truncated\": false}"
+  },
+  {
+   "role": "tool",
+   "content": "Error: 'total_cents'"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_rd6wGSiNW35LbRpzTcf98UYP",
+     "name": "get_account_activity",
+     "arguments": {
+      "account_id": "bluefin-labs"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for credit_notes"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_BOIkpR2n0bZ9zSuXhCx8b19m",
+     "name": "get_usage",
+     "arguments": {
+      "account_id": "",
+      "request_ids": null,
+      "line_id": "INV-2027-0331-240/L2"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"rows\": [{\"request_id\": \"req_f40\", \"account_id\": \"bluefin-labs\", \"at\": \"2027-03-19T15:27:40Z\", \"http_status\": 200, \"billed_tokens\": 14400000, \"cached_tokens\": 0, \"line_id\": \"INV-2027-0331-240/L2\"}], \"not_found\": [], \"truncated\": false}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_0Kcd53s1XRWSp0o4Pqw52z3O",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "timezone",
+       "checks_done"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"timezone\": \"I don't have that.\", \"checks_done\": \"Our March 2027 embeddings export is about 30% lower than the line.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_ln6wNcskn3yX1DzHHN36Y7YO",
+     "name": "confirm_with_developer",
+     "arguments": {
+      "proposal": "I\u2019ll hand this to Billing Ops to review the reported invoice/export discrepancy on INV-2027-0331-240, line L2 (Embeddings). I\u2019ll include request req_f40 and its usage timestamp, 2027-03-19 15:27:40 UTC; note that you report the line as $180 and the March export about 30% lower (not independently verified in the console); and flag that the export timezone and filters are unknown. Account/invoice lookup and activity checks returned console errors, so I can\u2019t confirm a duplicate or make a credit/dispute."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answer\": \"yes\", \"message\": \"Yes, go ahead.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_kqD3vdWMlG7LdStzfB4G00fk",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "bluefin-labs",
+      "team": "billing_ops",
+      "summary": "Bluefin Labs reports a discrepancy between Embeddings line L2 on INV-2027-0331-240 and its March 2027 export. Support could not retrieve the account or invoice details because console lookup calls returned errors, so the billed amount and duplicate status are unverified. Usage lookup for req_f40 shows one successful request billed to L2.",
+      "details": {
+       "org": "bluefin-labs",
+       "invoice_id": "INV-2027-0331-240",
+       "line_id": "L2 (Embeddings, Mar 1-31)",
+       "customer_reported_amount": "$180 on invoice; export about 30% lower (not independently verified)",
+       "request_ids": "req_f40",
+       "utc_window": "2027-03-19T15:27:40Z (usage timestamp)",
+       "usage_record": "req_f40; HTTP 200; 14,400,000 billed tokens; 0 cached tokens; line INV-2027-0331-240/L2",
+       "timezone_and_filters": "Unknown; customer does not have this information",
+       "console_checks": "lookup_account returned Error: 'total_cents'; get_invoice returned Error: 'total_cents'; get_account_activity returned unknown_field error. No credit or dispute issued.",
+       "ask": "Review why invoice line and March usage export differ."
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"ok\": false, \"error_code\": \"unknown_field\", \"error\": \"unknown_field: unknown field 'account_id' for cases\"}"
+  },
+  {
+   "role": "assistant",
+   "content": "Correction: I couldn\u2019t complete the Billing Ops handoff because the case tool returned an error. No case ID was created, and no credit or dispute was issued. The export timezone and filters remain unknown; the console errors also prevented me from verifying the invoice line or confirming a duplicate."
+  },
+  {
+   "role": "user",
+   "content": "Will someone take a look at it?"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_9mgyOqE0rY5aHwVXZkSzhoOF",
+     "name": "get_account_activity",
+     "arguments": {
+      "account_id": "bluefin-labs"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for credit_notes"
+  },
+  {
+   "role": "assistant",
+   "content": "Not yet\u2014the handoff failed, so no case was created and I can\u2019t confirm anyone has it. Please contact Redwood Support through your usual support channel and include invoice INV-2027-0331-240, line L2, and request ID `req_f40`. I\u2019m sorry I couldn\u2019t complete the handoff. No credit or dispute was opened."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

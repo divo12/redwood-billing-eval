@@ -1,0 +1,168 @@
+{
+ "id": "a0-03-T",
+ "grade": {
+  "id": "a0-03-T",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contacts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 7,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "get_usage",
+   "load_skill",
+   "lookup_account",
+   "search_knowledge"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 18.9239072700002,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "We sent three calls at 13:00 UTC today, 15 September 2026 (req_sd1, req_sd2, req_sd3). They all returned 200 OK, but none appear on the usage page yet. Org sundial-apps."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_1YYffF9qhL6Jtb9SceDFN0O4",
+     "name": "load_skill",
+     "arguments": {
+      "name": "usage-and-charge-explanations"
+     }
+    },
+    {
+     "id": "call_UjFe09Erj6Ov2a7uFCI06S4D",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "missing usage records API calls returned 200 usage page not appearing routing team intake requirements",
+      "wider": false
+     }
+    },
+    {
+     "id": "call_KOGnQgc6f1tfvaTvS5i3WwSQ",
+     "name": "lookup_account",
+     "arguments": {
+      "account_id": "",
+      "org": "sundial-apps"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"usage-and-charge-explanations\", \"steps\": \"Goal: explain the charge from the account's own records and the current documented behaviour, and hand off only what the documents don't explain.\\n\\n1. Get identifiers with `ask_developer` if missing: `org_id`, and as relevant `invoice_id`/`billing_period`, `request_ids`, `response_status`, `time_of_issue`, `timezone`, `checks_done` (filters, how they counted, client retries/timeouts).\\n2. Read the console: `lookup_account` (plan, channel, credit grants), then `get_invoice` and/or `get_usage` for the named requests or lines. Note each request's HTTP status, billed and cached tokens, time (UTC) and whether it has an invoice line.\\n3. `search_knowledge` for the documented behaviour behind what you see (e.g. \\\"how billed tokens are counted\\\", \\\"retries and stream cancellation billing\\\", \\\"usage export columns and filters\\\", \\\"free tier limit 429\\\", \\\"credit balances expiry\\\", \\\"console usage delay\\\"). Use current published pages; if an older page conflicts, say which page is current.\\n4. Compare: apply the documented rules to the developer's own checks (timezone used to cut the month, project filters, counting prompt tokens only, client retries or timeouts, cancelled streams, cached tokens). Show the specific cause you can see in their records.\\n5. Answer with the cause, the evidence (request ids, times, statuses, amounts as the console shows them) and the fix or mitigation the documents give.\\n6. Hand off (use the billing-handoff skill) only when the documented rules don't explain the numbers, or the developer asks for something Support can't do (a credit or waiver for correctly billed usage, meter correction, missing usage after the documented delay).\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"documents\": [{\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/usage-accounting-retries-and-stream-cancellation\", \"title\": \"Usage accounting: retries and streaming cancellation\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2025-02-18\", \"authority\": \"published\", \"section\": \"content > Retries\", \"passage\": \"## Overview\\nSome customers reconcile Redwood token usage against internal estimates and may observe higher usage totals. The most common causes are (1) client retries and (2) streaming cancellation behavior.\\n\\nThis page provides a support-ready explanation and recommended mitigations.\\n\\n## Key definitions\\n- **Attempt**: a single request admitted by the Redwood API gateway (server-side).\\n- **Logical request**: what the customer thinks of as one user action; may map to multiple attempts if the client retries.\\n\\n## What we bill\\n\\n### Retries\\n- Redwood usage is recorded per-attempt.\\n- If a client retries after a timeout or non-200 response, each admitted attempt can be billable.\\n- The Usage dashboard lists rows by **request_id** (attempt identifier).\\n\\n### Streaming cancellation\\n- **Prompt tokens** are counted once the request is admitted (even if the client cancels the stream later).\\n- **Completion tokens** are counted based on tokens actually generated/streamed prior to cancellation.\\n\\n## Common customer symptoms\\n- We only sent N requests but we see >N rows: retries created additional attempts.\\n- We timed out at 15s so we expected zero bill: prompt tokens + partial completion tokens may still be counted.\\n\\n## Recommended mitigations\\n1) Avoid automatic retries on client-side timeouts for long generations.\\n2) Increase client timeout where possible (align to max expected generation time).\\n3) Reduce max_tokens / output length to meet latency budgets.\\n4) For troubleshooting, ask for a small set of request_ids + the customers retry/cancel metrics.\\n\\n## Support playbook (quick response blurb)\\nWe record usage per server-admitted attempt. If your client retries after a timeout, each admitted attempt can appear separately in Usage and can be billable. For streaming, prompt tokens are counted once admitted; completion tokens reflect what was generated before cancellation.\\n\\n## References\\n- SUP-1842 (Northwind AI escalation)\\n- INT-330 (UI helper text + KB link)\\n- Slack #support thread_ts=1739310605\"}, {\"source\": \"confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook\", \"title\": \"Onboarding Checklist: Support Escalation and Triage Playbook\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2025-04-08\", \"authority\": \"published\", \"section\": \"body > Macro: Usage dashboard freshness\", \"passage\": \"Escalate before overriding if:\\n- You suspect a systemic telemetry regression.\\n- Overrides are needed repeatedly for multiple customers.\\n\\n---\\n\\n## Data handling and privacy\\n- Do not request or store customer prompts, full request bodies, or model outputs in Support tickets unless explicitly approved for that case.\\n- Collect only metadata necessary to debug (timestamps, status codes, tenant ID, SDK version).\\n- Checklist and onboarding telemetry are designed to be **PII-free**; if you observe PII in an event payload or UI surface, treat as a potential security issue and escalate to Security (Marcus Lin) immediately.\\n\\n---\\n\\n## Appendix A: Known limitations (as of April 2025 release)\\n- Checklist completion can lag behind real actions due to ingestion delays.\\n- Some integrations (older SDKs, custom gateways) may not emit client hint tags; server-side events should still cover core steps.\\n- Out-of-order event arrival has been observed in dogfood; race-condition fixes are in place, but anomalies may persist in edge cases.\\n\\n---\\n\\n## Appendix B: Support macros (copy/paste)\\n\\n### Macro: Request minimal debugging info\\n\\u201cCan you share (1) workspace/org name as shown in Console, (2) which SDK/language + version, (3) the endpoint you\\u2019re calling, and (4) the status code + error message text? If you can include the timestamp (UTC) of your last attempt, we can check our side quickly.\\u201d\\n\\n### Macro: Usage dashboard freshness\\n\\u201cUsage can take a short time to appear in the dashboard depending on ingestion. Please confirm you\\u2019re viewing the correct workspace and time range. If it\\u2019s been >30 minutes since your last successful requests and usage still shows 0, we\\u2019ll investigate telemetry freshness.\\u201d\\n\\n### Macro: 429 guidance\\n\\u201cA 429 indicates you\\u2019re hitting a rate/concurrency limit. The recommended approach is exponential backoff with jitter, plus configuring quotas/budgets in Console to match expected traffic. If you share your approximate concurrency and request rate, we can recommend a safe configuration.\\u201d\\n\\n---\\n\\n## Change log\\n- 2025-04-08: Added escalation evidence checklist; clarified override rules; updated routing owners.\\n- 2025-03-18: Initial version for checklist cohort rollout.\"}, {\"source\": \"confluence/product-docs/pricing-and-packaging/usage-credit-and-quota-guidelines-2026\", \"title\": \"Usage Credits and Quota Assignment Guidelines for Hosted Inference (2026)\", \"kind\": \"confluence\", \"status\": \"in_review\", \"date\": \"2026-02-03\", \"authority\": \"draft\", \"section\": \"body\", \"passage\": \"Metrics and telemetry to surface:\\n- Daily consumed CR per account and per-route.\\n- Fraction of requests consuming burst_pool vs monthly_budget.\\n- Incidents where reconciliation delta > 2% (indicator of metering issues).\\n- Customer-visible latency change after quota throttling events.\\n\\nSLOs (product-facing):\\n- Billing accuracy: 99.5% of reconciled charges should be within 2% of estimated charges per account per month.\\n- Quota enforcement latency: enforcement decisions (charge/allow/block) must be returned within 50ms for 99th percentile of requests.\\n\\nRollout plan (phased):\\nPhase 0 (internal pilot, Jan 2026): implement conversion engine in staging and run shadow billing for 50 pilot customers.\\nPhase 1 (beta, Feb 2026): enable migration preview for top 500 customers and accept opt-in.\\n\\nPhase 2 (GA, Apr 2026): full roll-out to new accounts and migration invitations by queue; legacy accounts scheduled by risk tier.\\n\\nOwnership and contacts:\\n- Product owner: Maya Chen (product)\\n- Billing & Finance contact: Diego Alvarez (finance-legal)\\n- Runtime & Metering: Evan Brooks (eng-infra)\\n- Support playbook owner: Priya Rao (customer-success)\\n\\nAppendix A \\u2014 Example conversions and JSON snippet:\\nExample: user calls chat endpoint with 2 system messages (50 tokens each), 3 user messages (avg 80 tokens), model returns 400 tokens:\\n- Input_tokens = 50*2 + 80*3 = 310\\n- Output_tokens = 400\\n- Estimated CR = (400 / 1000 * 1.2) + (310 / 1000 * 0.4) = 0.48 + 0.124 = 0.604 CR\\n\\nMigration report JSON (example):\\n{\\n  \\\\\\\"account_id\\\\\\\": \\\\\\\"acct_123\\\\\\\",\\n  \\\\\\\"legacy_avg_monthly_token_minutes\\\\\\\": \\\\\\\"1,200,000\\\\\\\",\\n  \\\\\\\"computed_monthly_CR_equivalent\\\\\\\": \\\\\\\"720\\\\\\\",\\n  \\\\\\\"migration_credit_grant\\\\\\\": \\\\\\\"792\\\\\\\"  // 10% buffer\\n}\\n\\nAppendix B \\u2014 Frequently asked questions:\\nQ: Will burst_pool increase my bill?\\nA: No. The billing charge still consumes monthly_budget CR; burst_pool is only an elasticity mechanism to avoid immediate blocking. Customers exceeding monthly_budget will still be charged for CR consumed unless they opt for reserved capacity.\\n\\nQ: How often will conversion multipliers change?\\nA: We plan quarterly adjustments tied to runtime efficiency improvements. Any multiplier change will be communicated with a 60-day notice and accompanied by a migration table for historical data.\\n\\nRelated pages:\\n- product-docs/pricing-and-packaging/packaged-tiers-credit-conversion-guidelines-2024\\n- product-docs/requirements/serving-surface-prd-packaging-and-release-plan-2026\\n\\nDocument history and notes:\\n- Drafted by Maya Chen, Nov 2025.\\n- Reviewed by Billing and Runtime teams, Jan 2026.\\n- Target migration start: Q1 2026.\"}, {\"source\": \"confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy\", \"title\": \"Hosted API SLO: Overload Exceptions and Error Budget Policy\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2025-12-05\", \"authority\": \"published\", \"section\": \"body > Failures (count against availability)\", \"passage\": \"### Exclusions (not counted against availability)\\nThe following are excluded from availability calculations (tracked separately as \\u201cclient-caused\\u201d):\\n- **401/403** authentication/authorization failures\\n- **404** invalid route\\n- **400/422** invalid payload / schema / parameters (including invalid model name)\\n- **409** idempotency conflicts due to client misuse\\n- **429 with error code = `RATE_LIMITED` or `QUOTA_EXCEEDED`** (contracted enforcement; see below)\\n\\nRationale: These reflect client behavior or plan enforcement and do not represent platform unavailability.\\n\\n### Failures (count against availability)\\nThe following count as failures:\\n- **All 5xx**, including 500/502/503/504\\n- **429 with error code in the `OVERLOAD_*` family**\\n- **408/504** timeouts (gateway or upstream)\\n- **499 (client canceled)** is tracked but does not count against availability by default; it may be reclassified during incident analysis if correlated with server-side stalls.\\n\\n---\\n\\n## Error taxonomy mapping (SLO classes)\\nThis table standardizes the mapping used by SRE dashboards, SLO tooling, and incident review.\\n\\n| HTTP | Redwood error code (examples) | Class | SLO impact | Notes |\\n|------|------------------------------|-------|------------|-------|\\n| 2xx  | n/a | Success | Good | Includes successful streaming completion |\\n| 400/422 | `INVALID_REQUEST` | Client error | Excluded | Track for DX quality |\\n| 401/403 | `UNAUTHORIZED` / `FORBIDDEN` | Client error | Excluded | Track separately |\\n| 429 | `RATE_LIMITED` | Plan enforcement | Excluded | Customer exceeded documented per-tenant limit |\\n| 429 | `QUOTA_EXCEEDED` | Plan enforcement | Excluded | Billing/credits/quota exhausted |\\n| 429 | `OVERLOAD_ADMISSION_REJECTED` | Overload | Failure | Gateway admission control (concurrency/token bucket) |\\n\\n| 503 | `OVERLOAD_CIRCUIT_OPEN` | Overload | Failure | Circuit breaker open at gateway/routing/runtime |\\n| 503 | `OVERLOAD_DOWNSTREAM_UNHEALTHY` | Overload | Failure | Dependency brownout; rejected to avoid retries/timeouts |\\n| 503 | `OVERLOAD_REGIONAL_CAPACITY` | Overload | Failure | Regional capacity saturation signal |\\n| 504 | `GATEWAY_TIMEOUT` | Timeout | Failure | Prefer converting to explicit overload when saturation-driven |\\n| 5xx | `INTERNAL_ERROR` | Server error | Failure | Non-overload server failures |\\n\\n**Source of truth for error code names and payload shape:** ADR-014.\\n\\n---\\n\\n## Overload policy: how it impacts the error budget\"}, {\"source\": \"confluence/architecture-and-standards/decision-records/adr-standard-metadata-envelope-and-hierarchical-throttling-2025\", \"title\": \"ADR: Standard request metadata envelope and hierarchical throttling\", \"kind\": \"confluence\", \"status\": \"published\", \"date\": \"2025-06-02\", \"authority\": \"published\", \"section\": \"content\", \"passage\": \"- Action on breach: fast 429 with Retry-After header; route to passive fallback region if configured.\\n\\n2) Tenant (per client_id)\\n   - Purpose: Isolate noisy neighbors and enable predictable billing buckets.\\n   - Default limits: 120 tokens/sec, 20 concurrent streams, burst token bucket of 400 tokens.\\n   - Action on breach: throttling to configured rate; if sustained (>60s), apply soft quota admission that returns lower-cost model variant if available.\\n\\n3) Route/Model (per route_hint or model_identifier)\\n   - Purpose: Protect expensive models and preserve SLOs for critical routes.\\n   - Default limits: model-specific; e.g., large-llama-70b: 200 tokens/sec globally, 15 concurrent per-tenant.\\n   - Action on breach: queue requests up to a short window (default 250ms), then attempt fallback to cached response or cheaper model variant; if unavailable, return 503 with structured reason.\\n\\nEnforcement placement and sequencing\\n-----------------------------------\\n- Ingress API Gateway (Envoy): primary fast-reject; maintains lightweight per-key counters using local caches + periodic sync with central rate-limiter. Good for low-latency rejects.\\n- Serving runtime sidecar (per-host): authoritative throttling and accounting, performs soft-burst reconciliation, and records token accounting to central billing pipeline.\\n- Control plane service (redwood-throttle): central policy store and aggregator that emits adaptive rate suggestions based on capacity and model latency.\\n\\nObservability and metrics (required)\\n-----------------------------------\\nEach enforcement point MUST emit the following metrics with tags/dimensions {region, client_id, route_hint, model, enforcement_tier, action}:\\n- redwood.throttle.tokens_consumed (counter, tokens)\\n- redwood.throttle.requests_rejected (counter)\\n\\n- redwood.throttle.requests_queued (counter)\\n- redwood.throttle.latency_ms (histogram)\\n- redwood.throttle.fallbacks (counter)\"}], \"records\": [{\"source\": \"slack/support/1876543210-phantom-credit-project-link-sync\", \"title\": \"linda-support: Hey @matt-billing, customer Nebula Apps reports Console shows $450 promo credits on t\", \"kind\": \"slack\", \"status\": \"n/a\", \"date\": \"2029-06-19\", \"authority\": \"discussion\", \"section\": \"messages\", \"passage\": \"linda-support: Hey @matt-billing, customer Nebula Apps reports Console shows $450 promo credits on their org page but API /billing/usage returns credit_balance: 0 and usage shows no applied credits. Ticket #CS-9124. Attaching console screenshot and sample API response.\\n\\nmatt-billing: thanks. Can you paste the exact API call + response? Is the request using the org API key or project key?\\n\\nlinda-support: here's the call they ran (project key):\\nGET https://api.redwood.ai/v1/billing/usage?project_id=nebula-prod\\nResponse: {\\n  \\\"project_id\\\":\\\"nebula-prod\\\",\\n  \\\"usage_tokens\\\": 12345,\\n  \\\"applied_credits\\\": 0,\\n  \\\"credit_balance\\\": 0\\n}\\nConsole screenshot: https://redwood.internal/snapshots/CS-9124/console.png\\n\\njon-eng: quick thought \\u2014 we recently changed tenant linking so org-level promos should create a project allocation record. Possible the allocation job failed to emit project-level meta. Can someone grab the metering logs for that org id?\\n\\nashley-ops: pulling logs now for org_id: org_nebula_01. I see a failed row in allocations stream around 2026-11-02T03:12:14Z with error: \\\"FK project_id not found\\\" for project nebula-prod. Looks like tenant-link mapping was stale.\\n\\nbilling-bot: automated check: promo code PROMO-RED-2026 applied to org_nebula_01 at 2026-11-01T22:05:11Z. Allocation job \\u2026[passage truncated]\"}, {\"source\": \"slack/eng-releases/1738618900\", \"title\": \"\", \"kind\": \"slack\", \"status\": \"n/a\", \"date\": \"2025-02-03\", \"authority\": \"discussion\", \"section\": \"content\", \"passage\": \"Connor O'Brien: release thread for Usage Insights beta enablement. goal: flip flag + allowlist + comms checklist. Targeting Thurs AM PT unless someone screams.\\n\\nPaula Mendes: +1. Beta criteria: route+model breakdown tables, export CSV (async), freshness banner, RBAC gating for cost + export. known issues documented.\\n\\nDylan Brooks: heads up: frontend is behind flag `console_usage_insights_beta`. backend endpoints behind `usage_insights_api_v1`. both need to be on for the console page to load.\\n\\nChloe Martin: API is in prod but returning empty if no aggregated dataset yet for workspace. we\\u2019ve got the aggregation job running hourly; freshness field will show last_success_ts.\\n\\nConnor O'Brien: cool. can we confirm the flags + owners?\\n- console flag: `console_usage_insights_beta` (Console)\\n- api flag: `usage_insights_api_v1` (Console backend)\\n\\n- export flag: `usage_insights_export_v1` (export worker)\\n- permission gate: `cost_visibility_enforced` (AuthZ)\\n\\nEthan Park: yup. authz gate is not a flag per se; it\\u2019s a permission check. workspace setting `hide_costs` blocks the entire page + exports.\\n\\nKaitlyn Nguyen: also export requires `billing:export` permission. viewing requires `billing:read`. we added audit log event `usage_insights.export.downloaded` when signed URL redeemed.\\n\\nMarcus \\u2026[passage truncated]\"}, {\"source\": \"jira/customer-support/SUP-58340-orionhealth-eu-west-routing-anomaly-post-incident-followup\", \"title\": \"OrionHealth - EU-WEST production: sustained 5xx + routing anomaly causing inconsistent fallback outputs and unexpected billing spike\", \"kind\": \"jira\", \"status\": \"Resolved\", \"date\": \"2026-03-12\", \"authority\": \"ticket\", \"section\": \"steps_to_reproduce\", \"passage\": \"Customer-facing production outage in eu-west for OrionHealth. High error rate (~18% 5xx on generation endpoints), increased tail latency, truncated streaming responses for specific routes, and ~30% higher token usage for affected requests during the window.\\n\\n1) Use OrionHealth prod API key and call /v1/generate (model pinned to 'rw-13b-v2') with long-context clinical prompt (context ~2k tokens)\\n\\n2) Observe that ~1 in 5 requests return 5xx or stream disconnects between 12:42-13:40 UTC in eu-west\\n\\n3) For a subset of traffic routed under policy 'cost-fallback', requests are routed to rw-7b-quantized producing truncated completions and higher token emission patterns\\n\\n4) Reproduce rate by running 200 concurrent short-stream connections from eu-west region\\n\\n2026-03-09 12:42 UTC - First alert: elevated 5xx rate on eu-west generator (internal monitoring)\\n\\n2026-03-09 12:51 UTC - Customer (OrionHealth CSM) reports user-facing failures; ticket opened and escalated to P0\\n\\n2026-03-09 13:05 UTC - Mitigation applied: emergency routing rule to prefer rw-13b-v2 explicit pin for OrionHealth; partial traffic moved off cost-fallback path\\n\\n2026-03-09 13:18 UTC - SRE discovered spike in failure to the kernel selection service for eu-west edge; retries caused cascade and fallback routing \\u2026[passage truncated]\"}, {\"source\": \"slack/devex/1737649910\", \"title\": \"Alex Martinez: Dropping DevEx feedback from community + a couple SE calls re: Usage Insights naming.\", \"kind\": \"slack\", \"status\": \"n/a\", \"date\": \"2025-01-23\", \"authority\": \"discussion\", \"section\": \"messages\", \"passage\": \"Alex Martinez: Dropping DevEx feedback from community + a couple SE calls re: Usage Insights naming.\\n\\nMain confusion: we keep saying \\u201croute\\u201d but devs think \\u201crouting policy\\u201d / \\u201ctraffic routing\\u201d not \\u201cAPI endpoint\\u201d. People also mix up route vs method vs full URL.\\n\\nSuggestion: UI label should bias toward \\u201cEndpoint\\u201d and show normalized route path as the value.\\n\\nExamples:\\n- \\u201cEndpoint\\u201d column value: `POST /v1/chat/completions` (or just `/v1/chat/completions` if we don\\u2019t want method)\\n- Tooltip: \\u201cEndpoint is the normalized HTTP path used for grouping. Dynamic IDs are replaced with placeholders.\\u201d\\n\\nAlso: docs should explicitly say route == endpoint path pattern. Otherwise we\\u2019ll keep getting \\u201cwhy are my endpoints missing?\\u201d type reports.\\n\\nElliot Price: +1. In docs we can lead with \\u201cEndpoint (normalized route)\\u201d the first time, then stick to \\u201cEndpoint\\u201d afterwards.\\n\\nCan we confirm what console is planning to label it as? I\\u2019m about to draft the glossary/tooltips.\\n\\nMarissa Cole: We used \\u201cRoute\\u201d in early mocks because backend uses route normalization, but I agree it\\u2019s not the best term externally.\\n\\nDesign currently has \\u201cRoute\\u201d in filter chips + table header. We can change to \\u201cEndpoint\\u201d if we\\u2019re aligned.\\n\\nTessa Morgan: Yeah, \\u201cRoute\\u201d reads internal. For most users \\u201cendpoint\\u201d is the mental \\u2026[passage truncated]\"}, {\"source\": \"linear/engineering/PM-57931-customer-commitment-scoring-hosted-api-enterprise-intake\", \"title\": \"Define Customer Commitment Scoring for Hosted API Enterprise Intake (chat/streaming/toolcalls/structured)\", \"kind\": \"linear\", \"status\": \"Planned\", \"date\": \"2025-02-28\", \"authority\": \"ticket\", \"section\": \"risks_and_tradeoffs\", \"passage\": \"Proposed signals (examples): ARR impact (normalized log scale), Contractual SLA required (binary + urgency), Commitment evidence (PO/LOI), Churn risk (CS input 1-5), Technical complexity (SE estimate 1-5), Runtime compatibility (runtime change required vs compatible), Security/compliance mandated (GDPR/CCPA/sector-specific), Implementation estimate (engineering points), Customer strategic importance (enterprise tier). We will normalize each to 0-1, apply weights, and scale to 0-100. Store raw signals on request record and render score breakdown in Console intake view.\\n\\nScore 0-24 -> Self-serve backlog with PM lite review; 25-59 -> PM backlog with SE triage (30-day review); 60-79 -> Expedite: schedule Solutions Eng + Eng scoping meeting within 7 days; 80-100 -> Priority board + Sales escalation (include legal and CSM), consider Dedicated/private offering and SLA uplift.\\n\\nWeighting sensitivity may bias toward revenue or low-effort items; require periodic calibration. Automated scoring risks missing contextual signals (captured via override with justification). Pilot must capture false-positives/negatives and we may need to introduce ML-based ranking later. Some signals require reliable inputs from Sales/CS; initial adoption risk if those teams don't consistently populate \\u2026[passage truncated]\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"accounts\": [{\"account\": {\"account_id\": \"sundial-apps\", \"org\": \"sundial-apps\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\"}, \"contacts\": [{\"contact_id\": \"CONTACT-sundial-apps-1\", \"account_id\": \"sundial-apps\", \"name\": \"sundial-apps Owner\", \"email\": \"owner@sundial-apps.dev\", \"role\": \"owner\"}, {\"contact_id\": \"CONTACT-sundial-apps-2\", \"account_id\": \"sundial-apps\", \"name\": \"sundial-apps Billing Admin\", \"email\": \"billing_admin@sundial-apps.dev\", \"role\": \"billing_admin\"}], \"contracts\": [], \"credit_grants\": [], \"credit_remaining_total\": \"$0.00\", \"invoices\": [{\"invoice_id\": \"INV-BG-202603-014\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total\": \"$1,498.52\"}, {\"invoice_id\": \"INV-BG-202604-014\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total\": \"$3,144.54\"}, {\"invoice_id\": \"INV-BG-202605-014\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total\": \"$3,589.13\"}, {\"invoice_id\": \"INV-BG-202606-014\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total\": \"$1,139.84\"}, {\"invoice_id\": \"INV-BG-202607-014\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total\": \"$3,356.08\"}, {\"invoice_id\": \"INV-BG-202608-014\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total\": \"$1,924.67\"}]}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_nBOVeEp1KrXzcL5zUb4LZITo",
+     "name": "get_usage",
+     "arguments": {
+      "account_id": "sundial-apps",
+      "request_ids": [
+       "req_sd1",
+       "req_sd2",
+       "req_sd3"
+      ],
+      "line_id": ""
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"rows\": [], \"not_found\": [\"req_sd1\", \"req_sd2\", \"req_sd3\"], \"truncated\": false}"
+  },
+  {
+   "role": "assistant",
+   "content": "I don\u2019t see usage records for `req_sd1`, `req_sd2`, or `req_sd3` yet. Since it\u2019s 13:20 UTC\u201420 minutes after the calls\u2014that\u2019s still within the dashboard\u2019s documented 30-minute window for usage to appear.\n\nPlease check that you\u2019re viewing the `sundial-apps` workspace and the right time range. If the calls still don\u2019t appear after 13:30 UTC, let us know and we can investigate the telemetry freshness."
+  },
+  {
+   "role": "user",
+   "content": "Should we be worried?"
+  },
+  {
+   "role": "assistant",
+   "content": "Not yet. Redwood\u2019s guidance says usage can take up to 30 minutes to appear; it\u2019s been about 20 minutes. If those calls still aren\u2019t visible after 13:30 UTC, let us know and we can investigate."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

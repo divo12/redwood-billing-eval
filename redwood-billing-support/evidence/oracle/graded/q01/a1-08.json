@@ -1,0 +1,232 @@
+{
+ "id": "a1-08",
+ "grade": {
+  "id": "a1-08",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": false,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 13,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 13,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 13,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": false,
+    "problem": "never said any of ['250']; never said any of ['2027-07-01', 'July 1', '1 July', 'Jul 1', '1 Jul']",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "find_account",
+   "invoice_lines",
+   "list_invoices",
+   "load_skill",
+   "search_policy"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 20.489313864999986,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hi! Could you tell me our current credit balance, when it expires, whether any was used on our March 2027 invoice, and what\u2019s on that invoice?"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_RrnwiYfm7XRSjLEkHzv8YnQo",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    },
+    {
+     "id": "call_Vq5rmEJH12ILGQDuTzuCFn8v",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "org_id"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. A confirmed duplicate accepted by the console may be credited; report the amount only after the tool confirms it. For a confirmed duplicate over the console limit, submit the `duplicate_charge` dispute and escalate to `billing_ops` with its dispute ID. Promise no outcome or timeline.\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, UTC window, and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for Support's credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"org_id\": \"echo-valley\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_QGoqBaZcRKR9qhtRUwXoVFxG",
+     "name": "find_account",
+     "arguments": {
+      "org": "echo-valley",
+      "account_id": ""
+     }
+    },
+    {
+     "id": "call_AFd6VUhaTPAvKuO75WvmHRTs",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current published billing credit policy current balance expiration expiry application unused credit; billing routing and handoff approval guidance for credits"
+     }
+    },
+    {
+     "id": "call_4OBnQoK4tkyr06huizOwQPN2",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "invoice_month"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"echo-valley\", \"org\": \"echo-valley\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2026-10-05\", \"billing_timezone\": \"UTC\"}, \"contracts\": [], \"credit_grants\": [{\"grant_id\": \"GRANT-echo-valley-1\", \"account_id\": \"echo-valley\", \"kind\": \"promotional\", \"amount\": {\"value\": \"200.00\", \"currency\": \"USD\"}, \"remaining\": {\"value\": \"200.00\", \"currency\": \"USD\"}, \"granted_on\": \"2027-03-10\", \"expires_on\": \"2027-06-08\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-credit-balances-2026.json\", \"status\": \"published\", \"date\": \"2026-05-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-credit-balances-2026.json\\ntitle: Support Console: Reading Credit Balances\\nstatus/authority: published; unspecified\\ndate: 2026-05-06\\n[section: body 2]\\n## Purpose\\nHow to answer \\\"what is my credit balance?\\\" from the support console. This page covers reading balances only.\\n\\n[section: body 3]\\n## Where balances live\\nEach credit a customer holds is a row in `credit_grants`. The current balance of a grant is its `remaining_cents`; the customer's balance is the sum across their grants.\\n\\n[section: body 4]\\n## Quoting a balance\\n- Look up the account, then query `credit_grants` by account.\\n- Quote the total and, for each grant, its remaining amount and `expires_on`.\\n- A grant with no `expires_on` does not expire.\\n\\n_Last reviewed 2026-05-06._\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 6]\\n## What not to do\\n- Don't route a billing case to SRE unless there is an active incident.\\n- Don't route credit or exception requests to Legal; Finance pulls Legal in when needed.\\n- Don't promise an outcome, amount, or timeline when you hand off.\\n- Don't share credit percentages or typical ranges with customers, including the SLA credit table in the incident closure procedure. That table is internal guidance for SRE and Finance when they propose a credit; any amount is decided in Finance's review under the customer's contract.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\\ntitle: Support Console: Duplicate-Charge Credits and Billing Disputes\\nstatus/authority: published; unspecified\\ndate: 2026-02-05\\n[section: body 5]\\n## What Support never credits\\n- Goodwill, exceptions, SLA credits, or any credit someone says a manager, sales rep or Redwood engineer already approved. These stay with Finance, per the #support guidance from FP&A. Route the request; don't issue anything from the console.\\n- Marketplace purchases, which are billed by the marketplace.\\n\\n[section: body 6]\\n## Telling the customer\\n- Say what you did: the credit note and its amount, or that a dispute is open and Billing Ops has the case. Don't promise the outcome of a dispute or a date.\\n\\n_Last reviewed 2026-02-05._\"}, {\"source\": \"sources/confluence/architecture-and-standards/infra-standards/preemption-crediting-and-gpu-borrowing-protocol-2025.json\", \"status\": \"published\", \"date\": \"2025-11-02\", \"text\": \"source: sources/confluence/architecture-and-standards/infra-standards/preemption-crediting-and-gpu-borrowing-protocol-2025.json\\ntitle: Preemption Crediting and GPU Borrowing Protocol\\nstatus/authority: published; unspecified\\ndate: 2025-11-02\\n[section: content 1]\\n2) Credit Accounting and Charging\\n- Borrower is charged credits at a premium multiplier (default 1.5x) to reflect operational overhead and incentive to release capacity.\\n- Lenders receive a credit rebate (e.g., 0.9x of borrower charge) which flows to the lender's cost center for chargeback.\\n- Billing pipeline ingestion tag: schedule.billing_tag = \\\"pcgbp.v1\\\" and includes borrower_id, lender_id, credit_units.\\n\\n3) Borrow Window and Renewal\\n- Default Borrow Window: 2 hours. Max continuous borrow: 24 hours with explicit approval.\\n- Renewal requests require an updated credit reserve check and are rate limited (max 3 renewals in 24 hours).\\n\\n4) Eviction and Graceful Handoff\\n- Soft Preemption is the default: runtime sidecar initiates a \"}, {\"source\": \"sources/slack/docs/1749998881-billing-ceil-sdk-snippet-and-grafana-link.json\", \"status\": \"unspecified\", \"date\": \"1749999120\", \"text\": \"source: sources/slack/docs/1749998881-billing-ceil-sdk-snippet-and-grafana-link.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1749999120\\n[section: thread 1]\\nfile. verified the panel uses `rate_requests_total{plan_id=~\\\"pro|startup|free\\\"}` and the legend shows plan_id.\\n\\ndocs-ci-bot: preview build ready 1 https://deploy.preview.redwood/4728 (build c7b9e2). please review rendered math, the SDK snippets, and the grafana iframe.\\n\\nravi: quick editorial nit: billing.md should call out burst credit expiry: \\\"unused burst credits expire 30 days after issuance\\\". ops asked for that explicitly.\\n\\nalex: added a tiny sentence to billing.md referencing the 180-day alias window for metric names.\\n\\nmira: final checklist before merge: 1) confirm metric naming and queries (alex) 2) confirm panel JSON link (sam) 3) finalize ceil pseudocode and worked examples (ravi) 4) sanity-check SDK snippets (alex + ravi). I'll merge once CI is green.\\n\\nsam: link is final. pushed to infra repo.\\n\\n\"}, {\"source\": \"sources/gmail/monica_patel/20260621-sequoia-interim-payment-structure-exec-escalation.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260621-sequoia-interim-payment-structure-exec-escalation.json\\ntitle: Re: Sequoia Health \\u2014 invoicing cadence & interim payment structure\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 3]\\n\\u2014 recommend credit check and 30% deposit to mitigate.\\n- Operational impact: billing consolidation and one invoice per quarter is fine, but credit hold/usage caps must be enforced in billing system.\\n\\nRequested approval: temporary exception to standard terms to allow quarterly invoicing for 12 months provided: 30% deposit at signing, Net-60 on quarter invoices, $250k credit cap, monthly usage reporting, and automatic revert to standard terms on breach.\\n\\nI\\u2019ve attached the term sheet and a short DD summary. Requesting Jonas or Finance lead to approve or propose final conditional language.\\n\\n\\u2014 Karthik\\nKarthik Iyer\\nHead, Deal Desk | Redwood Inference\\nkarthik_iyer@redwoodinference.com\\n\\nAttachments: deal-due-diligence-summary.pdf, \"}, {\"source\": \"sources/jira/customer-support/SUP-659321-stuck-prorated-burst-credit-after-dedicated-downgrade.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-659321-stuck-prorated-burst-credit-after-dedicated-downgrade.json\\ntitle: Prorated burst credits remain in pending state after Dedicated -> Hosted downgrade; credits not applied to current invoice\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: description 1]\\nIssue summary:\\nCustomer BrightLoop AI downgraded from a Dedicated reserved capacity plan to Hosted on 2026-03-08 22:15 UTC. They expected prorated \\\"burst\\\" credits (unused reserved burst allocation) to be applied to their billing account immediately and to appear on the next invoice. The customer reports the credits are visible in the Console under 'Pending credits' but the invoice generated on 2026-03-09 does not include them, and their effective balance still reflects the pre-downgrade charge.\\n\\nImpact:\\n- Invoice overcharged by the expected prorated burst credit (~$3,200) for billing period ending 2026-03-09.\\n- Customer-facing finance team has paused payments pending \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 5]\\n## Not owned by Billing Ops\\n- Credit, goodwill and exception requests go to Finance, per FP&A's guidance in #support (June 2025). Billing Ops only applies adjustments that have been approved.\\n- Questions about what a customer's contract or SLA says go to the account team, per the same #support guidance. Answer the general rule and tell the customer their account team confirms their terms; don't quote a figure from the contract. A request to confirm a contract figure, such as a discount rate, needs no case: tell the customer their account team confirms it. Open an account team case only for an SLA credit claim under the contract.\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"invoice_month\": \"I don't have that.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_Gudz0YojDzWPgm73hkXBq09Q",
+     "name": "list_invoices",
+     "arguments": {
+      "account_id": "echo-valley"
+     }
+    },
+    {
+     "id": "call_mg18uexZX04mZ4jnFWEQPltB",
+     "name": "search_policy",
+     "arguments": {
+      "query": "published policy promotional account credit grant application to invoices ordering expiry invoice billing credits remaining unused credit payout eligibility March invoice"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoices\": [{\"invoice_id\": \"INV-2027-0331-133\", \"account_id\": \"echo-valley\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"issued_on\": \"2027-04-01\", \"status\": \"open\", \"total\": {\"value\": \"20.00\", \"currency\": \"USD\"}, \"total_dollars\": \"$20.00\"}, {\"invoice_id\": \"INV-BG-202610-042\", \"account_id\": \"echo-valley\", \"period_start\": \"2026-10-05\", \"period_end\": \"2026-10-31\", \"issued_on\": \"2026-11-01\", \"status\": \"paid\", \"total\": {\"value\": \"2712.55\", \"currency\": \"USD\"}, \"total_dollars\": \"$2712.55\"}, {\"invoice_id\": \"INV-BG-202611-042\", \"account_id\": \"echo-valley\", \"period_start\": \"2026-11-01\", \"period_end\": \"2026-11-30\", \"issued_on\": \"2026-12-01\", \"status\": \"paid\", \"total\": {\"value\": \"1711.14\", \"currency\": \"USD\"}, \"total_dollars\": \"$1711.14\"}, {\"invoice_id\": \"INV-BG-202612-042\", \"account_id\": \"echo-valley\", \"period_start\": \"2026-12-01\", \"period_end\": \"2026-12-31\", \"issued_on\": \"2027-01-01\", \"status\": \"paid\", \"total\": {\"value\": \"2597.66\", \"currency\": \"USD\"}, \"total_dollars\": \"$2597.66\"}, {\"invoice_id\": \"INV-BG-202701-042\", \"account_id\": \"echo-valley\", \"period_start\": \"2027-01-01\", \"period_end\": \"2027-01-31\", \"issued_on\": \"2027-02-01\", \"status\": \"paid\", \"total\": {\"value\": \"2687.39\", \"currency\": \"USD\"}, \"total_dollars\": \"$2687.39\"}, {\"invoice_id\": \"INV-BG-202702-042\", \"account_id\": \"echo-valley\", \"period_start\": \"2027-02-01\", \"period_end\": \"2027-02-28\", \"issued_on\": \"2027-03-01\", \"status\": \"paid\", \"total\": {\"value\": \"3037.14\", \"currency\": \"USD\"}, \"total_dollars\": \"$3037.14\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 14]\\n> Subject: Re: Trial credits charged on invoice? (invoice_9876 attached)\\n>\\n> Hi team \\u2014 I pulled the usage and billing events for Acme Analytics. Summary:\\n>\\n> - Customer signed up 2026-02-24 via PLG and got the standard $250 trial credit applied at signup (self-serve).\\n> - On 2026-02-28 they hit a burst of token usage (large eval job) that exhausted the free $250 credit.\\n> - The account had a card on file and overage billing triggered, creating invoice #9876 for the remaining usage ($42.17 plus VAT).\\n> - VAT was applied because Acme's billing address indicates they are in a taxable region and our system currently auto-applies VAT for card-charged invoices.\\n>\\n> Options I recommend:\\n> 1) Issue a manual promotional credit to cover the $42.17 and create a \"}, {\"source\": \"sources/slack/support/1987654321-staggered-expiry-promo-credit-late-deduction.json\", \"status\": \"unspecified\", \"date\": \"1987654780\", \"text\": \"source: sources/slack/support/1987654321-staggered-expiry-promo-credit-late-deduction.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1987654780\\n[section: messages 1]\\nmaria_support: FYI customer ACME (org-acme-42) escalated \\u2014 their promo credits had staggered expiries (Mar/Apr/May) but invoice INV-2026-0043 shows charge for tokens that should've been offset. Dashboard shows 0 remaining credits, invoice charged $423.75. Customer says credits were 'applied' after invoice cutoff. Need triage.\\n\\n[section: messages 2]\\ndavid_billing: Can you paste org id + invoice link and the invoice period? Also any ledger ids or sample token timestamps?\\n\\n[section: messages 3]\\nmaria_support: org-acme-42, invoice INV-2026-0043 (period 2025-04-01 -> 2025-04-30). Customer claims dashboard token total = 12,345 but invoice tokens = 15,678 (billed). Saw credits consumed timestamped 2025-05-02 in our ledger.\"}, {\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 25]\\nHi Jordan \\u2014 quick update from Billing Ops: per Lauren's approval we have done the following:\\n\\n- Issued a credit note for invoice #9876 that offsets the $42.17 usage charge. If the invoice was unpaid, the balance will be shown as $0. If the invoice was already charged to card, finance has scheduled a refund for the billed amount \\u2014 you should see the refund or credit on your card within 3\\u20135 business days.\\n- Applied a one-time promotional top-up of $1,000 to your account (promo code internal: SALES_TOPUP_8421). This will appear as an account credit and will be used before future billing events.\"}, {\"source\": \"sources/jira/customer-support/SUP-659321-stuck-prorated-burst-credit-after-dedicated-downgrade.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-659321-stuck-prorated-burst-credit-after-dedicated-downgrade.json\\ntitle: Prorated burst credits remain in pending state after Dedicated -> Hosted downgrade; credits not applied to current invoice\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: description 1]\\nconsumption leaving unused burst hours.\\n3) Perform a downgrade to hosted via the Console UI at end of day.\\n4) Trigger billing pipeline / invoice generation for same cycle.\\n5) Observe pending credits state in Console and absence on generated invoice.\\n\\nExpected behavior:\\n- Prorated burst credits should be computed and applied to the customer's account prior to invoice generation or included as an offset on that invoice.\\n\\nActual behavior observed:\\n- Credits appear in Console as 'Pending \\u2014 prorated burst credit' but are not included on the invoice that was generated shortly afterwards. The billing system shows a pending_credits entry in the credits ledger with status \"}, {\"source\": \"sources/jira/customer-support/SUP-659321-stuck-prorated-burst-credit-after-dedicated-downgrade.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-659321-stuck-prorated-burst-credit-after-dedicated-downgrade.json\\ntitle: Prorated burst credits remain in pending state after Dedicated -> Hosted downgrade; credits not applied to current invoice\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: comments 1]\\n2026-03-10 | Aisha Patel (Support): Logged initial ticket after chat with BrightLoop. Captured Console screenshot and invoice PDF. Assigned to billing ops for triage.\\n\\n[section: comments 2]\\n2026-03-10 | Billing Ops (Jared Morales): Looking into the billing run. Initial hypothesis: credit calculation succeeded but settlement job that converts pending credits into applied credits skipped when invoice generation job ran within same hour. Escalating to SRE to check job ordering in the billing pipeline.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-credit-balances-2026.json\", \"status\": \"published\", \"date\": \"2026-05-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-credit-balances-2026.json\\ntitle: Support Console: Reading Credit Balances\\nstatus/authority: published; unspecified\\ndate: 2026-05-06\\n[section: body 2]\\n## Purpose\\nHow to answer \\\"what is my credit balance?\\\" from the support console. This page covers reading balances only.\\n\\n[section: body 3]\\n## Where balances live\\nEach credit a customer holds is a row in `credit_grants`. The current balance of a grant is its `remaining_cents`; the customer's balance is the sum across their grants.\\n\\n[section: body 4]\\n## Quoting a balance\\n- Look up the account, then query `credit_grants` by account.\\n- Quote the total and, for each grant, its remaining amount and `expires_on`.\\n- A grant with no `expires_on` does not expire.\\n\\n_Last reviewed 2026-05-06._\"}, {\"source\": \"sources/jira/customer-support/SUP-831274-scheduled-burst-credit-rollback-mismatch-after-usage-reconciliation.json\", \"status\": \"In Progress\", \"date\": \"2026-03-02\", \"text\": \"source: sources/jira/customer-support/SUP-831274-scheduled-burst-credit-rollback-mismatch-after-usage-reconciliation.json\\ntitle: Scheduled burst credit rollback mismatch after usage reconciliation\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-02\\n[section: steps_to_reproduce 5]\\n5) Invoice generation included the combined negative line; customer reports the magnitude is larger than expected and attribution is unclear.\\n\\n[section: observed_behavior 1]\\nA single negative invoice line of -$4,200 labeled 'scheduled-burst-credit-rollback' appears on the March 1 invoice. Customer asserts expected rollback was -$1,200. Discrepancy of -$3,000 unexplained.\\n\\n[section: expected_behavior 1]\\nScheduled rollback should remove only the promotional burst credits granted for the specified dates. Late postbacks should be separately recorded as usage adjustments, not double-applied to the same credit rollback. The net invoice delta should match ledger audit records.\"}, {\"source\": \"sources/gmail/rachel_kim/20260802-dataforge-credit-policy-review.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/rachel_kim/20260802-dataforge-credit-policy-review.json\\ntitle: Follow-up: promotional credit requests flagged \\u2014 DataForge account review\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 4]\\nIP clusters).\\\\n- Past credits: we issued small trial credits 2x in Q1 and a promotional top-up in May; the May top-up had an abnormal token burn and then a new account was created one week later.\\\\n\\\\nRecommendation: mark as \\\\\\\"promo review - high risk\\\\\\\" and deny auto-approve. Options: 1) Require corporate billing verification and a signed MSA before granting further credits; 2) Offer a short paid pilot at 40% discount (no promo credits) to validate and onboard.\\\\n\\\\nIf legal signs off on a one-time exception with strict token caps we could approve up to $1k credits. Otherwise deny.\\\\n\\\\n\\u2014Vivek (Sales Ops)\\\\n(attachment: acct_registrations.pdf)\\\\n\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_iNTCXBhFg0zsr4nRKFsWzUw0",
+     "name": "invoice_lines",
+     "arguments": {
+      "invoice_id": "INV-2027-0331-133"
+     }
+    },
+    {
+     "id": "call_xG5Y5X5zsbOwG2NnIgMRc5bd",
+     "name": "search_policy",
+     "arguments": {
+      "query": "published customer promotional credits automatically applied to invoice usage charges grant eligibility expiration credits apply ordering invoice balance expiry"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoice\": {\"invoice_id\": \"INV-2027-0331-133\", \"account_id\": \"echo-valley\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"issued_on\": \"2027-04-01\", \"status\": \"open\", \"total\": {\"value\": \"20.00\", \"currency\": \"USD\"}}, \"billing_channel\": \"direct\", \"lines\": [{\"line_id\": \"INV-2027-0331-133/L1\", \"invoice_id\": \"INV-2027-0331-133\", \"description\": \"Hosted Self-Serve plan fee, Mar\", \"product\": \"plan_fee\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"amount\": {\"value\": \"20.00\", \"currency\": \"USD\"}, \"request_ids\": [], \"amount_dollars\": \"$20.00\"}], \"confirmed_duplicates\": [], \"lookalikes\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 25]\\nHi Jordan \\u2014 quick update from Billing Ops: per Lauren's approval we have done the following:\\n\\n- Issued a credit note for invoice #9876 that offsets the $42.17 usage charge. If the invoice was unpaid, the balance will be shown as $0. If the invoice was already charged to card, finance has scheduled a refund for the billed amount \\u2014 you should see the refund or credit on your card within 3\\u20135 business days.\\n- Applied a one-time promotional top-up of $1,000 to your account (promo code internal: SALES_TOPUP_8421). This will appear as an account credit and will be used before future billing events.\"}, {\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 14]\\n> Subject: Re: Trial credits charged on invoice? (invoice_9876 attached)\\n>\\n> Hi team \\u2014 I pulled the usage and billing events for Acme Analytics. Summary:\\n>\\n> - Customer signed up 2026-02-24 via PLG and got the standard $250 trial credit applied at signup (self-serve).\\n> - On 2026-02-28 they hit a burst of token usage (large eval job) that exhausted the free $250 credit.\\n> - The account had a card on file and overage billing triggered, creating invoice #9876 for the remaining usage ($42.17 plus VAT).\\n> - VAT was applied because Acme's billing address indicates they are in a taxable region and our system currently auto-applies VAT for card-charged invoices.\\n>\\n> Options I recommend:\\n> 1) Issue a manual promotional credit to cover the $42.17 and create a \"}, {\"source\": \"sources/slack/support/1987654321-staggered-expiry-promo-credit-late-deduction.json\", \"status\": \"unspecified\", \"date\": \"1987654780\", \"text\": \"source: sources/slack/support/1987654321-staggered-expiry-promo-credit-late-deduction.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1987654780\\n[section: messages 1]\\nmaria_support: FYI customer ACME (org-acme-42) escalated \\u2014 their promo credits had staggered expiries (Mar/Apr/May) but invoice INV-2026-0043 shows charge for tokens that should've been offset. Dashboard shows 0 remaining credits, invoice charged $423.75. Customer says credits were 'applied' after invoice cutoff. Need triage.\\n\\n[section: messages 2]\\ndavid_billing: Can you paste org id + invoice link and the invoice period? Also any ledger ids or sample token timestamps?\\n\\n[section: messages 3]\\nmaria_support: org-acme-42, invoice INV-2026-0043 (period 2025-04-01 -> 2025-04-30). Customer claims dashboard token total = 12,345 but invoice tokens = 15,678 (billed). Saw credits consumed timestamped 2025-05-02 in our ledger.\"}, {\"source\": \"sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\\ntitle: Promotional waiver applied to next billing cycle instead of current after dedicated fallback\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: description 1]\\nshows the overage charge applied; the promo waiver did not offset the current invoice but shows a provisional credit pending for the next billing cycle.\\n\\nObserved behavior:\\n- Waiver appears in billing ledger as a provisional credit with effective_period starting 2026-04-01.\\n- Postback logs show waiver acceptance event processed at 2026-03-04T18:23:47Z but linked to a future period idempotency key.\\n- Autopay attempted on 2026-03-06 and failed due to mismatch between expected balance and posted charges.\\n\\nExpected behavior:\\n- Waiver requested and accepted before invoice finalization should be applied to the current open invoice and reduce the total due immediately.\\n\\nAttachments / Logs:\\n- Customer \"}, {\"source\": \"sources/jira/customer-support/SUP-81234-credit-memo-post-rollout-invoice-adjustment-query.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-81234-credit-memo-post-rollout-invoice-adjustment-query.json\\ntitle: Unexpected post-rollout credit memo applied to prior invoice causing balance confusion\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: description 1]\\nIssue summary: Customer BrightHealth AI contacted Support after noticing an unexpected credit memo posted on 2026-03-09 that retroactively adjusted a Feb invoice (INV-2026-02-15-001). They were previously charged and reported the Feb invoice as reconciled in their ERP; the new credit appears to reduce that historical invoice and created a negative balance on their account statement.\\n\\nImpact: Customer finance team is unable to reconcile month-end numbers; they are pausing upcoming committed capacity increases until ledger is clarified. Customer requests explanation, audit trail, and confirmation that no double-refund/duplicate adjustment will be applied.\\n\\nEnvironment: Redwood hosted billing system; customer \"}, {\"source\": \"sources/slack/support/1987654321-staggered-expiry-promo-credit-late-deduction.json\", \"status\": \"unspecified\", \"date\": \"1987654780\", \"text\": \"source: sources/slack/support/1987654321-staggered-expiry-promo-credit-late-deduction.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1987654780\\n[section: messages 5]\\nana_engineer: @maria_support thanks \\u2014 that consumed_ts on 2025-05-02 is suspicious (post-invoice). Do we know whether consumption happens during invoice reconciliation or via the async \\\"credit-apply\\\" worker? Any delayed batch jobs ran?\\n\\n[section: messages 6]\\nmaria_support: ops run a backfill job on 2025-05-02 after customer support asked to re-evaluate expired credits. Noted in runbook: job id bf-20250502.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-credit-balances-2026.json\", \"status\": \"published\", \"date\": \"2026-05-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-credit-balances-2026.json\\ntitle: Support Console: Reading Credit Balances\\nstatus/authority: published; unspecified\\ndate: 2026-05-06\\n[section: body 2]\\n## Purpose\\nHow to answer \\\"what is my credit balance?\\\" from the support console. This page covers reading balances only.\\n\\n[section: body 3]\\n## Where balances live\\nEach credit a customer holds is a row in `credit_grants`. The current balance of a grant is its `remaining_cents`; the customer's balance is the sum across their grants.\\n\\n[section: body 4]\\n## Quoting a balance\\n- Look up the account, then query `credit_grants` by account.\\n- Quote the total and, for each grant, its remaining amount and `expires_on`.\\n- A grant with no `expires_on` does not expire.\\n\\n_Last reviewed 2026-05-06._\"}, {\"source\": \"sources/jira/customer-support/SUP-581233-promotional-credit-applied-to-merged-subaccount-leading-to-unexpected-charge.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-581233-promotional-credit-applied-to-merged-subaccount-leading-to-unexpected-charge.json\\ntitle: Promotional credit applied to merged subaccount leading to unexpected charge on primary org invoice\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: investigation_notes 6]\\nRelated runbook: https://redwood.atlassian.net/wiki/spaces/OPS/pages/15782/Org+Consolidation+Runbook - added a note about promo issuance ordering and a validation step.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "Your current credit balance is **$200.00**, all from one promotional grant. It expires **June 8, 2027**.\n\nThe **March 1\u201331, 2027** invoice shows no credit or offset applied. It contains one item: **Hosted Self-Serve plan fee \u2014 $20.00**. The invoice was issued April 1 and is currently **open**, with **$20.00 due**."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that\u2019s clear."
+  },
+  {
+   "role": "assistant",
+   "content": "You\u2019re welcome!"
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}
