@@ -2,21 +2,15 @@
 
 ## Summary
 
-`claude-opus-5-5` at `reasoning_effort=high` in Claude Code **fails this task consistently: 3/3 real runs score
-reward 0**, and the R0 build alone misses the 0.9 bar every time (Q00 0.833, 0.833, 0.733). The most repeatable
-failure appears in every run: when a developer reports more billed tokens than they counted locally and asks
-"can someone check the meter?", the support agent Opus built escalates to Billing Engineering (a0-01 and its
-variants, a0-09-T: 4-5 cases per run). The published routing page says the opposite: *"Answer, don't hand off:
-how billed tokens are counted (model-native tokenizer, full request payload) … explain it and stop there, even if
-the customer calls it a bug."* Opus's agents searched for exactly that rule (one query was "full request payload
-model-native tokenizer") and even told the developer the gap "doesn't by itself show the console is
-overcounting", then escalated anyway. The rule reached the agent but was never turned
-into behaviour it acts on. On maintenance, the same pattern shows as a scoping error: in two of three runs the
-updated agent replaced the $500 duplicate-credit limit with R1's $250 instead of keeping $500 for 2026 invoices.
-The oracle (a reference build that writes each rule into a skill and a rules file, run through the same
-conversation loop and console) passes cleanly at reward 1.0 in 4/4 runs. The task is solvable; the model's
-specific, repeatable failure is shipping an agent that knows a rule but doesn't follow it, and overwriting old
-rules instead of scoping new ones.
+`claude-opus-5-5` at `reasoning_effort=high` (Claude Code) scores **reward 0 in 3/3 runs**; the oracle scores **1.0
+in 4/4**. The evolution failure: when R1 revises Finance's approvals matrix in place (**$250** for invoices on the
+2027 price book, **"Invoices rated on an earlier price book: up to $500"** on the same page), Opus notices the change
+but maintains it **by instruction, not by mechanism**: it adds "check which version applies" to the agent's prompts
+instead of encoding the date boundary. The maintained agent then can't decide which version governs an older
+invoice: on the same 2026 duplicate charges its R0 build handled correctly, it hands off instead (runs 5 and 6;
+run 6's subagent: the limit "cannot be established from sources valid as of Sep 15, 2026"). The oracle encodes the
+boundary as code (`duplicate_credit_limit_cents(period_start)`) and passes these cases every time. Same cases, same
+accounts: **A0 passes, A1 fails**. A maintained agent that quietly breaks what used to work.
 
 The failure survives the fairness audit below: rescored with every case or verifier defect it found removed, all
 three runs still score 0.
