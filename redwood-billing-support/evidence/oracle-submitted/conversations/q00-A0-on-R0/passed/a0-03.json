@@ -1,0 +1,192 @@
+{
+ "id": "a0-03",
+ "grade": {
+  "id": "a0-03",
+  "category": "normal",
+  "termination": "customer_transfer",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "insert:cases",
+      "at": 10,
+      "ok": true
+     }
+    ]
+   }
+  ],
+  "tools_called": [
+   "escalate_case",
+   "find_account",
+   "load_skill",
+   "search_policy",
+   "usage_summary"
+  ]
+ },
+ "termination": "customer_transfer",
+ "invalid": null,
+ "seconds": 10.997330997000063,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Two requests that returned 200 today, 15 September 2026, at 13:00 UTC (req_7f31a, req_7f31b) are still missing from the usage page 45 minutes later. I checked the workspace, filters, and timezone. Org halcyon-data."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_VWe3OBJoKF83zvl2pC5Vsuds",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    },
+    {
+     "id": "call_NDSWzYt5pv9Y0ffm13MOTmet",
+     "name": "find_account",
+     "arguments": {
+      "org": "halcyon-data"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. A confirmed duplicate accepted by the console may be credited; report the amount only after the tool confirms it. For a confirmed duplicate over the console limit, submit the `duplicate_charge` dispute and escalate to `billing_ops` with its dispute ID. Promise no outcome or timeline.\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, UTC window, and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for Support's credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"halcyon-data\", \"org\": \"halcyon-data\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\"}, \"contracts\": [], \"credit_grants\": []}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_mIorkEdFFvlwXnZP88W0FXfw",
+     "name": "usage_summary",
+     "arguments": {
+      "account_id": "halcyon-data",
+      "request_ids": [
+       "req_7f31a",
+       "req_7f31b"
+      ]
+     }
+    },
+    {
+     "id": "call_5H0RQMRKlkbcsoAJF3MUeg1l",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current published billing routing Telemetry missing successful 2xx requests usage page freshness threshold minutes, follow-up and required request IDs"
+     }
+    },
+    {
+     "id": "call_TcyXV5D3wpiHDpk364U5ebuD",
+     "name": "search_policy",
+     "arguments": {
+      "query": "onboarding triage playbook missing usage reporting lag threshold successful requests UTC window workspace filters timezone follow-up"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"count\": 32, \"billed_tokens\": 380913559, \"cached_tokens\": 71619920, \"http_status_counts\": {\"200\": 32}, \"billed_tokens_by_day\": {\"2026-03-01\": 21006651, \"2026-03-06\": 28643487, \"2026-03-22\": 16823762, \"2026-03-30\": 15605658, \"2026-04-08\": 20516323, \"2026-04-15\": 3753471, \"2026-04-19\": 6158406, \"2026-04-24\": 185711, \"2026-05-05\": 18183555, \"2026-05-08\": 2987026, \"2026-05-09\": 17932092, \"2026-05-12\": 4096355, \"2026-05-23\": 18855844, \"2026-05-29\": 3339663, \"2026-06-10\": 14130433, \"2026-06-17\": 17017490, \"2026-06-29\": 12871758, \"2026-07-03\": 2153996, \"2026-07-07\": 18119197, \"2026-07-08\": 6397155, \"2026-07-20\": 8506859, \"2026-07-26\": 9776465, \"2026-07-31\": 18466898, \"2026-08-01\": 23968496, \"2026-08-02\": 5272768, \"2026-08-07\": 796703, \"2026-08-09\": 16767149, \"2026-08-22\": 21024262, \"2026-08-30\": 11402906, \"2026-09-05\": 1844874, \"2026-09-09\": 9078660, \"2026-09-10\": 5229486}, \"start_utc\": null, \"end_utc\": null, \"requests\": {\"req_7f31a\": \"not recorded for this account\", \"req_7f31b\": \"not recorded for this account\"}}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\", \"status\": \"published\", \"date\": \"2025-04-08\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\\ntitle: Onboarding Checklist: Support Escalation and Triage Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-04-08\\n[section: body 16]\\n### 2) First successful API call (TTFS)\\n**What completion means:** We observed the first eligible 2xx response from the Hosted gateway for the tenant.\\n\\nTroubleshooting:\\n1. Ask for a timestamp of their last attempt.\\n2. Check internal request metadata for 2xx vs 4xx/5xx.\\n3. If they are using a local proxy, confirm requests actually reach Hosted.\\n4. If they are using a different org in CI vs local, reconcile workspace IDs.\\n\\nIf checklist is not updating:\\n- Confirm the request hit an instrumented gateway path.\\n- Allow for telemetry lag (up to 10 minutes is typical).\\n\\nEscalation criteria:\\n- Verified 2xx requests with no checklist update after 30 minutes.\\n\\nEscalate to: **Telemetry** (Logan Wright / Nadia Rahman).\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\nconfirms the contract and owns any request that depends on it, including an SLA credit. Treat the account as the console shows it until then |\\n| Usage for successful (2xx) requests still missing from the Console after about 30 minutes | Telemetry | A pipeline issue, not a billing one; see the onboarding triage playbook |\"}, {\"source\": \"sources/jira/customer-support/SUP-142831-argonautx-fallback-amplification-retroactive-billing-and-action-plan.json\", \"status\": \"Resolved\", \"date\": \"2026-02-26\", \"text\": \"source: sources/jira/customer-support/SUP-142831-argonautx-fallback-amplification-retroactive-billing-and-action-plan.json\\ntitle: ArgonautX: cascading fallback amplification causing duplicate completions, billing spike, and streaming disconnects \\u2014 post-incident follow-up\\nstatus/authority: Resolved; unspecified\\ndate: 2026-02-26\\n[section: description 1]\\ncompletions.\\n\\nLogs / Observed traces:\\n- Control plane logs show repeated routing attempts (router: route_attempt=3..7) for identical request IDs within ~600ms windows.\\n- Serving runtime traces show KV cache warmup restarted for each fallback attempt resulting in repeated token generation for the same client session.\\n- Billing telemetry flagged high token counts tied to the same session_id hash.\\n\\nAction requested by customer:\\n- Detailed breakdown of token billing per request/session during the incident window, and credits for duplicated token usage where amplification is confirmed.\\n\\nDesired outcome:\\n- Customer wants the billing delta \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\n## Routing table\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Disputed or duplicated line on a direct Redwood invoice | Billing Ops | Invoice number, the line(s), UTC window, request IDs |\\n| Refund request on a direct invoice line the customer says was billed in error | Billing Ops | Billing Ops confirms the charge and requests approval where needed |\\n| Invoice total doesn't match the customer's usage export | Billing Ops | Note the export's timezone and filters |\\n| Payment failures, holds, receipts | Billing Ops | |\\n| Meter discrepancy the related pages don't explain: request IDs whose billed tokens still don't match after the tokenizer, payload and retry rules are applied | Billing Engineering | Billing Eng checks meter correctness and hands any \"}, {\"source\": \"sources/confluence/customer-success-and-support/escalation-playbook/status-page-customer-escalation-playbook.json\", \"status\": \"published\", \"date\": \"2026-01-12\", \"text\": \"source: sources/confluence/customer-success-and-support/escalation-playbook/status-page-customer-escalation-playbook.json\\ntitle: Status Page Customer Escalation Playbook (Disputed Status Accuracy)\\nstatus/authority: published; unspecified\\ndate: 2026-01-12\\n[section: content 1]\\nwhether this is route-specific, configuration-related, or isolated to a subset of traffic.\\\"\\n\\n### 5) Customer follow-up for missing data\\n\\\"To help us investigate quickly, could you provide: (1) 3\\u20135 request IDs (or correlation IDs), (2) timestamps with timezone, (3) the endpoint you\\u2019re calling (chat/embeddings/reranking/streaming), and (4) whether the issue is continuous or intermittent? With those, we can trace the requests and confirm whether a status page update is warranted.\\\"\\n\\n### 6) Post-incident summary request\\n\\\"Yes \\u2014 once the incident is resolved, we publish a customer-facing summary with impact and remediation details when appropriate. If you have specific information requirements (e.g., impact window, \"}, {\"source\": \"sources/jira/customer-support/SUP-58340-orionhealth-eu-west-routing-anomaly-post-incident-followup.json\", \"status\": \"Resolved\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-58340-orionhealth-eu-west-routing-anomaly-post-incident-followup.json\\ntitle: OrionHealth - EU-WEST production: sustained 5xx + routing anomaly causing inconsistent fallback outputs and unexpected billing spike\\nstatus/authority: Resolved; unspecified\\ndate: 2026-03-12\\n[section: investigation_notes 4]\\nA retry loop in the routing layer used an exponential backoff that inadvertently amplified concurrent requests to kernel-selection, producing a short-lived cascade\\n\\n[section: investigation_notes 5]\\nBilling anomaly root: rw-7b-quantized produced more short-prompt tokens for medical templates due to different EOS handling; combined with retries this increased billed tokens per user session\\n\\n[section: mitigation_and_workaround 1]\\nApplied emergency routing override to pin customer to rw-13b-v2 for OrionHealth (policy change) at 13:05 UTC\"}, {\"source\": \"sources/slack/support/1729987654-embed-batch-auth-billing-latency-sleuth.json\", \"status\": \"unspecified\", \"date\": \"1729988001\", \"text\": \"source: sources/slack/support/1729987654-embed-batch-auth-billing-latency-sleuth.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1729988001\\n[section: messages 4]\\nsam-oncall: Can you paste the raw request IDs/timestamps? we should correlate with dynbatch logs and billing events. Also include any Authorization failures.\\n\\n[section: messages 5]\\nevan-cs: trace_id=trc_20260315_9a7c; requests around 2026-03-15T17:00:03Z. They also reported intermittent 401 when retrying after a 422; billing shows two token entries at 17:00:04 and 17:00:06 for same client request_id.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\", \"status\": \"published\", \"date\": \"2025-04-08\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\\ntitle: Onboarding Checklist: Support Escalation and Triage Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-04-08\\n[section: body 13]\\nsuccessful request\\u201d not complete | Telemetry delay, request routed via non-instrumented path, tenant mismatch | Wait 5\\u201310 minutes; confirm request hit Hosted gateway; verify correct org | If >30 minutes delay with verified 2xx requests (Telemetry) |\\n| Streaming disconnect confusion / partial output | \\u201cStreaming response\\u201d incomplete or flagged | Client not reading stream properly, idle timeout, missing reconnect logic | Use SDK streaming helper; ensure keep-alive; implement reconnect/backoff | If consistent disconnect at same server timestamp across customers/regions (SRE/Platform) |\\n| Immediate 429 after launch | \\u201cQuotas & rate limits\\u201d incomplete or flagged | Concurrency too high, burst traffic, missing backoff | \"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\", \"status\": \"published\", \"date\": \"2025-04-08\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\\ntitle: Onboarding Checklist: Support Escalation and Triage Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-04-08\\n[section: body 20]\\n### 6) Usage dashboard and billing alignment\\n**What completion means:** They visited usage dashboards; does not guarantee they understand freshness windows.\\n\\nKey guidance to provide:\\n- Usage dashboards are near-real-time but can lag (communicate current freshness SLA displayed in Console).\\n- Ensure correct workspace, time range, and environment filters.\\n\\nEscalation criteria:\\n- Freshness lag exceeds SLA or discrepancy persists beyond normal windows.\\n\\nEscalate to: **Telemetry/Data Eng** (Mei Lin) with screenshots and timestamps.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\", \"status\": \"published\", \"date\": \"2025-04-08\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\\ntitle: Onboarding Checklist: Support Escalation and Triage Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-04-08\\n[section: body 30]\\n### Macro: Request minimal debugging info\\n\\u201cCan you share (1) workspace/org name as shown in Console, (2) which SDK/language + version, (3) the endpoint you\\u2019re calling, and (4) the status code + error message text? If you can include the timestamp (UTC) of your last attempt, we can check our side quickly.\\u201d\\n\\n[section: body 31]\\n### Macro: Usage dashboard freshness\\n\\u201cUsage can take a short time to appear in the dashboard depending on ingestion. Please confirm you\\u2019re viewing the correct workspace and time range. If it\\u2019s been >30 minutes since your last successful requests and usage still shows 0, we\\u2019ll investigate telemetry freshness.\\u201d\"}, {\"source\": \"sources/confluence/customer-success-and-support/escalation-playbook/status-page-customer-escalation-playbook.json\", \"status\": \"published\", \"date\": \"2026-01-12\", \"text\": \"source: sources/confluence/customer-success-and-support/escalation-playbook/status-page-customer-escalation-playbook.json\\ntitle: Status Page Customer Escalation Playbook (Disputed Status Accuracy)\\nstatus/authority: published; unspecified\\ndate: 2026-01-12\\n[section: content 1]\\nCustomer name + contract type: Hosted API / Dedicated / Private\\n- Primary region(s) impacted (customer\\u2019s view): US-East / US-West / EU-West / APAC-SG, etc.\\n- Workspace/org ID (internal only) and support plan tier\\n\\n**Time window**\\n- Impact start time (with timezone) and whether ongoing\\n- Whether impact is intermittent or continuous\\n\\n**Symptoms (choose all that apply)**\\n- Elevated 5xx / 429 / timeouts\\n- Latency regression (p50/p95/p99)\\n- Streaming disconnects / stalled streams\\n- Embeddings failures\\n- Reranking failures\\n- Console access issues\\n\\n**Request evidence**\\n- 3\\u20135 example request IDs (or correlation IDs) with timestamps\\n- Example error messages and HTTP status codes\\n- Endpoint/route (e.g., \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/enterprise-support-lifecycle-dedicated-private-playbook-2025.json\", \"status\": \"published\", \"date\": \"2025-03-01\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/enterprise-support-lifecycle-dedicated-private-playbook-2025.json\\ntitle: Enterprise Support Lifecycle \\u2014 Dedicated & Private Customers Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-03-01\\n[section: body 1]\\nPost\\u2011incident: Start RCA and schedule fixes.\\n\\nMetrics & success criteria for CSE handoff\\n\\n- 99% of onboarding tasks closed in 90 days.\\n- No more than 1 P1 incident in first 30 days post\\u2011go\\u2011live.\\n- Performance within 15% of baseline for 95% of traffic.\\n\\nAppendices\\n\\nA. Reference links\\n- Internal PagerDuty rota: <internal-link/pagerduty/rota>\\n- Oncall runbook repo: <internal-link/runbooks/oncall>\\n- Perf baseline template: <internal-link/templates/perf-baseline>\\n\\nB. Example checklist (copyable)\\n- [ ] Kickoff completed\\n- [ ] Network tests passed\\n- [ ] TLS & KMS verified\\n- [ ] E2E sample requests successful\\n- [ ] Performance baseline recorded\\n- [ ] Runbooks published\\n- [ ] QBR scheduled\\n\\nIf you \"}, {\"source\": \"sources/confluence/customer-success-and-support/escalation-playbook/status-page-customer-escalation-playbook.json\", \"status\": \"published\", \"date\": \"2026-01-12\", \"text\": \"source: sources/confluence/customer-success-and-support/escalation-playbook/status-page-customer-escalation-playbook.json\\ntitle: Status Page Customer Escalation Playbook (Disputed Status Accuracy)\\nstatus/authority: published; unspecified\\ndate: 2026-01-12\\n[section: content 1]\\nwhether this is route-specific, configuration-related, or isolated to a subset of traffic.\\\"\\n\\n### 5) Customer follow-up for missing data\\n\\\"To help us investigate quickly, could you provide: (1) 3\\u20135 request IDs (or correlation IDs), (2) timestamps with timezone, (3) the endpoint you\\u2019re calling (chat/embeddings/reranking/streaming), and (4) whether the issue is continuous or intermittent? With those, we can trace the requests and confirm whether a status page update is warranted.\\\"\\n\\n### 6) Post-incident summary request\\n\\\"Yes \\u2014 once the incident is resolved, we publish a customer-facing summary with impact and remediation details when appropriate. If you have specific information requirements (e.g., impact window, \"}, {\"source\": \"sources/confluence/eng-serving-runtime/profiling-playbook/tp-stall-triage-playbook.json\", \"status\": \"published\", \"date\": \"2025-03-05\", \"text\": \"source: sources/confluence/eng-serving-runtime/profiling-playbook/tp-stall-triage-playbook.json\\ntitle: TP stall triage playbook (tensor-parallel hangs/timeouts)\\nstatus/authority: published; unspecified\\ndate: 2025-03-05\\n[section: body 38]\\n### A. Expected \\u201chealthy\\u201d baselines\\nThese vary by model and workload, but generally:\\n- `runtime_tp_rank_heartbeat_age_seconds` stays near 0\\u20132s with brief spikes under GC/compaction.\\n- `runtime_tp_inflight_collectives` oscillates but returns to baseline; it should not monotonically increase.\\n- Queue depth should correlate with throughput; sustained queue growth with flat throughput is suspicious.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\nconfirms the contract and owns any request that depends on it, including an SLA credit. Treat the account as the console shows it until then |\\n| Usage for successful (2xx) requests still missing from the Console after about 30 minutes | Telemetry | A pipeline issue, not a billing one; see the onboarding triage playbook |\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\n## Routing table\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Disputed or duplicated line on a direct Redwood invoice | Billing Ops | Invoice number, the line(s), UTC window, request IDs |\\n| Refund request on a direct invoice line the customer says was billed in error | Billing Ops | Billing Ops confirms the charge and requests approval where needed |\\n| Invoice total doesn't match the customer's usage export | Billing Ops | Note the export's timezone and filters |\\n| Payment failures, holds, receipts | Billing Ops | |\\n| Meter discrepancy the related pages don't explain: request IDs whose billed tokens still don't match after the tokenizer, payload and retry rules are applied | Billing Engineering | Billing Eng checks meter correctness and hands any \"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_Nkv7SgiHIM8lcAxCEvWYku0E",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "halcyon-data",
+      "team": "telemetry",
+      "summary": "Successful requests missing from usage page after 45 minutes",
+      "details": {
+       "organization": "halcyon-data",
+       "account_plan": "Hosted Self-Serve",
+       "reported_status": "Customer reports both requests returned HTTP 200",
+       "request_ids": "req_7f31a, req_7f31b",
+       "reported_request_time_utc": "2026-09-15 13:00 UTC",
+       "reported_observation": "Still missing from usage page 45 minutes after requests",
+       "checks_customer_completed": "Workspace, filters, and timezone checked",
+       "usage_console_lookup": "Both request IDs returned as not recorded for this account in usage_summary"
+      },
+      "unresolved": "Investigate telemetry/usage pipeline and explain why the reported successful requests are absent from the usage page; usage_summary does not record either request ID for this account.",
+      "routing_rule": "Usage for successful (2xx) requests still missing from the Console after about 30 minutes | Telemetry | A pipeline issue, not a billing one; see the onboarding triage playbook"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"case_id\": \"CASE-1\", \"team\": \"telemetry\", \"status\": \"escalated\"}"
+  },
+  {
+   "role": "assistant",
+   "content": "I\u2019ve routed this to Telemetry for investigation. Redwood\u2019s current routing guidance sends missing usage for successful requests to Telemetry when it remains absent after about 30 minutes; you reported 45 minutes, and you\u2019ve already checked the workspace, filters, and timezone.\n\nI also checked the usage records: neither `req_7f31a` nor `req_7f31b` is currently recorded for `halcyon-data`. The case includes both request IDs and your reported time, 15 September 2026 at 13:00 UTC."
+  },
+  {
+   "role": "user",
+   "content": "Thanks for passing it on. ###TRANSFER###"
+  }
+ ]
+}

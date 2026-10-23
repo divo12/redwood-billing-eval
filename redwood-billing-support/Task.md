@@ -1,6 +1,6 @@
 # Task: build and maintain Redwood billing support
 
-Status: Draft — task version 1.1.0 (2026-10-23); Harbor 0.22.0. 1.1.0 adds 30 behaviour variants (60 cases),
+Status: Approved for submission (2026-10-24) — task version 1.1.0; Harbor 0.22.0. 1.1.0 adds 30 behaviour variants (60 cases),
 practice conversations on the deployed support model, the conversation clock, and per-case invalid marking; it
 removes the placement diagnostics. Where an older paragraph below disagrees with these, this header and the
 sections it names win.
@@ -14,7 +14,7 @@ agent when R grows. This tests useful developer judgment and implementation,
 not compliance with a prescribed hybrid recipe.
 
 The corpus is `environment/corpus` (R0, R1), a slice of Redwood called mini.
-R0 contains 3524 source records. R1 adds 3547 and revises 3 R0 records in place
+R0 contains 3529 source records. R1 adds 3561 and revises 3 R0 records in place
 (same path, later `last_updated`; `advance.py` accepts only such revisions): the
 billing routing page, the 2026 failed-payments page and Finance's approvals matrix.
 The build begins with R0 at `/app/R`. After the first evaluation, the existing
@@ -488,7 +488,7 @@ defect, removed).
   0700 `/out`. In-Harbor grading (`maintain_r1`'s `test.sh`) does the same: `/tests` arrives only at verification
   and is made root-only before any graded agent runs, and the grader writes with `umask 077`. (Until 2026-10-23 the task folder was mounted world-readable during grading: a build could have
   read the scenarios. None of the 37 saved workspaces references a hidden path.)
-- Audit of the final oracle's 105 conversations: the worded developer never added a number or identifier, named a
+- Audit of an earlier oracle's 105 conversations (Q01 then graded base cases only): the worded developer never added a number or identifier, named a
   team, rule or priority, or answered a question asked in chat (47 of 190 lines fell back to the scripted line);
   every value the agent had to say appears in a tool result except a1-03's retry date, which the four past status
   cards determine uniquely (3 business days after the window ends: a Friday-ending window excludes calendar days,
@@ -504,56 +504,43 @@ defect, removed).
 ## Running and scoring
 
 ```sh
-harbor run -y -c redwood-billing-support/run-config.claude.json -o "$PWD/jobs"   # A0, A1, then grading
-scripts/grade_snapshots.sh jobs/<job>/<trial>                                    # optional: Q01, regrades
+set -a; . ./.env; set +a
+harbor run -p ./redwood-billing-support -a oracle -o "$PWD/jobs"
+harbor run -p ./redwood-billing-support -a claude-code -m claude-opus-5-5 --resume-trajectory \
+    --ak reasoning_effort=high --ak max_budget_usd=30 -o "$PWD/jobs"
+scripts/grade_snapshots.sh jobs/<job>/<trial>     # optional: regrade the frozen agents after a job
 ```
 
-`maintain_r1`'s verifier grades Q00, Q10 and Q11 and writes the gate into its `reward.json`
-(`multi_step_reward_strategy = "final"`); `build_r0`'s is a placeholder. Runs reported below predate this (graded
-by `scripts/grade_snapshots.sh` after the job) and the LiteLLM gateway (then the OpenAI Responses API, same model). The gate, the Q runs and `scores.json`
-are described in `tests/README.md`.
+`maintain_r1`'s verifier grades:
+- Q00: A0 on the R0 cases;
+- Q01: A0 on the R1 cases, all 30, as the drift baseline;
+- Q10: A1 on the R0 cases;
+- Q11: A1 on the R1 cases.
 
-Final oracle (job `2026-10-23__20-38-54`, task 1.1.0, 60 cases; support agent and developer wording on
-gpt-6-luna; Harbor ran both steps with the practice sidecar and the clock in 7.5 minutes, artifact quality 1.0 on
-both): Q00 30/30, Q10 30/30, Q11 30/30, reward 1.0; Q01 1/15 (diagnostic). Every behaviour variant passed
-(robustness 1.0 in Q00, Q10, Q11), twins 5/5 and every info type in each gated Q; no case invalid after the
-5-case regrade, no developer leak, endings only stops and transfers (11 handoffs per release, as gold). Two
-variant claims and one base follow-up were fixed after an earlier oracle pass failed them for the case's fault, not
-the agent's: a0-07-C's "refund both lines" added a legitimate Finance request; a0-06-C's claim about the
-customer's own contract was defensibly sent for verification (replaced by a false policy claim); a0-02's
-follow-up "so there's nothing to fix?" made the reference agent hedge into a review in 4 of 4 runs (now an
-informational question); a1-05-C repeated its base's never_say value (now a different figure; a test forbids it).
+It writes the gate and the diagnostics into `reward.json` (`multi_step_reward_strategy = "final"`). `build_r0`'s
+verifier checks only the deliverable. The gate, the Q runs and `scores.json` are described in `tests/README.md`
+and `DESIGN_DOC.md` section 5.
 
-Builder runs on the earlier case sets (Claude Code, Opus 5.5, high effort): run 3 (`2026-10-23__17-06-10`) reward
-0, dominated by its own tool bug (a 200-character summary validator rejected every handoff; practice on run 3's
-frozen A0 reproduces it in one conversation); run 4 (`2026-10-23__18-49-44`, the first with practice) fixed that
-bug and lost a0-03-T to the host clock, which the clock fix removed. Across runs 1-4 a1-03 failed every time: the
-past status cards reach the agent, but no builder writes the rule they imply (retries complete 3 business days
-after the incident window ends). Given that rule in its system prompt (`REDWOOD_REPLAY_HINT`), the agent gives
-April 12 on a1-03 (the rule was missing, not unusable) and still says April 10, a Saturday, on a1-03-T (it cannot
-apply it). a0-01 (and a0-09-T, run 4) opened a Billing Engineering case for a token gap the published pages
-explain in every run.
+**Results.** These are reported in `RUN_REPORT.md`, with every graded conversation in `evidence/`:
+- the oracle scores reward 1.0 in 6 of 6 runs, `evidence/oracle-submitted` on exactly the submitted code;
+- Claude Opus 5.5 (high, Claude Code) scores 0 in 5 of 5 (runs 5-9).
 
-Run 5 (`2026-10-23__20-54-44`, the final task: 60 cases, 5 practice conversations per release, clock, sealed
-grader; $17.21 of the $30 cap): Q00 0.833, Q10 0.867, Q11 0.90, reward 0; no invalid case after a one-worker regrade
-of six rate-limited ones; robustness 1.0+ (no behaviour failure: every failing variant's base failed too); drift 12
-R1 cases absorbed; regression a0-08. Its builder trace was audited: no hidden path, value or R1 record reached it.
+RUN_REPORT's *Genuine failure modes* lists only patterns that recur, that the oracle passes, and whose mechanism
+the delivered agent or the conversation shows:
+- **A rule written into the build's own skill but never tested on its case.** The token-gap escalations: 23 of
+  25 conversations, in every run.
+- **A revised page half-adopted during maintenance.** The retry date and the $500 scope: runs 5, 6 and 9. The two
+  A1 builds that compute the retry date pass it.
+- **A missing fact noticed but never asked for.** The a1-07 family: every run.
 
-**Failure mode (genuine, recurring, fair): retrieved but not operationalised.** In every recurring failure the
-deciding record reached the support agent (checked in run 5's tool results), yet the build never turned it into a
-decision rule the agent acts on, so the agent fell back to a cautious default: escalate, stay vague, or decline to
-give a date. The oracle, which writes each rule into a skill, passes all of them.
-- a1-03 / a1-03-T, retry date from past status cards (an inference with one answer: the cards fix business days
-  and the window's end): failed in every graded build (runs 1, 2, 3, 5; run 4's build also wrote no rule). Given the
-  rule in its system prompt the agent answers a1-03 (knowledge missing, not unusable).
-- a0-01 family and a0-09-T, "check the meter": the current routing page says to answer and not hand off unless
-  request IDs still mismatch after the published rules; the only contrary record is a superseded draft that names
-  Telemetry. Escalated to Billing Engineering in Q10 in all five runs and in Q00 in four (run 3 passed only because
-  its own tool bug blocked the handoff); in run 5 the base and all three behaviour variants fail alike.
-- a0-08 on A1 (Q10), a maintenance scoping regression: R1's approvals matrix keeps $500 for invoices on earlier
-  price books and sets $250 for the 2027 one; A0 states the $500 limit in every run, A1 dropped it in four of five.
+Earlier versions of the task are recorded here only where they explain a design decision:
+- Runs 1-4 used earlier case sets. A1-03 failed in every one of them. Given the rule in its prompt
+  (`REDWOOD_REPLAY_HINT`), the support agent answers it.
+- An earlier oracle audit, of 105 conversations when Q01 graded only base cases, checked the developer
+  simulator: it never added a value, named a team or answered in chat.
+- Four case wordings were fixed after an oracle pass failed them through the case's fault: a0-07-C, a0-06-C, the
+  a0-02 follow-up, and a1-05-C.
 
-Local checks need no model credentials: `dev/tests` (pytest) and
-`scripts/check_redwood.sh` (ruff, strict mypy, xenon). One run validates the
-plumbing; it does not establish reliability. Keep Status: Draft until repeated
-runs calibrate the gate.
+Local checks need no model credentials:
+- `dev/tests` (pytest, 183 tests);
+- `scripts/check_redwood.sh` (ruff, strict mypy, xenon).

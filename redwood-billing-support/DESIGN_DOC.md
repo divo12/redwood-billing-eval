@@ -34,7 +34,7 @@ them in a live conversation, and testing all of that before it ships.
 
 **Finding the rules (step 1)**
 
-1. **Noise at enterprise scale.** 3,524 records across nine platforms; most are SRE runbooks, sales threads,
+1. **Noise at enterprise scale.** 3,529 records across nine platforms; most are SRE runbooks, sales threads,
    partner deals and products that have nothing to do with billing. Embedding runs on 2 CPUs and the instruction
    forbids embedding everything, so the builder must decide what is billing knowledge before it can index it.
 2. **Authority, not recency.** Every scored rule has a plausible competitor: a draft price-book plan in Drive,
@@ -50,8 +50,9 @@ them in a live conversation, and testing all of that before it ships.
    work it out for a new incident. *Opus's builds missed it in runs 5, 6 and 9; runs 7 and 8 derived it.*
 5. **Restraint is a rule too.** The routing page says to *answer*, not hand off, when the published pages explain
    what the customer sees (tokenizer counts, billed retries, console lag), "even if the customer calls it a bug".
-   Escalating feels safe and is wrong. *Opus's R0 build escalated the a0-01 tokenizer cases and a0-09-T in every
-   run: the agent retrieved the rule, then escalated to Billing Engineering anyway.*
+   Escalating feels safe and is wrong. *Every Opus build wrote this rule into its own skill. In 23 of 25 conversations
+   (a0-01 and its variants, a0-09-T) the agent still opened a case, usually after retrieving the page in the same
+   conversation; no build practised a token gap.*
 6. **Rules can't live in the prompt.** `system_prompt.md` and `AGENTS.md` are capped (1,500 and 4,000 characters)
    and may not hold exact billing rules, and no store of full source records is allowed. A rule has to become a
    skill step, a tool behaviour or a retrievable chunk the agent reliably uses: retrieving it is not enough.
@@ -92,7 +93,7 @@ R1 is not a clean changelog. It mixes six kinds of change, and each kind has its
     maintenance too.
 
 Measured together: Q01 grades the unmaintained A0 on the R1 cases (it passes 4 to 8 of 30), so `drift` shows how much
-of the change A1 absorbed and `regression` shows what it broke. *Opus absorbs most of it (drift 0.80 and 0.82) and
+of the change A1 absorbed and `regression` shows what it broke. *Opus absorbs most of it (drift 0.75 to 0.96 over runs 5-9) and
 misses the parts that need judgment: the date scope, and the retry date that no single record states.*
 
 **Applying them in a conversation (graded)**
@@ -102,8 +103,8 @@ misses the parts that need judgment: the date scope, and the retry date that no 
     counted only user messages. Matching the ask instead of checking the facts fails one half.
 16. **Developers who make it harder.** Each non-twin case has three variants: the deciding facts are missing, the
     ask is ambiguous, or the developer asserts a false policy. Facts come only through the `ask_developer` form,
-    never in chat, so the agent must ask the right question. *Opus never asked when a runaway script ran (a1-07),
-    so it could not separate its tokens.*
+    never in chat, so the agent must ask the right question. *In every Opus run, some a1-07 conversation ends with
+    the agent saying it cannot tell which tokens were the script's, without asking when the script ran (9 of 20).*
 17. **Consent and forbidden values.** Credits are graded on order: no credit before the developer's yes. The stale
     answer is itself checked (`never_say`): the calendar-day retry date, the UTC-month token total.
 18. **The conversation's own clock.** Each conversation runs on its own date and time (libfaketime), so "has it been
@@ -116,7 +117,7 @@ misses the parts that need judgment: the date scope, and the retry date that no 
     hard rules means writing scripts for them. *Run 5 practised mostly on the provided examples; none touched a
     tokenizer gap, a retry date or a scoped limit.*
 20. **One session, two deadlines.** Two hours to build, then one hour, in the same Claude Code session, to
-    understand a 3,547-record change to its own system. A0 is frozen and graded as delivered.
+    understand a 3,561-record change to its own system. A0 is frozen and graded as delivered.
 
 For more failure ideas, see [`research.md`](research.md): failure modes for every part of a support agent's
 harness (system prompt, AGENTS.md, guardrails and hooks, the agent loop, tools, skills, subagents, retrieval,
@@ -125,63 +126,129 @@ is implemented to the traps above.
 
 ## 5. Verifier design
 
-**Where it runs.** `steps/maintain_r1/tests/test.sh`, after the builder's last step. It first runs `tests/verify.py`
-on the delivered workspace, then grades both agents in conversation, then writes the trial's reward. `build_r0`'s
-verifier runs the same deliverable checks on A0 and freezes it for later grading; its reward is a placeholder.
+### 5.1 Where it runs and what it writes
 
-**Deliverable checks** (`verify.py`, reported as `artifact_quality`): `system_prompt.md` under 1,500 characters and
-`AGENTS.md` under 4,000; a real (non-stub) skill, subagent and `@hook`; `load_skill` and `delegate` reachable from
-the agent; the builder's session resumed across steps (otherwise the run is invalid). The workspace is then frozen
-read-only.
+`steps/maintain_r1/tests/test.sh` runs after the builder's last step, as root, in the task's own container:
 
-**What is graded.** Two agents on two worlds, 30 conversations each, 120 in all:
+1. `tests/verify.py maintain_r1` checks the delivered workspace and freezes it read-only (A1). `build_r0`'s verifier
+   did the same for A0 at the end of step 1.
+2. `/tests` is made root-only, so nothing hidden is readable once graded agents start.
+3. `python -m grade.grade` runs the four Q runs below (`GRADE_WORKERS` conversations in parallel, default 4).
+4. `python -m grade.final` writes `reward.json` (the trial's reward, which Harbor records) and `scores.json` (the
+   diagnostics), next to every graded conversation under `/logs/verifier/graded/<q>/cases/`.
 
-| Run | Agent | Cases | Console | Feeds |
+| Q run | Agent | Cases | Console | Feeds |
 |---|---|---|---|---|
-| Q00 | A0 (after `build_r0`) | 30 R0 | R0 | `reward`, `q00`, `regression` |
+| Q00 | A0 (the R0 build) | 30 R0 | R0 | `reward`, `q00`, `regression` |
 | Q01 | A0 | 30 R1 | R1 | `drift` (the unmaintained baseline) |
-| Q10 | A1 (after `maintain_r1`) | 30 R0 | R1 format, R0 records | `reward`, `regression` |
+| Q10 | A1 (the maintained agent) | 30 R0 | R1 format, R0 records | `reward`, `regression` |
 | Q11 | A1 | 30 R1 | R1 | `reward`, `q11`, `drift` |
 
-Each release has 30 cases (60 in all): 10 rule cases, 5 twins (a similar ask with the opposite result) and 15
-developer-behaviour variants (missing information, ambiguous, false claim). Every rule a case tests cites the
-builder-visible records that state it (`tests/data/provenance.json`, test-enforced).
+### 5.2 The cases
 
-**One conversation.** The developer is scripted in code: an opening, an agenda, facts given only through the
-`ask_developer` form, a fixed answer to `confirm_with_developer`, and the endings. A model (`USER_MODEL`) only rewords
-each scripted line and never sees the facts; a rewording that drops a number or identifier falls back to the script.
-The support agent runs as `nobody` from the frozen workspace, with no network, a 4 GiB address-space limit, 40 turns,
-a 180-second limit per reply, and a clock set to the conversation's own date (libfaketime). Each conversation gets a
-fresh, in-process billing console for its release.
+Each release has 30 cases (`tests/data/billing_scenarios.json`, 60 in all):
 
-**Five checks per conversation, all code, no LLM judge:**
+- **10 rule cases**, one per scored rule. Every rule cites the builder-visible records that state it in that
+  release (`tests/data/provenance.json`); a test fails if a rule has no visible carrier record.
+- **5 twins.** A near-identical ask from another customer whose correct result is the opposite (only 20 minutes have
+  passed; a self-serve account has no SLA; the duplicate is exactly at the limit). An agent that matches the wording
+  of the ask, not the facts, fails one half.
+- **15 behaviour variants** of the 5 non-twin cases, one per developer profile:
+  - `-M` **missing info**: the opening drops the deciding facts; they come only from the developer's form;
+  - `-A` **ambiguous**: the opening fits several readings; the form or the console settles it;
+  - `-C` **conflict**: the developer asserts something a published rule or the console refutes (a wrong total, a
+    nonexistent refund term, "your docs say timeouts aren't billed").
 
-| Check | Passes when |
+  A variant keeps its base case's gold exactly (test-enforced), so its base is its control.
+
+Each case also records an **information type**: 1, every deciding fact is in the opening; 2, a deciding fact comes
+only from the developer when asked; 3, opening facts plus console lookups; 4, facts given only when asked plus
+console lookups.
+
+### 5.3 One conversation
+
+- **The developer is a script in code:** an opening, an agenda of follow-ups, facts given only through the
+  `ask_developer` form, one fixed answer to `confirm_with_developer`, and the endings (a stop after the agenda, or a
+  transfer right after a handoff). A model (`USER_MODEL`) only rewords each scripted line as a reply to what the agent
+  just wrote. It never sees the facts, so a question asked in chat goes unanswered, as the agent contract says; a
+  rewording that drops a number or identifier is replaced by the scripted line.
+- **The agent runs sandboxed:** as `nobody`, from the frozen workspace, with no network, a 4 GiB address-space limit,
+  a 128 MiB per-file write limit, at most 40 turns (tool rounds included) and 180 seconds per reply, on the
+  conversation's own date and time (libfaketime). Model calls go through the gateway with the run's `SUPPORT_MODEL`.
+- **The console** is a fresh, in-process billing store per conversation, holding the case's own release's records
+  in the console release's format, and logging every call.
+- **How it ends:** `customer_stop`, `customer_transfer`, `agent_stop`, `max_steps` or `agent_error`. A conversation
+  that did not finish (`max_steps`, `agent_error`) fails every check: its end state is not the agent's answer.
+
+### 5.4 Checks per conversation
+
+All code, no LLM judge; a conversation passes only if every check it has passes.
+
+| Check | Passes when | Example |
+|---|---|---|
+| `db` | the console's writable tables (credit notes, disputes, cases), projected without generated IDs or drafts, equal the gold insert/update trace replayed on a fresh console, or an accepted alternative | a0-01: no case at all; a1-02-T: one $250 credit note on the copy line |
+| `action` | every required console operation succeeded (a query of the right table for the right account, or a write) | look the account up before quoting it |
+| `communicate` | every required value appears in some agent message, in any listed form; case, commas, `$`, markdown and typographic quotes and dashes are normalised, numbers can't run into neighbouring digits, and concepts accept several wordings | "$1,301.46"; "Redwood's tokenizer" or "canonical tokenization" |
+| `never_say` | no forbidden value appears | card digits; the stale "April 10" |
+| `consent` | every credit note or dispute was written after a "yes" from `confirm_with_developer` | |
+
+**Invalid, not failed.** A conversation that says nothing about the agent is excluded from every rate and listed
+for regrading (`scripts/grade_snapshots.sh`, `--only`): a provider failure that survives LiteLLM's retries, or a
+developer leak (the reworded developer said a value the agent must say before the agent did; repeating the agent
+is not a leak).
+
+### 5.5 The reward
+
+`reward.json` holds numbers only, each from 0 to 1, higher is better:
+
+| Key | Definition |
 |---|---|
-| `db` | the console's writable tables equal the gold trace (or an accepted alternative) replayed on a fresh console; generated IDs and drafts are ignored |
-| `action` | each required console operation succeeded (e.g. the account was looked up before quoting it) |
-| `communicate` | every required value was told to the developer, in any listed form (case, commas, `$`, markdown and dashes are normalised; concepts accept several wordings) |
-| `never_say` | no forbidden value appears (card digits, the stale answer an unmaintained agent gives) |
-| `consent` | every credit note or dispute came after the developer's yes |
+| `reward` | the gate: **1.0** if Q00 ≥ 0.9, Q11 ≥ 0.9 and Q10 ≥ Q00 − 0.1; **0.5** if Q00 ≥ 0.9 and Q10 ≥ Q00 − 0.1 (a good build, kept, but R1 not handled); else **0** |
+| `q00`, `q11` | pass rates of the build on R0 and of the maintained agent on R1 |
+| `drift` | of the R1 cases the unmaintained A0 fails (Q01), the share A1 passes (Q11): how much of the change maintenance absorbed |
+| `regression` | of the R0 cases A0 passes (Q00), the share A1 still passes (Q10): 1.0 means maintenance broke nothing |
+| `behaviour_robustness` | **user robustness**: over Q00, Q10 and Q11, of the behaviour variants whose base case passed in the same Q run, the share that passed too. A failing base already fails for the rule, so only variants with a passing base measure the developer's behaviour alone. Per profile in `scores.json` |
+| `artifact_quality` | share of the deliverable checks passed: prompt size limits, a non-stub skill, subagent and `@hook`, `load_skill` and `delegate` reachable |
 
-A conversation passes only if all its checks pass. A conversation that says nothing about the agent is **invalid**,
-not failed: a provider error that survives LiteLLM's retries, or a developer wording that gives an answer away. It is
-left out of the rates and listed for regrading.
+A score with nothing to measure (A0 already passes every R1 case, passes no R0 case, or no base passed) is 0, no
+evidence.
 
-**Reward** (`tests/grade/final.py`): `reward` is the gate, 1.0 when Q00 ≥ 0.9, Q11 ≥ 0.9 and Q10 ≥ Q00 − 0.1, 0.5 when
-only the build holds, else 0; beside it `q00`, `q11`, `drift`, `regression`, `behaviour_robustness` and
-`artifact_quality`, all numbers from 0 to 1. `scores.json` adds the four pass rates, invalid cases, pass rate by
-information type, twin pairs, per-case drift and regression, run health and workspace sizes.
+### 5.6 Diagnostics (`scores.json`, never scored)
 
-**Anti-cheating.** The builder never sees `/tests`; it arrives only at verification and is made root-only before any
-graded agent runs. Hidden cases, seeds, the R1 overlay and the console internals are root-only in the image. During
-the build only the practice sidecar holds provider keys. No hidden case identifier exists in the builder-visible
-corpus.
+| Key | What it shows |
+|---|---|
+| `q` | the four pass rates, Q01 and Q10 included |
+| `invalid` | per Q, each invalid case and why |
+| `info` | per Q, pass rate by information type, and twin pairs that count only when **both** halves pass (`one_half` lists pairs where only one did) |
+| `behavior` | per Q: pass rate of the bases and of each profile; `robustness` = variant pass rate ÷ base pass rate (above 1 when variants pass where their base failed); and `attribution`, each variant classified against its base: **behaviour failure** (base passed, variant failed), **handled** (both passed), **both failed**, **variant only** |
+| `behaviour_robustness` | the reward's user-robustness score, overall and per profile (`missing_info`, `ambiguous`, `conflict`) |
+| `drift` | the R1 cases A1 absorbed (failed by A0, passed by A1), those not measurable, and `absorbed_by_rule`, absorbed over measurable per rule |
+| `regression` | the R0 cases A1 lost (passed by A0, failed by A1), those A1 improved, and those not measurable |
+| `health` | per Q, **run health**: per-conversation means of wall-clock seconds, model calls, prompt and completion tokens, embedding calls and developer turns, over all cases and over passing cases only (an agent that fails early looks cheap over all cases), and `ends`, a count of how conversations ended, with `agent_error` split into crash or timeout, agent exception, and bad message, and invalid cases counted apart |
+| `sizes` | lines per harness layer of A0 and A1 (`system_prompt`, `AGENTS`, skills, subagents, hooks, tools) and the bytes of everything else, mostly the retrieval index |
+| `errors` | any diagnostic that could not be computed, and why |
 
-**How the verifier is tested** (`dev/tests`, 183 tests): every gold trace replays and passes; a do-nothing agent fails
-all 60 cases; each twin's gold fails its pair; each R1 case fails the write its R0 rule would make; variants keep
-their base's gold; correct explanations in other words pass while vague or echoed text fails; Q10 conversations see
-only their own release's records.
+For example, run 8's maintained agent on R1: Q11 health of 32 s, 7.8 model calls, 85K prompt tokens and 2.7
+developer turns per conversation, ending in 19 stops and 11 transfers; behaviour robustness 0.97 overall
+(missing info 0.92: one variant, a1-07-M, failed where its base passed); sizes growing from 172 to 211 hook lines
+and 279 to 350 tool lines between A0 and A1.
+
+### 5.7 Anti-cheating
+
+The builder never sees `/tests`: Harbor copies it in only at verification, and it is made root-only before any
+graded agent runs. Hidden cases, the console seeds and internals, and the R1 overlay are root-only in the image, and
+no test file is copied into the image. During the build only the practice sidecar holds provider keys; the graded
+agent runs with no network and no credentials. No hidden case's account, invoice or request identifier appears in
+the builder-visible corpus.
+
+### 5.8 How the verifier is tested
+
+`dev/tests` (183 tests) cover the verifier itself: every gold trace replays and passes; a do-nothing agent fails all
+60 cases; each twin's gold fails its pair; each R1 case fails the write its R0 rule would make; variants keep their
+base's gold and each profile appears five times per release; correct explanations in other words pass while vague
+or echoed text fails; a value cannot hide inside an identifier (`req_pb402` would have passed "402"); Q10
+conversations see only their own release's records; provider failures become invalid cases; the reward keys and the
+gate; and the practice service matching the graded loop.
 
 ## 6. Oracle
 
@@ -201,13 +268,13 @@ through exactly the same conversation loop, sandbox, console, support model and 
   the routing page's new missing-usage threshold; the hooks gain card-number redaction and consent before a credit
   or dispute. The session record is continued, as the builder's must be.
 
-It scores reward 1.0 in every run, missing at most a case or two per run to the support model's sampling, a
+It scores reward 1.0 in 6 of 6 runs (`evidence/oracle-submitted` on exactly the submitted code), missing at most a case or two per run to the support model's sampling, a
 different case each time.
 
 ## 7. Fairness audit against the assignment rubric
 
 - **Solvable.** The oracle (`steps/*/solution/solve.sh`) builds a workspace through the same runtime, sandbox and
-  console the builder's agent uses, and scores reward 1.0 in every run (Q00 and Q11 at 29 or 30 of 30). Every rule a
+  console the builder's agent uses, and scores reward 1.0 in 6 of 6 runs (Q00 30 of 30 every time, Q11 28 to 30 of 30). Every rule a
   case tests cites builder-visible records for its release (test-enforced). Every value the agent must say
   appears in a tool result, except the retry date, which the status cards determine uniquely.
 - **Unambiguous.** The instructions state the deliverable, the interfaces, the limits and how success is
@@ -232,7 +299,7 @@ different case each time.
   endings always match the console; the few lines with an extra value repeat what the agent had just said.
 - **Every failure is the agent's.** Each failing conversation of Opus runs 5-9 was read against its records: every
   deciding fact is builder-visible and published (or, for the retry date, uniquely determined by published status
-  cards), and the oracle passes each of those cases in at least 4 of 5 runs. Four verifier or case defects the audit
+  cards), and the oracle passes each of those cases in at least 4 of the 5 curated oracle runs. Four verifier or case defects the audit
   found (one ambiguous case, a hidden requirement, one-wording phrase matching, newer invoices visible to older
   conversations) were fixed with tests, and all five Opus runs still score reward 0 when rescored
   (`RUN_REPORT.md`, *Fairness audit*).

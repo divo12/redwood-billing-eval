@@ -2,12 +2,26 @@
 
 One folder per reported run, all the same shape (written by `scripts/curate_evidence.py` from Harbor's `jobs/`):
 
-| Run | Reward | Start with |
-|---|---|---|
-| [`opus-5-5-run5/`](opus-5-5-run5/) | 0.0 (Q00 25/30, Q10 26/30, Q11 27/30) | its [README](opus-5-5-run5/README.md): every failed conversation, linked |
-| [`oracle/`](oracle/) | 1.0 (30/30 on each) | its [README](oracle/README.md) |
+| Run | Agent | Reward | Q00 | Q10 | Q11 | Q01 (baseline) |
+|---|---|---|---|---|---|---|
+| [`oracle-submitted/`](oracle-submitted/) | oracle, exactly the submitted code | 1.0 | 30/30 | 30/30 | 28/30 | 4/30 |
+| [`oracle-final/`](oracle-final/) | oracle | 1.0 | 30/30 | 29/30 | 30/30 | 4/30 |
+| [`oracle-2026-10-24/`](oracle-2026-10-24/) | oracle | 1.0 | 30/30 | 29/30 | 30/30 | 4/30 |
+| [`oracle-2026-10-24-b/`](oracle-2026-10-24-b/) | oracle | 1.0 | 30/30 | 29/30 | 29/30 | 5/30 |
+| [`oracle/`](oracle/) | oracle, previous version | 1.0 | 30/30 | 30/30 | 30/30 | 1/15 |
+| [`opus-5-5-run9-openrouter/`](opus-5-5-run9-openrouter/) | Opus 5.5 via OpenRouter | 0.0 | 24/30 | 22/30 | 27/30 | 5/30 |
+| [`opus-5-5-run8/`](opus-5-5-run8/) | Opus 5.5 | 0.0 | 25/30 | 26/30 | 29/30 | 5/30 |
+| [`opus-5-5-run7/`](opus-5-5-run7/) | Opus 5.5 | 0.0 | 22/30 | 21/30 | 24/30 | 6/30 |
+| [`opus-5-5-run6/`](opus-5-5-run6/) | Opus 5.5 | 0.0 | 25/30 | 23/30 | 26/30 | 8/30 |
+| [`opus-5-5-run5/`](opus-5-5-run5/) | Opus 5.5, previous version | 0.0 | 25/30 | 26/30 | 27/30 | 0/15 |
 
-Both predate the move of grading into Harbor (see `RUN_REPORT.md`, *Setup actually used*).
+Each run's `README.md` links every failed conversation. `oracle/` and `opus-5-5-run5/` predate the move of
+grading into Harbor, and their Q01 graded base cases only (see `RUN_REPORT.md`, *Setup actually used*).
+
+The folders hold each run as it was graded. A few failures in runs 5-8 come from verifier defects that the
+fairness audit later fixed: "never said 500" on a0-08, and tokenizer explanations in other words. `RUN_REPORT.md`
+reports both the graded and the rescored numbers, and its *Genuine failure modes* section excludes those
+failures.
 
 ## Inside a run
 
@@ -27,7 +41,7 @@ conversations/
   q10-A1-on-R0-regression/   A1 on the same R0 cases, R1 console      (counts: did maintenance break anything?)
   q11-A1-on-R1/              A1 on the 30 R1 cases                    (counts)
   q01-A0-on-R1-baseline/     A0 on the R1 cases: how stale the unmaintained agent is (baseline for drift;
-                             these runs graded base cases only)
+                             all 30 since run 6)
     failed/  passed/         one JSON file per case
 ```
 

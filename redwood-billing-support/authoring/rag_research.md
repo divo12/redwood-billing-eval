@@ -1,11 +1,12 @@
 # Making Redwood's builder RAG setup fair
 
-Implementation follow-up: the approved repair direction is now implemented;
-see [Task.md](Task.md) for the current contract and pending live-run validation.
-The findings below describe the pre-repair setup.
+Historical design note. The repair it recommends is implemented, and [Task.md](../Task.md) is the current
+contract. The findings below describe the pre-repair setup, including files the repair removed (`RAG.md`,
+`retrieval_score.py`) and an LLM judge for retrieval practice that the task no longer has: every reward check is
+code.
 
 Research date: 2026-09-27. Repository baseline: `fb5124d162`, plus the existing
-Draft audit in [Task.md](Task.md). This is a research and repair proposal, not
+Draft audit in [Task.md](../Task.md). This is a research and repair proposal, not
 an implemented contract or a completed Harbor calibration.
 
 **Recommendation: keep the workspace-only deployment model, make the hybrid
@@ -43,15 +44,15 @@ should not be adopted wholesale. [ARES](https://arxiv.org/html/2311.09476v2).
 
 | Finding | Evidence | Consequence |
 |---|---|---|
-| The builder must implement hybrid retrieval and a prescribed tuning process. | [Build instruction](steps/build_r0/instruction.md), [RAG.md](environment/app/framework/RAG.md). | The procedure constrains the design capability being measured. |
-| Four of five billing probes depend on one `in_review` pricing proposal. | Source inspection and focal records recorded in [Task.md](Task.md). | 40% of the overall practice mean depends on one policy document; that is not four independent areas of coverage. |
-| Half the practice questions concern other support domains. | [retrieval_probes.json](environment/app/framework/retrieval_probes.json). | They can test general retrieval, but their equal weight is not justified as a billing-support objective. |
-| Scoring takes only the first 1500 characters of each nonblank chunk. | `evaluate` in [retrieval_score.py](environment/redwood_kit/retrieval_score.py); reproduced locally. | A successful full-record or neighbor read can contain evidence this diagnostic never sees. |
+| The builder must implement hybrid retrieval and a prescribed tuning process. | [Build instruction](../steps/build_r0/instruction.md), RAG.md (removed). | The procedure constrains the design capability being measured. |
+| Four of five billing probes depend on one `in_review` pricing proposal. | Source inspection and focal records recorded in [Task.md](../Task.md). | 40% of the overall practice mean depends on one policy document; that is not four independent areas of coverage. |
+| Half the practice questions concern other support domains. | [retrieval_probes.json](../environment/app/framework/retrieval_probes.json). | They can test general retrieval, but their equal weight is not justified as a billing-support objective. |
+| Scoring takes only the first 1500 characters of each nonblank chunk. | `evaluate` in retrieval_score.py (removed); reproduced locally. | A successful full-record or neighbor read can contain evidence this diagnostic never sees. |
 | Scoring eight chunks takes nine sequential judge invocations. | Pinned RAGAS 0.4.3 executed with a fake judge. | Ten probes and two rankers require 180 judge invocations before retries; both steps require 360 if both perform those sweeps. |
-| The scorer client allows 300 seconds for a response; each judge request separately allows 300 seconds plus retries. | `score`, `JudgeClient`, and sequential scoring in [retrieval_score.py](environment/redwood_kit/retrieval_score.py). | A request can outlive its caller. The total deadline does not match its constituent work. |
+| The scorer client allows 300 seconds for a response; each judge request separately allows 300 seconds plus retries. | `score`, `JudgeClient`, and sequential scoring in retrieval_score.py (removed). | A request can outlive its caller. The total deadline does not match its constituent work. |
 | The combined mean can prefer a ranker that violates a stated target. | Reproduced with precision/recall 0.70/0.80 versus 1.00/0.60. | The winner-selection rule and the instruction to clear both targets disagree. |
-| Retrieval practice scores do not determine reward. | [verify.py](tests/verify.py). | Keep this separation; misleading practice still wastes builder time even without directly changing reward. |
-| Saved sessions inspected in the audit predate the retrieval contract. | [Task.md](Task.md), saved Pi initial instruction and session search. | Earlier support rewards do not validate the current RAG service or budget. |
+| Retrieval practice scores do not determine reward. | [verify.py](../tests/verify.py). | Keep this separation; misleading practice still wastes builder time even without directly changing reward. |
+| Saved sessions inspected in the audit predate the retrieval contract. | [Task.md](../Task.md), saved Pi initial instruction and session search. | Earlier support rewards do not validate the current RAG service or budget. |
 
 The mini corpus has 3513 source JSON records in R0 and 3520 additional records
 in R1, counted locally. A targeted search found no R1 record explicitly

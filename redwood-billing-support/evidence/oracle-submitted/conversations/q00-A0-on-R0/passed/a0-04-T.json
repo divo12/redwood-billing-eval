@@ -1,0 +1,242 @@
+{
+ "id": "a0-04-T",
+ "grade": {
+  "id": "a0-04-T",
+  "category": "normal",
+  "termination": "customer_transfer",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "insert:cases",
+      "at": 15,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "escalate_case",
+   "find_account",
+   "list_invoices",
+   "load_skill",
+   "search_policy",
+   "usage_summary"
+  ]
+ },
+ "termination": "customer_transfer",
+ "invalid": null,
+ "seconds": 27.71448549899992,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hey, your API was crawling for us around Aug 20, 2026\u2014can we get SLA credit for that? Which invoice would it land on, and what did we use that week (Aug 17-23)? Org velvet-signal."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_uXtRlPkKJL1AChxu3rfwKOGg",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    },
+    {
+     "id": "call_GTXtC5WOa3Q9PafhKaMgrAOU",
+     "name": "find_account",
+     "arguments": {
+      "org": "velvet-signal"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. A confirmed duplicate accepted by the console may be credited; report the amount only after the tool confirms it. For a confirmed duplicate over the console limit, submit the `duplicate_charge` dispute and escalate to `billing_ops` with its dispute ID. Promise no outcome or timeline.\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, UTC window, and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for Support's credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"velvet-signal\", \"org\": \"velvet-signal\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\"}, \"contracts\": [], \"credit_grants\": [{\"grant_id\": \"GRANT-velvet-signal-NOISE\", \"account_id\": \"velvet-signal\", \"kind\": \"promotional\", \"amount_cents\": 9333, \"remaining_cents\": 0, \"granted_on\": \"2026-03-01\", \"expires_on\": \"2026-03-31\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_PIIlDIAbaYLiIKXpX5I5qSdK",
+     "name": "list_invoices",
+     "arguments": {
+      "account_id": "velvet-signal"
+     }
+    },
+    {
+     "id": "call_8458zS6IMqvXJXDRuTZNyBq6",
+     "name": "search_policy",
+     "arguments": {
+      "query": "Current published hosted API SLA and error-budget policy for Hosted Self-Serve plan, qualifying incident conditions and SLA credit eligibility; distinguish contractual SLA from engineering SLO."
+     }
+    },
+    {
+     "id": "call_sS01dFmHoUQZx4BXvKzby5F2",
+     "name": "search_policy",
+     "arguments": {
+      "query": "Current billing case routing and approval guidance for SLA credit requests: owning team, trigger, required intake details, and when Support should hand off."
+     }
+    },
+    {
+     "id": "call_35VEpDBMG06LT2sPNJdTzRtS",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "time_of_issue",
+       "timezone"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoices\": [{\"invoice_id\": \"INV-BG-202603-006\", \"account_id\": \"velvet-signal\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total_cents\": 145051, \"total_dollars\": \"$1450.51\"}, {\"invoice_id\": \"INV-BG-202604-006\", \"account_id\": \"velvet-signal\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total_cents\": 278924, \"total_dollars\": \"$2789.24\"}, {\"invoice_id\": \"INV-BG-202605-006\", \"account_id\": \"velvet-signal\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total_cents\": 243897, \"total_dollars\": \"$2438.97\"}, {\"invoice_id\": \"INV-BG-202606-006\", \"account_id\": \"velvet-signal\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total_cents\": 235701, \"total_dollars\": \"$2357.01\"}, {\"invoice_id\": \"INV-BG-202607-006\", \"account_id\": \"velvet-signal\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total_cents\": 337383, \"total_dollars\": \"$3373.83\"}, {\"invoice_id\": \"INV-BG-202608-006\", \"account_id\": \"velvet-signal\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total_cents\": 310980, \"total_dollars\": \"$3109.80\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json\", \"status\": \"published\", \"date\": \"2025-12-05\", \"text\": \"source: sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json\\ntitle: Hosted API SLO: Overload Exceptions and Error Budget Policy\\nstatus/authority: published; unspecified\\ndate: 2025-12-05\\n[section: body 25]\\n## Customer tiers and SLO/SLA notes\\nThis page governs the **platform SLO measurement**. Contractual SLAs may differ.\\n\\n- **Self-serve Hosted (no SLA):** We still compute availability, but customer communications should avoid implying SLA credits.\\n- **Enterprise Hosted (SLA-backed):** Overload failures count toward availability for SLA measurement unless explicitly carved out in the contract.\\n- **Dedicated capacity:** Not covered here (separate SLO/SLA documents apply).\\n\\nIf a customer has a contract clause that treats certain overload events differently, Support/CS must route through SRE + Legal for interpretation before making commitments.\\n\\n---\"}, {\"source\": \"sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json\", \"status\": \"published\", \"date\": \"2025-12-05\", \"text\": \"source: sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json\\ntitle: Hosted API SLO: Overload Exceptions and Error Budget Policy\\nstatus/authority: published; unspecified\\ndate: 2025-12-05\\n[section: body 2]\\n## Purpose\\nThis page defines how *overload-induced* failures are categorized for Hosted API SLO measurement, how they impact error budgets, and how we communicate the impact (internally and externally). It aligns SRE, Product, Support, and Engineering on what \\u201ccounts\\u201d vs what is classified separately.\\n\\nThis policy applies to the **Hosted API** (multi-tenant) request path, including gateway admission control, Smart Routing fallback, and serving runtime backpressure.\\n\\n---\"}, {\"source\": \"sources/confluence/eng-sre/slo-and-error-budgets/status-page-transparency-slo-alignment.json\", \"status\": \"published\", \"date\": \"2025-11-26\", \"text\": \"source: sources/confluence/eng-sre/slo-and-error-budgets/status-page-transparency-slo-alignment.json\\ntitle: Status Page Transparency: SLO & Error Budget Alignment (Hosted vs Dedicated vs Private)\\nstatus/authority: published; unspecified\\ndate: 2025-11-26\\n[section: body 33]\\n## Compliance, security, and legal constraints\\n- Do not publish customer-identifying details (tenant names, specific capacity numbers, unique traffic patterns).\\n- Do not state or imply contractual SLA breach.\\n- For Dedicated/Private incidents, default to conservative scope and coordinate with Support leadership and Security/Legal reviewers as needed.\\n\\n[section: body 34]\\n## Ownership and maintenance\\n- SRE owns this alignment policy.\\n- Observability owns ensuring SLO labels/dashboards align with public component taxonomy.\\n- Changes to the public component registry follow ADR-014 review and rollout practices.\"}, {\"source\": \"sources/confluence/eng-sre/slo-and-error-budgets/status-page-transparency-slo-alignment.json\", \"status\": \"published\", \"date\": \"2025-11-26\", \"text\": \"source: sources/confluence/eng-sre/slo-and-error-budgets/status-page-transparency-slo-alignment.json\\ntitle: Status Page Transparency: SLO & Error Budget Alignment (Hosted vs Dedicated vs Private)\\nstatus/authority: published; unspecified\\ndate: 2025-11-26\\n[section: body 3]\\n## Non-goals\\n- Defining contractual SLAs or guaranteeing customer outcomes. (Public status is **not** an SLA statement.)\\n- Exhaustively listing every internal SLO. This doc focuses on the alignment patterns and the minimum required signal coverage per public component.\\n\\n[section: body 4]\\n## Key principle: Status Page \\u2260 SLO dashboard\\nInternal SLOs answer: \\u201cAre we meeting our reliability objectives over a defined window?\\u201d\\n\\nThe public status page answers: \\u201cIs there a **current, customer-visible** service disruption or degradation, and what is affected?\\u201d\"}, {\"source\": \"sources/gmail/rachel_kim/20260609-commercial-billing-sla-qna-for-listing.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/rachel_kim/20260609-commercial-billing-sla-qna-for-listing.json\\ntitle: Commercial & Billing QnA for Marketplace listing \\u2014 SLA and metering clarifications\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 4]\\nFrom: marcus_lin@redwood.com\\\\nTo: rachel_kim@redwood.com, ben_carter@redwood.com, AWS Marketplace Operations <aws-marketplace-ops@amazon.com>, procurement@stratuscloud.com\\\\nCc: priyom_das@redwood.com\\\\nDate: Tue, 09 Jun 2026 16:02:00 -07:00\\\\nSubject: Re: Marketplace listing billing & SLA questionnaire \\u2014 Redwood Inference\\\\n\\\\nTeam / AWS / Stratus,\\\\n\\\\nLegal & compliance notes (high level):\\\\n- Proposed SLA: 99.9% monthly availability is reasonable for hosted API. For Dedicated we should mark a different SLA; will note as \\\"by contract\\\".\\\\n- Credits: propose standard marketplace-crediting approach: for each 0.1% below the SLA, customer receives 2% credit up to a cap of 50% of the monthly bill. Need Sales to confirm cap tolerance.\\\\n- Data \"}, {\"source\": \"sources/confluence/eng-sre/capacity-planning/service-capacity-governance-and-error-budget-handbook-2025.json\", \"status\": \"published\", \"date\": \"2025-02-28\", \"text\": \"source: sources/confluence/eng-sre/capacity-planning/service-capacity-governance-and-error-budget-handbook-2025.json\\ntitle: Service Capacity Governance and Error Budget Handbook\\nstatus/authority: published; unspecified\\ndate: 2025-02-28\\n[section: body 1]\\nrouting, and autoscaling services\\n- Capacity planners and finance for reserved capacity procurement\\n\\nKey definitions\\n- SLO (Service Level Objective): measurable SLA we aim to meet with a defined measurement window.\\n- Error budget: 1 - SLO measured over the SLO window. Burn indicates consumption of the budget.\\n- SLO window: rolling 28-day window unless otherwise specified.\\n- Critical service: services with error budgets shared by customer-facing inference calls.\\n\\nSLO taxonomy and examples\\n- Availability SLO (success rate): % of inference requests returning 200-series responses within the service timeout. Default: 99.95% over 28d for hosted inference; 99.9% for Dedicated-tier customer-facing endpoints with SLA.\\n- Latency SLOs (p95/p99): \"}, {\"source\": \"sources/confluence/eng-developer-experience/support-top-issues/slo-decomposition-and-real-world-error-budget-playbook-2025.json\", \"status\": \"published\", \"date\": \"2026-01-18\", \"text\": \"source: sources/confluence/eng-developer-experience/support-top-issues/slo-decomposition-and-real-world-error-budget-playbook-2025.json\\ntitle: SLO Decomposition and Real\\u2011World Error Budget Playbook\\nstatus/authority: published; unspecified\\ndate: 2026-01-18\\n[section: content 1]\\nSummary:\\nThis playbook defines a pragmatic process for decomposing high-level service SLOs into component-level SLOs, allocating and operating real-world error budgets, and connecting that work to capacity planning, incident reviews, and automation. It was written for Redwood Inference services (hosted API, dedicated, private control plane) and applies to model-serving and control-plane teams.\\n\\nGoals:\\n- Ensure SLOs reflect user experience (P95 latency, success rate, and quality guards) while providing clear operational actions when budgets are exhausted.\\n- Create repeatable, measurable error budget allocations for downstream components (runtime, routing, cache layer, network).\\n- Tie error-budget consumption to \"}, {\"source\": \"sources/linear/product-management/PM-763890-enterprise-onboarding-gate-checklist-hosted-api-chat-streaming-toolcall.json\", \"status\": \"Planned\", \"date\": \"2025-03-10\", \"text\": \"source: sources/linear/product-management/PM-763890-enterprise-onboarding-gate-checklist-hosted-api-chat-streaming-toolcall.json\\ntitle: Enterprise onboarding gate & triage checklist for hosted API chat/streaming/toolcalls\\nstatus/authority: Planned; unspecified\\ndate: 2025-03-10\\n[section: readiness_checklist 6]\\nFallback plan: compatible fallback model/route and throttling policy defined\\n\\n[section: readiness_checklist 7]\\nBilling and quota impact: rate limits, billing tiers, and expected monthly usage estimate\\n\\n[section: readiness_checklist 8]\\nRegression test plan: prompt set + metrics for quality preservation (precision/recall/latency)\\n\\n[section: escalation_triggers 1]\\nHigh SLA risk: >5% projected chance of missing latency SLO during peak = escalate to Eng oncall and SRE\\n\\n[section: escalation_triggers 2]\\nData residency requirement in a new jurisdiction = raise to Legal + Platform Security\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 6]\\n## What not to do\\n- Don't route a billing case to SRE unless there is an active incident.\\n- Don't route credit or exception requests to Legal; Finance pulls Legal in when needed.\\n- Don't promise an outcome, amount, or timeline when you hand off.\\n- Don't share credit percentages or typical ranges with customers, including the SLA credit table in the incident closure procedure. That table is internal guidance for SRE and Finance when they propose a credit; any amount is decided in Finance's review under the customer's contract.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 5]\\n## Not owned by Billing Ops\\n- Credit, goodwill and exception requests go to Finance, per FP&A's guidance in #support (June 2025). Billing Ops only applies adjustments that have been approved.\\n- Questions about what a customer's contract or SLA says go to the account team, per the same #support guidance. Answer the general rule and tell the customer their account team confirms their terms; don't quote a figure from the contract. A request to confirm a contract figure, such as a discount rate, needs no case: tell the customer their account team confirms it. Open an account team case only for an SLA credit claim under the contract.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\\ntitle: Support Console: Duplicate-Charge Credits and Billing Disputes\\nstatus/authority: published; unspecified\\ndate: 2026-02-05\\n[section: body 5]\\n## What Support never credits\\n- Goodwill, exceptions, SLA credits, or any credit someone says a manager, sales rep or Redwood engineer already approved. These stay with Finance, per the #support guidance from FP&A. Route the request; don't issue anything from the console.\\n- Marketplace purchases, which are billed by the marketplace.\\n\\n[section: body 6]\\n## Telling the customer\\n- Say what you did: the credit note and its amount, or that a dispute is open and Billing Ops has the case. Don't promise the outcome of a dispute or a date.\\n\\n_Last reviewed 2026-02-05._\"}, {\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"source: sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\\ntitle: Billing Adjustments Approval Matrix\\nstatus/authority: final; unspecified\\ndate: 2026-02-03\\n[section: content 1]\\ninvoice; above that, the Controller |\\n| Refund of a paid invoice line after an approved adjustment | Billing Ops | Up to $5,000; above that, the Controller |\\n| Goodwill credit, waiver, or exception to a billing rule | Finance (FP&A) | Any amount, decided in FP&A's review. Support and Billing Ops route these requests and never issue them |\\n| SLA credit on a self-serve account | Finance (FP&A) | Self-serve plans carry no SLA. FP&A reviews any request as goodwill |\\n| SLA credit under a signed contract | Account team files the claim; Finance approves | Per the contract's SLA terms. No amount is promised before Finance's review |\\n| Promotional or campaign credits | Growth marketing | Within the campaign budget FP&A approved |\\n| Partner program funds (MDF) | Partnerships | Per the \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\\ntitle: Support Console: Duplicate-Charge Credits and Billing Disputes\\nstatus/authority: published; unspecified\\ndate: 2026-02-05\\n[section: body 4]\\nthe invoice number, the line and the dispute id. |\\n| Duplicate the console doesn't confirm (different request IDs, or no second line) | Don't credit. Collect the intake details and hand the case to Billing Ops as the routing page describes. |\\n\\nSupport's limit is set by Finance in the Billing Adjustments Approval Matrix (Finance shared drive) (the duplicate-charge credit row). It is per duplicated line and applies to the line's full amount. Don't split a larger duplicate into several smaller credits.\"}, {\"source\": \"sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\", \"status\": \"published\", \"date\": \"2025-05-02\", \"text\": \"source: sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\\ntitle: Dedicated Throughput SLO Escalation Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-05-02\\n[section: content 1]\\ncredit-eligible?\\n- **Premium:** written throughput commitment; credit review is standard for confirmed breaches.\\n- **Plus:** may be eligible depending on contract addenda; treat as \\u201creview required.\\u201d\\n- **Standard:** generally best-effort; credit requests require Product + Finance approval.\\n\\n### When to initiate a credit review\\nInitiate when:\\n- SRE confirms an SLO breach per canonical evaluator, AND\\n- The breach is not excluded (e.g., customer throttling), AND\\n- The customer requests credits OR the account team recommends proactive review.\\n\\n### Approval path (default)\\n1) CS/Support compiles incident details and SRE confirmation.\\n2) SRE provides breach window + summary.\\n3) Product Dedicated confirms entitlement interpretation \"}, {\"source\": \"sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\", \"status\": \"published\", \"date\": \"2025-05-02\", \"text\": \"source: sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\\ntitle: Dedicated Throughput SLO Escalation Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-05-02\\n[section: content 1]\\n## Purpose\\nThis playbook defines the end-to-end process for handling Dedicated **Throughput SLO** misses or suspected misses. It is designed for Customer Success (CS) and Support to:\\n- Triage quickly and consistently.\\n- Engage the correct on-call teams (SRE / Infra / Observability) at the right time.\\n- Communicate clearly with customers, including status updates and written summaries.\\n- Route service-credit / compensation requests through the correct approval path.\\n\\nThis page is **restricted** because it includes internal paging triggers and credit approval guidance.\\n\\n---\\n\\n## What is the Dedicated Throughput SLO (customer-facing summary)\\nDedicated Throughput SLO guarantees a **minimum sustained throughput floor** for an eligible Dedicated \"}, {\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"source: sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\\ntitle: Billing Adjustments Approval Matrix\\nstatus/authority: final; unspecified\\ndate: 2026-02-03\\n[section: content 1]\\npartner agreement; never applied to invoices |\\n| Write-off of an uncollectible balance | Controller | Up to $10,000; above that, the CFO |\\n| Re-issued invoice (address, PO number, tax ID) | Billing Ops | No limit; no change to amounts |\\n\\n## Evidence each adjustment needs\\n- **Duplicate-charge credit**: the invoice number, both line IDs and the request IDs they bill. The console confirms the duplicate; a matching description or amount alone is not evidence.\\n- **Billing-error correction**: the line, the expected rate or quantity and where it comes from (price book, order form).\\n- **Goodwill and SLA credits**: the customer's ask, the amount if given, and the reason. The account team adds contract references for SLA claims.\\n- **Write-offs**: collections history and the Controller's \"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"time_of_issue\": \"2026-08-20, a few hours in the afternoon (UTC).\", \"timezone\": \"I don't have that.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_8sWg3CWXuNst6JEl5EY5cZwO",
+     "name": "usage_summary",
+     "arguments": {
+      "account_id": "velvet-signal",
+      "start_utc": "2026-08-17T00:00:00Z",
+      "end_utc": "2026-08-23T23:59:59Z"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"count\": 1, \"billed_tokens\": 20127347, \"cached_tokens\": 730953, \"http_status_counts\": {\"200\": 1}, \"billed_tokens_by_day\": {\"2026-08-20\": 20127347}, \"start_utc\": \"2026-08-17T00:00:00Z\", \"end_utc\": \"2026-08-23T23:59:59Z\", \"requests\": {}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_hR4dVIwuzkN3edgQOdKTuz4f",
+     "name": "search_policy",
+     "arguments": {
+      "query": "Current published credit and SLA adjustment handling: how approved goodwill or self-serve SLA credits are applied to invoices, which open/current invoice if any, and routing rule verbatim for Finance review."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"source: sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\\ntitle: Billing Adjustments Approval Matrix\\nstatus/authority: final; unspecified\\ndate: 2026-02-03\\n[section: content 1]\\ninvoice; above that, the Controller |\\n| Refund of a paid invoice line after an approved adjustment | Billing Ops | Up to $5,000; above that, the Controller |\\n| Goodwill credit, waiver, or exception to a billing rule | Finance (FP&A) | Any amount, decided in FP&A's review. Support and Billing Ops route these requests and never issue them |\\n| SLA credit on a self-serve account | Finance (FP&A) | Self-serve plans carry no SLA. FP&A reviews any request as goodwill |\\n| SLA credit under a signed contract | Account team files the claim; Finance approves | Per the contract's SLA terms. No amount is promised before Finance's review |\\n| Promotional or campaign credits | Growth marketing | Within the campaign budget FP&A approved |\\n| Partner program funds (MDF) | Partnerships | Per the \"}, {\"source\": \"sources/slack/support/1749139920-goodwill-credit-asks-routing-finance.json\", \"status\": \"unspecified\", \"date\": \"1749142380\", \"text\": \"source: sources/slack/support/1749139920-goodwill-credit-asks-routing-finance.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1749142380\\n[section: messages 1]\\nPriya Shah: quick one - self-serve customer asking for a goodwill credit after the us-east blip yesterday. now that billing ops is live, do these go to billing ops?\\n\\n[section: messages 2]\\nDev Patel: pretty sure no but want FP&A to confirm before it goes in the routing page. @Rishi Malhotra\\n\\n[section: messages 3]\\nRishi Malhotra: correct, not billing ops. credit, goodwill and exception approvals come to Finance. open the case to finance with the ask, the amount if they gave one, and why. we decide. billing ops only applies what we approve\\n\\n[section: messages 4]\\nRishi Malhotra: and please don't route these straight to legal. we pull legal in ourselves if it's non-standard comp or touches contract terms\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\ncorrection to Billing Ops |\\n| Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why. Applies even when Support has just explained that the charge is correct |\\n| SLA credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\\n| Customer says they have a contract the console doesn't show | Account team | The account team \"}, {\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"source: sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\\ntitle: Billing Adjustments Approval Matrix\\nstatus/authority: final; unspecified\\ndate: 2026-02-03\\n[section: content 1]\\npartner agreement; never applied to invoices |\\n| Write-off of an uncollectible balance | Controller | Up to $10,000; above that, the CFO |\\n| Re-issued invoice (address, PO number, tax ID) | Billing Ops | No limit; no change to amounts |\\n\\n## Evidence each adjustment needs\\n- **Duplicate-charge credit**: the invoice number, both line IDs and the request IDs they bill. The console confirms the duplicate; a matching description or amount alone is not evidence.\\n- **Billing-error correction**: the line, the expected rate or quantity and where it comes from (price book, order form).\\n- **Goodwill and SLA credits**: the customer's ask, the amount if given, and the reason. The account team adds contract references for SLA claims.\\n- **Write-offs**: collections history and the Controller's \"}, {\"source\": \"sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\\ntitle: Promotional waiver applied to next billing cycle instead of current after dedicated fallback\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: comments 5]\\n2026-03-11 08:30 - Kate O'Neill (Customer Success): Informed BrightLearn that we have a temporary workaround: manual credit applied to the current invoice while engineering continues root-cause. Customer requested written confirmation and timeline.\\n\\n[section: comments 6]\\n2026-03-12 10:15 - Diego Martinez (Billing): Applied manual invoice adjustment and triggered refund/autopay retry. Ticket remains open pending permanent fix and postmortem.\\n\\n[section: investigation_notes 1]\\nInitial hypothesis: postback-reconciler attached waiver to billing period based on pricing_tag at time of ingestion. The dedicated-fallback caused a pricing tag refresh which flipped period mapping for in-flight postbacks.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 6]\\n## What not to do\\n- Don't route a billing case to SRE unless there is an active incident.\\n- Don't route credit or exception requests to Legal; Finance pulls Legal in when needed.\\n- Don't promise an outcome, amount, or timeline when you hand off.\\n- Don't share credit percentages or typical ranges with customers, including the SLA credit table in the incident closure procedure. That table is internal guidance for SRE and Finance when they propose a credit; any amount is decided in Finance's review under the customer's contract.\"}, {\"source\": \"sources/gmail/dev_patel/20260909-preservation-carveout-authority-request.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/dev_patel/20260909-preservation-carveout-authority-request.json\\ntitle: Renewal preservation carveout & SLA/credit request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 4]\\ninsist on a shorter term, route back to me.\\n3) Legal to add a defined SLA credit schedule (table-based) and a single-incident cap.\\n4) Finance: apply the concession as one-time revenue adjustment; do not change base list MSRP on our catalog. Marcus, coordinate billing language.\\n\\nDev \\u2014 communicate approval to Erin and get a signed addendum today. If ProspectCo pushes for the additional $8k credit to hit their $20k ask, they should escalate to their CFO \\u2014 we can be firm here.\\n\\n\\u2014 Vivek Kulkarni\\nChief Revenue Officer\\nRedwood Inference\\n\\nOn Wed, Sep 9, 2026 at 09:32 AM Laura Bennett <laura.bennett@redwood.inference> wrote:\\n> Marcus/Vivek \\u2014 forwarding ProspectCo renewal ask. Key points...\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\\ntitle: Support Console: Duplicate-Charge Credits and Billing Disputes\\nstatus/authority: published; unspecified\\ndate: 2026-02-05\\n[section: body 5]\\n## What Support never credits\\n- Goodwill, exceptions, SLA credits, or any credit someone says a manager, sales rep or Redwood engineer already approved. These stay with Finance, per the #support guidance from FP&A. Route the request; don't issue anything from the console.\\n- Marketplace purchases, which are billed by the marketplace.\\n\\n[section: body 6]\\n## Telling the customer\\n- Say what you did: the credit note and its amount, or that a dispute is open and Billing Ops has the case. Don't promise the outcome of a dispute or a date.\\n\\n_Last reviewed 2026-02-05._\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_qMpbUellmV6o6to6pQZCF9tI",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "velvet-signal",
+      "team": "finance",
+      "summary": "Self-serve SLA credit request for reported Hosted API latency on Aug 20, 2026",
+      "details": {
+       "organization": "velvet-signal",
+       "plan": "Hosted Self-Serve (self-serve); console shows no signed contract",
+       "customer_request": "Asks whether they can receive SLA credit for API crawling around Aug 20, 2026, for a few hours in the afternoon (UTC). No credit amount specified.",
+       "usage_window_utc": "2026-08-17T00:00:00Z through 2026-08-23T23:59:59Z inclusive",
+       "usage_summary": "Console reports 1 request, 20,127,347 billed tokens (730,953 cached), all on 2026-08-20; HTTP status count 200: 1. Console does not expose latency details in this summary.",
+       "invoice": "INV-BG-202608-006; Aug 1-31, 2026 billing period; currently open; $3,109.80 total; issued Sep 1, 2026."
+      },
+      "unresolved": "Finance review of the self-serve SLA-credit request (policy says self-serve has no SLA and any request is reviewed as goodwill). Whether any credit is approved and which invoice it would be applied to are not confirmed. No amount requested. The console usage summary does not show latency measurements.",
+      "routing_rule": "SLA credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"case_id\": \"CASE-1\", \"team\": \"finance\", \"status\": \"escalated\"}"
+  },
+  {
+   "role": "assistant",
+   "content": "Sorry the API felt slow that afternoon. Your account is on **Hosted Self-Serve**, and the published policy says this plan has **no SLA**\u2014platform SLOs don\u2019t by themselves qualify for SLA credits. The account record also shows no signed contract. Even so, the routing policy says to send self-serve SLA-credit requests to Finance for review as goodwill. I\u2019ve routed your request; **case CASE-1** is open. No credit or invoice application is confirmed.\n\nFor **Aug 17\u201323, 2026 (UTC)**, the usage console reports **1 request** on Aug 20, **20,127,347 billed tokens** (including **730,953 cached tokens**) and one HTTP 200. That summary doesn\u2019t include latency measurements, so it can\u2019t confirm the reported slowdown.\n\nThe invoice for that period is **INV-BG-202608-006**, covering Aug 1\u201331, currently open at **$3,109.80**. I can\u2019t confirm that any approved credit would be applied to this invoice; Finance would need to review the request."
+  },
+  {
+   "role": "user",
+   "content": "Thanks for passing it on. ###TRANSFER###"
+  }
+ ]
+}

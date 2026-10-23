@@ -3,10 +3,10 @@
 A two-step, long-horizon Harbor task about **building and then maintaining an LLM agent**. The model under test
 (the builder, Claude Opus 5.5 in Claude Code) is the engineer who owns Redwood Inference's billing-support agent:
 
-1. **`build_r0`** (2 h): read a 3,524-record company export (Slack, Gmail, Jira, Linear, Confluence, Drive,
+1. **`build_r0`** (2 h): read a 3,529-record company export (Slack, Gmail, Jira, Linear, Confluence, Drive,
    HubSpot, Fireflies, GitHub) that mixes current policy with drafts, superseded pages and unrelated noise; decide
    what knowledge to ship; build a retrieval index, tools, a skill, a subagent and a guardrail hook; test it.
-2. **`maintain_r1`** (1 h, same session): six months later the export grows by 3,547 records, three pages are
+2. **`maintain_r1`** (1 h, same session): six months later the export grows by 3,561 records, three pages are
    revised *in place*, and the billing console changes format. Update the agent without breaking what it did.
 
 The delivered agent (on the deployed support model) then holds **90 held-out conversations** with a scripted
@@ -53,15 +53,17 @@ with `set -a; . ./.env; set +a`.
 grading both serve it. Embeddings are a local sentence-transformer baked into the image.
 
 ```sh
-# from the repo root
+# from the repo root, with the keys loaded: set -a; . ./.env; set +a
 harbor run -p ./redwood-billing-support -a oracle -o "$PWD/jobs"                         # oracle: reward 1.0
-harbor run -p ./redwood-billing-support -a claude-code -m claude-opus-5-5 \
-    --ak reasoning_effort=high -o "$PWD/jobs"                                            # the model under test
+harbor run -p ./redwood-billing-support -a claude-code -m claude-opus-5-5 --resume-trajectory \
+    --ak reasoning_effort=high --ak max_budget_usd=30 -o "$PWD/jobs"                     # the model under test
 harbor run -y -c redwood-billing-support/run-config.claude.json -o "$PWD/jobs"           # same, as a config
 harbor view ./jobs
 ```
 
-Harbor 0.22.0 names the Claude Code agent `claude-code` (there is no agent called `claude`). A full run takes
+Harbor 0.22.0 names the Claude Code agent `claude-code` (there is no agent called `claude`). `--resume-trajectory` is
+required: step 2 must continue the builder's step-1 session, and the verifier marks a run that starts afresh as
+invalid (Harbor's default is a fresh session per step). A full run takes
 about 3 h of building plus about an hour of grading inside `maintain_r1`'s verifier. Grading makes about 120 × 7
 support-model calls; with gpt-6-luna that needs about 1M tokens per minute of rate limit at 4 workers (500K at 2).
 
@@ -73,7 +75,7 @@ the trial's reward. Every value is a number from 0 to 1, higher is better:
 ```json
 {"reward": 0.0, "q00": 0.833, "q11": 0.9, "drift": 0.8, "regression": 0.96, "behaviour_robustness": 1.0, "artifact_quality": 1.0}
 ```
-(Opus 5.5 run 5; the oracle scores 1.0 on every key.)
+(Opus 5.5 run 5. The oracle on the submitted code: `{"reward": 1.0, "q00": 1.0, "q11": 0.9333, "drift": 0.9231, "regression": 1.0, "behaviour_robustness": 0.9556, "artifact_quality": 1.0}`.)
 
 | Key | What it measures |
 |---|---|
@@ -83,6 +85,15 @@ the trial's reward. Every value is a number from 0 to 1, higher is better:
 | `regression` | of the R0 cases A0 passed (Q00), the share A1 still passes (Q10): 1.0 means maintenance broke nothing |
 | `behaviour_robustness` | over Q00, Q10 and Q11, of the developer-profile variants (missing info, ambiguous, conflict) whose base case passed, the share that passed too; per profile in `scores.json` |
 | `artifact_quality` | code checks on the deliverables: prompt size limits, a real skill, subagent and `@hook`, all reachable |
+
+How these keys map to the brief's example:
+- `overall` → `reward`;
+- `functional_correctness` → `q00` and `q11`;
+- `constraint_satisfaction` → `regression`, which checks that maintenance keeps what still applies;
+- `robustness` → `behaviour_robustness`;
+- `artifact_quality` → `artifact_quality`.
+
+`drift` has no counterpart in the brief, because the brief does not measure evolution.
 
 The Q runs: Q00 = A0 (the R0 build) on 30 R0 conversations; Q01 = A0 on the 30 R1 conversations (the baseline for drift); Q10 = A1 (the
 maintained agent) on the 30 R0 conversations, R1 console; Q11 = A1 on 30 R1 conversations. A score with nothing to
