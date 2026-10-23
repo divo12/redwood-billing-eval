@@ -18,6 +18,9 @@ everything.
 
 - **Builder:** Harbor 0.22.0 `claude-code`, `claude-opus-5-5`, `reasoning_effort=high`, `max_budget_usd=30`, on a
   Claude subscription (`CLAUDE_CODE_OAUTH_TOKEN`). Run 5 spent $17.21 of the cap (Claude Code's own cost meter).
+  Step 2 resumes the same Claude Code session (`resume_trajectory: true`; run 5's session `7a37d81f…` spans both
+  steps in `evidence/opus-5-5-run5/builder/session.jsonl`), and the step verifier marks the run invalid if it
+  does not.
 - **Deployed support model and developer wording:** `gpt-6-luna` (reasoning high for support, low for wording) on
   Azure AI Foundry. This choice was about cost: a Claude support model would have made each 105-conversation
   grading far more expensive than the author's budget allows. The model is now a parameter (`SUPPORT_MODEL`,
@@ -32,7 +35,7 @@ everything.
 
 ## The failure, in detail
 
-The failing cases in run 5 (every one was read in full in `evidence/opus-5-5-run5/graded/`):
+The failing cases in run 5 (each read in full; linked from `evidence/opus-5-5-run5/README.md`):
 
 | Case | Q | What the agent did | What was required, and where it is written |
 |---|---|---|---|

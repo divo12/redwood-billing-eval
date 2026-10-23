@@ -2,9 +2,19 @@
 
     python scripts/curate_evidence.py jobs/<job>/<trial> <label>
 
-Kept: the builder's raw Claude Code stream and session per step, the step verifier output, the grading
-summary (reward.json, scores.json, q*.txt), each graded case as {grade, termination, transcript} (the model-call
-payloads are dropped), and the delivered workspaces' source (files under 1 MB: no indexes).
+Writes, under evidence/<label>/:
+
+    README.md                        generated: reward, pass rates, every failed case with a link
+    reward.json, scores.json         the run's reward and its unscored diagnostics
+    builder/                         the builder: one session resumed across both steps
+        session.jsonl                    the whole session (Claude Code transcript, or the oracle's Pi record)
+        1-build_r0.stream.jsonl          raw stream of step 1 (Harbor's claude-code.txt)
+        2-maintain_r1.stream.jsonl       raw stream of step 2
+    agents/                          what the builder delivered (source files under 1 MB: no indexes)
+        A0-after-build_r0/
+        A1-after-maintain_r1/
+    step-checks/<step>/              each step verifier's output (deliverable checks, session continuity)
+    conversations/<q>/{failed,passed}/<case>.json    {grade, termination, transcript} per graded case
 """
 from __future__ import annotations
 
@@ -15,6 +25,9 @@ from pathlib import Path
 
 TASK = Path(__file__).resolve().parents[1]
 MAX_SOURCE_BYTES = 1_000_000
+STEPS = {"build_r0": ("1", "A0-after-build_r0"), "maintain_r1": ("2", "A1-after-maintain_r1")}
+QS = {"q00": "q00-A0-on-R0", "q01": "q01-A0-on-R1-diagnostic", "q10": "q10-A1-on-R0-regression",
+      "q11": "q11-A1-on-R1"}
 
 
 def _copy(source: Path, target: Path) -> None:
@@ -32,34 +45,75 @@ def _case(path: Path) -> dict[str, object]:
             "invalid": result.get("invalid"), "seconds": result.get("seconds"), "transcript": transcript}
 
 
-def _workspace(source: Path, target: Path) -> None:
-    for path in sorted(source.rglob("*")):
-        if path.is_file() and path.stat().st_size < MAX_SOURCE_BYTES and "__pycache__" not in path.parts:
-            _copy(path, target / path.relative_to(source))
+def _builder(trial: Path, out: Path) -> None:
+    for step, (number, _) in STEPS.items():
+        agent = trial / "steps" / step / "agent"
+        _copy(agent / "claude-code.txt", out / "builder" / f"{number}-{step}.stream.jsonl")
+        _copy(agent / "oracle.txt", out / "builder" / f"{number}-{step}.oracle.txt")
+    last = trial / "steps" / "maintain_r1" / "agent"  # the resumed session holds both steps
+    sessions = sorted([*last.glob("sessions/projects/*/*.jsonl"), *last.glob("pi/sessions/*.jsonl")])
+    if sessions:
+        _copy(sessions[-1], out / "builder" / "session.jsonl")
 
 
-def curate(trial: Path, out: Path) -> None:
-    for step in ("build_r0", "maintain_r1"):
+def _agents_and_checks(trial: Path, out: Path) -> None:
+    for step, (_, name) in STEPS.items():
         steps = trial / "steps" / step
-        for name in ("claude-code.txt", "trajectory.json"):
-            _copy(steps / "agent" / name, out / step / "agent" / name)
+        workspace = steps / "artifacts" / "app" / "workspace"
+        for path in sorted(workspace.rglob("*")):
+            if path.is_file() and path.stat().st_size < MAX_SOURCE_BYTES and "__pycache__" not in path.parts:
+                _copy(path, out / "agents" / name / path.relative_to(workspace))
         for path in (steps / "verifier").glob("*"):
-            _copy(path, out / step / "verifier" / path.name)
-        _workspace(steps / "artifacts" / "app" / "workspace", out / step / "workspace")
-    graded = trial / "graded"
-    for path in [*graded.glob("*.json"), *graded.glob("q*.txt")]:
-        _copy(path, out / "graded" / path.name)
-    for case in sorted(graded.glob("q*/cases/*.json")):
-        target = out / "graded" / case.parent.parent.name / case.name
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(json.dumps(_case(case), indent=1) + "\n")
+            if path.is_file() and path.parent.name == "verifier":
+                _copy(path, out / "step-checks" / step / path.name)
+
+
+def _conversations(graded: Path, out: Path) -> dict[str, dict[str, list[str]]]:
+    results: dict[str, dict[str, list[str]]] = {}
+    for q, name in QS.items():
+        for case in sorted((graded / q / "cases").glob("*.json")):
+            record = _case(case)
+            grade = record["grade"]
+            verdict = "passed" if isinstance(grade, dict) and grade.get("passed") else "failed"
+            target = out / "conversations" / name / verdict / case.name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(json.dumps(record, indent=1) + "\n")
+            results.setdefault(q, {"passed": [], "failed": []})[verdict].append(case.stem)
+    return results
+
+
+def _readme(label: str, out: Path, results: dict[str, dict[str, list[str]]]) -> str:
+    reward = json.loads((out / "reward.json").read_text()) if (out / "reward.json").is_file() else {}
+    lines = [f"# {label}", "", f"Reward: `{json.dumps(reward)}`", "", "| Q | Passed | Failed cases |", "|---|---|---|"]
+    for q, name in QS.items():
+        if q in results:
+            done = results[q]
+            failed = ", ".join(f"[{c}](conversations/{name}/failed/{c}.json)" for c in done["failed"]) or "none"
+            lines.append(f"| {name} | {len(done['passed'])}/{len(done['passed']) + len(done['failed'])} | {failed} |")
+    lines += ["", "`builder/session.jsonl` is the builder's one session across both steps; `agents/` is what it",
+              "delivered; `step-checks/` is each step's verifier output; `scores.json` has the diagnostics.",
+              "See `../README.md` for how to read a conversation file.", ""]
+    return "\n".join(lines)
+
+
+def curate(trial: Path, out: Path, label: str) -> None:
+    """Graded inside Harbor (maintain_r1's verifier), or afterwards by scripts/grade_snapshots.sh (<trial>/graded)."""
+    verifier = trial / "steps" / "maintain_r1" / "verifier"
+    graded = trial / "graded" if (trial / "graded").is_dir() else verifier / "graded"
+    harbor_reward = verifier / "reward.json"
+    graded_in_harbor = harbor_reward.is_file() and json.loads(harbor_reward.read_text()).get("graded") is True
+    _copy(harbor_reward if graded_in_harbor else graded / "reward.json", out / "reward.json")
+    _copy(graded / "scores.json", out / "scores.json")
+    _builder(trial, out)
+    _agents_and_checks(trial, out)
+    (out / "README.md").write_text(_readme(label, out, _conversations(graded, out)))
 
 
 def main(argv: list[str]) -> int:
     trial, label = Path(argv[0]), argv[1]
     out = TASK / "evidence" / label
     shutil.rmtree(out, ignore_errors=True)
-    curate(trial, out)
+    curate(trial, out, label)
     print(f"{out}: {sum(p.stat().st_size for p in out.rglob('*') if p.is_file()) // 1024} KiB")
     return 0
 
