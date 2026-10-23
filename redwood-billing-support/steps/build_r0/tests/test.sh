@@ -1,5 +1,5 @@
 #!/bin/sh
-# Score A0, then reveal R1 for maintain_r1.
+# Check the A0 deliverable (no conversations are graded here), then reveal R1 for maintain_r1.
 python /tests/verify.py build_r0
 status=$?
 /usr/local/libexec/redwood-advance
