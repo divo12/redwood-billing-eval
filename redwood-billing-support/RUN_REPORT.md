@@ -280,6 +280,13 @@ runs 6-8 and needs a provider rate limit of 500K-1M tokens per minute.
 - **Old conversations, old dates.** `regression` replays the R0 conversations on the maintained agent with their
   original 2026 dates, while its knowledge is from 2027. One agent reasoned that a page revised in 2027 was not yet
   valid on that date; the regression evidence that depends on this is weighted less.
+- **Use gpt-6-luna or Sonnet 5.5 as the support and developer model.** Pass `openai/gpt-6-luna` or
+  `anthropic/claude-sonnet-5-5` as `SUPPORT_MODEL` and `USER_MODEL`, with that provider's key, which LiteLLM reads
+  (README, *Run*). All reported numbers use gpt-6-luna. With any other model the results are uncalibrated:
+  - a weaker model can fail cases the oracle's build passes, so failures stop being the builder's alone;
+  - a stronger model can paper over a build's missing rules, hiding the builder failures this task measures.
+
+  Rerun the oracle on a new model before reading any builder result from it.
 - **The support model is gpt-6-luna**, for cost. Maintenance is judged through how that model uses the maintained
   agent; results with a Claude support model are not reported.
 - **Weight.** A full Opus trial took 70-78 min (runs 6-8), and every trial needs a provider key for the support model.

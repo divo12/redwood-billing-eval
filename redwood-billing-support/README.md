@@ -48,6 +48,17 @@ with `set -a; . ./.env; set +a`.
 | `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY` | instead, for `anthropic/...` or `openrouter/...` models |
 | `GRADE_WORKERS` | conversations graded in parallel (default 4, which needs about 1M tokens per minute of rate limit; lower it for a smaller limit) |
 
+**Use `openai/gpt-6-luna` (the default, which all reported runs used) or `anthropic/claude-sonnet-5-5` for both
+`SUPPORT_MODEL` and `USER_MODEL`.** Put the matching provider key in your shell or `.env`, and LiteLLM reads it
+from there: `OPENAI_API_KEY` (plus `OPENAI_BASE_URL` for Azure) for gpt-6-luna, or `ANTHROPIC_API_KEY` for
+Sonnet 5.5. For example:
+
+```sh
+export SUPPORT_MODEL=anthropic/claude-sonnet-5-5 USER_MODEL=anthropic/claude-sonnet-5-5 ANTHROPIC_API_KEY=...
+```
+
+Other models are untested; see the caveat in `RUN_REPORT.md`, *Limitations*.
+
 `SUPPORT_MODEL` is fixed per run. The image writes it into the builder-visible
 `framework/deployment_manifest.json` and the starter agent, and the instructions name the parameter. Practice and
 grading both serve it. Embeddings are a local sentence-transformer baked into the image.
