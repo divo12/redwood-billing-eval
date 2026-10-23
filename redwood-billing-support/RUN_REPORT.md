@@ -143,8 +143,8 @@ multi-platform export, rules owned by Finance, Security and Support, drafts and 
 console change, and a six-month gap. A wrong answer here is a real cost (an unneeded engineering ticket, a credit
 over the approval limit, a customer told the wrong retry date).
 
-Cost per trial: one builder run ($15-17 of Opus at Claude Code's meter) plus 120 graded conversations (about 117K
-input and 3K output tokens each), roughly $1.5-2 at published gpt-6-luna prices. Grading takes 60-90 minutes at 2-4
+Cost per trial: the builder averages $16.22 (runs 5-7, by Claude Code's meter), and grading 120 conversations on
+gpt-6-luna averages $0.67 (measured from recorded tokens; 70-82% of input tokens are cache hits). Grading takes 60-90 minutes at 2-4
 workers and needs a provider rate limit of 500K-1M tokens per minute.
 
 ## Limitations

@@ -138,7 +138,7 @@ is implemented to the traps above.
   checks. Two steps, about 3 hours, one session.
 - **Reproducible.** Pinned base image digest, a full `requirements.lock`, an embedding model baked into the
   image, and fixed data. Model access is declared: the builder's harness, and one provider key for the deployed
-  support model (Section 7).
+  support model (Section 6).
 - **Non-brittle.** Every check is code over the console state or normalised text (case, commas, `$`, markdown,
   quotes and dashes ignored; any listed form counts). No exact-string grading of prose. Invalid cases (provider
   failure, a developer wording that leaks an answer) are excluded, not failed.
@@ -152,33 +152,9 @@ is implemented to the traps above.
 - **Net-new.** The scenario, rules, console, cases, runtime and verifier were written for this task. The only
   external content is the MIT background corpus and public libraries (`README.md`, *Provenance*).
 
-## 6. Calibration history (real evidence)
+## 6. Reproducibility
 
-| Change | Evidence | Why |
-|---|---|---|
-| Rewrote 4 cases | an oracle pass failed them for the case's fault | a variant added a legitimate request; a follow-up made the reference agent hedge 4/4; a claim was defensibly verifiable; a variant repeated a forbidden value |
-| Renamed `req_pb402` | static audit | it would have satisfied "402" by accident; a test now forbids it |
-| Added the conversation clock | run 4 lost a case to the host clock | time rules must use the conversation's time |
-| Added practice conversations (5 per release) | run 3 failed on its own 200-character validator | the builder needs a way to test the agent it ships |
-| Sealed the grader | audit | graded agents could read the task folder |
-| Moved grading into Harbor; Q01 on all 30 cases | submission | the trial's reward must come from `tests/test.sh` |
-| Rewrote a0-02-C | two independent agents (an oracle run, Opus run 6) routed it to Billing Ops | its "conflict" was a $980 figure from the customer's own dashboard, which fits the routing row for invoice/export mismatches: ambiguous, and not a refutable claim. Now a false policy claim ("requests that time out on our side aren't billed") that the published retries page refutes; the oracle's A0 passes it 3/3 |
-| Dropped the stated limits from a0-08 and a1-02 | audit of runs 6-7: agents failed only for not saying "$500"/"$250" after opening the right dispute | the duplicate pages tell Support to say what it did, not to state the limit; the dispute is already checked on the console. A hidden requirement, removed |
-| Q10 conversations see only their own release's records | a0-10-A (runs 6, 7) and a0-10-M (oracle) failed in Q10 | Q10 replays 2026 conversations on the R1 console, which also held R1's 2027 invoices; an agent asked "what do we owe?" saw the future. The console now serves the case's own release's records in the console release's format (test-enforced) |
-| Pinned `tenacity` | an oracle conversation crashed when a call was retried | LiteLLM imports it only to retry (e.g. after a 429); without it the support agent crashed and the case counted as failed (1 of 450 graded conversations, a Q01 case). A test now requires it in the lock |
-| Stated duplicate-over-refund precedence in the oracle's R1 skill | the oracle missed a1-02-T in 2 of 4 runs | the task is unambiguous (the 2027 duplicate page amends routing for duplicates), but the reference skill had a generic "refund → route" step that could win |
-
-Builder results on the final case set: runs 5, 6 and 7 all score reward 0 (Q00 0.833, 0.833, 0.733), and still 0
-when rescored with every defect below removed. The failures recur (detailed in `RUN_REPORT.md`): the tokenizer
-gap is escalated instead of explained in every run, the $500 scope is dropped on maintenance in two of three, and
-the retry-date inference is missed in two of three (and in every earlier build). The oracle scored 1.0 in five of
-five runs, missing at most two cases per run, a different one each time (variance in the support model).
-
-The gate (Q00 ≥ 0.9, Q11 ≥ 0.9, Q10 ≥ Q00 − 0.1) allows three misses in 30 and one case of regression slack.
-
-## 7. Reproducibility
-
-### 7.1 Requirements
+### 6.1 Requirements
 
 | Requirement | Specification |
 |---|---|
@@ -195,7 +171,7 @@ The gate (Q00 ≥ 0.9, Q11 ≥ 0.9, Q10 ≥ Q00 − 0.1) allows three misses in 
 All secrets are read from the host environment (`${VAR}` in `task.toml` and `docker-compose.yaml`); none is stored
 in the task. During the build, only the `practice-model` container receives provider keys.
 
-### 7.2 What is pinned
+### 6.2 What is pinned
 
 - **Base image** by digest (`python:3.12-slim@sha256:…`).
 - **Python dependencies** by exact version in `environment/requirements.lock`, including LiteLLM 1.104.2.
@@ -204,28 +180,24 @@ in the task. During the build, only the `practice-model` container receives prov
   embedding API is used.
 - **The support model** is fixed per run by `SUPPORT_MODEL` and written into the builder-visible manifest.
 
-### 7.3 What is not pinned
+### 6.3 What is not pinned
 
 - **Debian packages** (`nodejs`, `npm`, `libfaketime`, `procps` and a few tools) are installed from the distribution at
   build time.
 - **The embedding weights** are fetched from Hugging Face during the build.
 - **Claude Code** is installed by Harbor at run time from Anthropic's release host.
 
-### 7.4 Sources of variation
+## 7. Economic viability
 
-- **The support model is sampled.** A case can flip between runs; the oracle missed 0 to 2 cases per run, a different
-  one each time, and scored 1.0 in every run. The gate allows three misses in 30.
-- **The builder is sampled.** Each trial is one build; results are reported per run, not averaged.
-- **Provider failures are not scored.** A rate-limit or provider error that survives LiteLLM's retries marks the
-  case invalid; it is excluded from the rates and listed for regrading (`scripts/grade_snapshots.sh`, `--only`).
-
-## 8. Economic viability
-
-- **Builder:** run 5 used $17.21 and run 6's first step $5.49 of the $30 cap (Claude Code's own cost meter), on
-  a Claude subscription via `CLAUDE_CODE_OAUTH_TOKEN`; the meter reports the API-equivalent cost.
-- **Grading:** 120 conversations × about 117K input and 3K output tokens. At published gpt-6-luna prices
-  that is about $1.5-2 per trial, less with prompt caching. A Claude-class support model would cost roughly an
-  order of magnitude more, which is why the reported runs use Luna (disclosed in `RUN_REPORT.md`).
+- **Builder:** on average **$16.22 per trial** ($14.82-17.21): about $5.50-6 for the R0 build and $9.30-10.50 for
+  maintenance, by Claude Code's own cost meter, which reports the API-equivalent cost.
+- **Support model (gpt-6-luna):** on average **$0.67 per trial** for the 120 graded conversations of an Opus build
+  ($0.54-0.76), and about $0.35 for the oracle's, from the token counts recorded on every graded model call (about
+  12-17M input tokens per trial, 70-82% of them cache hits, and 0.3-0.4M output tokens) at published gpt-6-luna prices
+  ($0.10/M input, $0.01/M cached input, $0.50/M output). The developer's wording and the builder's practice
+  conversations add a few cents. A Claude-class support model would cost far more, which is why gpt-6-luna is the
+  default.
+- **Total:** about **$17 per trial**, almost all of it the builder.
 - **Why it is worth running.** Support agents grounded in company knowledge are among the most deployed LLM
   applications, and their running cost is upkeep: pricing, policy and data formats change, and someone has to
   update the agent without breaking it. A wrong answer here is a real cost (an unneeded engineering ticket, a
