@@ -5,23 +5,18 @@ what the task is, why it is built this way, where it is hard, and why it is fair
 
 ## 1. What this task is
 
-The model under test (the builder, Claude Opus 5.5 in Claude Code) is the engineer who owns Redwood Inference's
-billing-support agent. Redwood is a fictional LLM-inference company; its knowledge arrives as a raw export of
-3,524 records from Slack, Gmail, Jira, Linear, Confluence, Google Drive, HubSpot, Fireflies and GitHub. Most
-records have nothing to do with billing, and the billing records mix published policy with drafts, superseded
-pages, chatter and look-alikes.
+The model under test is a builder: Claude Opus 5.5 in Claude Code, playing the engineer who owns the billing-support
+agent at Redwood Inference, a fictional LLM-inference company. It gets a minimal starter agent and a raw export of
+3,524 company records (Slack, Gmail, Jira, Confluence, Drive, HubSpot and more), messy the way a real enterprise is:
+most records have nothing to do with billing, and the billing ones mix current policy with drafts, superseded pages
+and chatter. Nothing says which records matter. The builder must find the rules and ship an agent that applies them
+(retrieval, console tools, a skill, a subagent and a guardrail hook), testing it in practice conversations.
 
-- **Step 1, `build_r0` (2 h):** read the export, decide what to keep, and ship a working support agent in
-  `/app/workspace`: a retrieval index (LanceDB, local embeddings), tools over a billing console, at least one
-  skill, one subagent and one guardrail hook. Practice conversations on the real deployed model are allowed,
-  5 per release.
-- **Step 2, `maintain_r1` (1 h, same Claude Code session):** six months later the export grows by 3,547 records,
-  three billing pages are revised *in place* (same path, later date), and the console changes its record format.
-  Update the agent without breaking what it already did.
-
-The deliverable is the agent itself. It is frozen, then talks to a scripted developer in 120 graded
-conversations against a stateful billing console. The verifier reads the console's end state and the
-conversation; there is no LLM judge and no report to grade.
+Then, in the same session, the export grows by 3,547 records: new rules land on top of old ones, three pages are
+revised in place, some changes apply only from a date onward, and the console's record format changes. The builder
+must judge which newer record supersedes which older one and evolve its agent without breaking what still applies.
+The deliverable is the agent itself: both versions hold 120 graded conversations with a scripted developer, and
+grading reads the billing console's end state and what the agent said, by code, never an LLM judge.
 
 ## 2. Why this design (methodology lineage)
 
@@ -41,16 +36,12 @@ Method is borrowed; content is not.
 
 ## 3. The core capability under test
 
-Not "can the model build a RAG agent" (it can). The target is **whether the builder turns what it retrieves into
-behaviour the agent reliably acts on, and later changes exactly what changed and nothing else.** That needs:
-
-1. **Forensics over a noisy corpus.** Find which records state current policy, by owner, status and date, among
-   drafts, superseded pages and decoys.
-2. **Operationalising.** Convert a rule into something the deployed agent does every time: a skill step, a
-   check, a tool behaviour. A rule that only sits in the index is retrieved and then ignored.
-3. **Scoped maintenance.** Find what R1 changed (including in-place revisions a path diff misses), update only
-   that, and keep R0 behaviour that still applies.
-4. **Verification.** Use the practice conversations to test the hard rules, not just the examples provided.
+Not "can the model build a RAG agent" (that's a solved capability by itself). The target capability is: when new
+information lands on top of old, can the agent maintain the agent it built -- decide which new records should
+change it, change exactly those rules, and keep the old ones that still apply? New is not always current (drafts,
+chatter), and current is not always total (a $250 limit that applies only to 2027 invoices). An agent that rebuilds
+from the latest text, or bolts new facts on without scoping them, will look maintained right up until a customer
+asks about last year's invoice.
 
 ## 4. The designed traps
 
