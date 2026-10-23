@@ -176,24 +176,48 @@ five runs, missing at most two cases per run, a different one each time (varianc
 
 The gate (Q00 ≥ 0.9, Q11 ≥ 0.9, Q10 ≥ Q00 − 0.1) allows three misses in 30 and one case of regression slack.
 
-## 7. Reproducibility caveats
+## 7. Reproducibility
 
-- **A model provider for the deployed support model.** `SUPPORT_MODEL` and `USER_MODEL` are LiteLLM ids
-  (`openai/...`, `anthropic/...`, `openrouter/...`, or an Azure `/openai/v1` endpoint via `OPENAI_BASE_URL`). The
-  reported runs use gpt-6-luna on Azure AI Foundry. Results with another support model will differ; the
-  builder's failure (rules never written into the agent) should not.
-- **Rate limits.** Grading is 120 conversations of about 7 calls each. At 4 workers it needs about 1M tokens per
-  minute; at 2 workers about 500K. Below that, calls retry and, if they still fail, cases are marked invalid.
-- **Time.** About 3 h of building plus 1-2 h of grading inside the last step's verifier
-  (`timeout_sec = 10800`).
-- **Run-to-run variance.** The support model is sampled, so a case can flip between runs (the oracle has missed one
-  different case in two of its last three runs). The gate's slack absorbs one or two such flips; a score is one
-  sample.
-- **Build inputs that are not pinned.** The base image is pinned by digest and Python packages by
-  `requirements.lock`, but Debian packages (`nodejs`, `npm`, `libfaketime` and a few tools) come from the
-  distribution at build time, and the embedding model's weights download from Hugging Face during the build.
-- **Platform.** Built and run on Apple Silicon with Colima; the image is Linux and uses only
-  multi-arch base layers and Python wheels. libfaketime is required on Linux and checked at runtime.
+### 7.1 Requirements
+
+| Requirement | Specification |
+|---|---|
+| Harness | Harbor 0.22.0 (`harbor run`), Claude Code agent `claude-code` |
+| Container runtime | Docker with Compose v2; images are Linux and multi-arch (verified on Apple Silicon with Colima) |
+| Resources per trial | 2 CPUs, 8 GiB memory, 20 GiB storage for the main container (`task.toml`), plus a small `practice-model` sidecar |
+| Disk | about 2 GB per built image and up to 1 GB of job output per trial |
+| Builder credentials | `CLAUDE_CODE_OAUTH_TOKEN` (subscription) or `ANTHROPIC_API_KEY`; for another Anthropic-compatible endpoint, `ANTHROPIC_BASE_URL` plus its key (run 9 uses OpenRouter this way) |
+| Support-model credentials | `SUPPORT_MODEL` and `USER_MODEL` (LiteLLM ids, e.g. `openai/gpt-6-luna`) and the provider key LiteLLM reads for them: `OPENAI_API_KEY` and `OPENAI_BASE_URL`, `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY` |
+| Provider rate limit | about 500K tokens per minute at `GRADE_WORKERS=2`, about 1M at 4 (120 conversations of about 7 calls each) |
+| Network | allowlisted hosts only (`task.toml`): Claude Code's install and API hosts for the builder; the support model's provider hosts for the practice sidecar and the grading step |
+| Wall-clock time | about 3 h of building (2 h and 1 h steps) plus 1-2 h of grading inside `maintain_r1`'s verifier (`timeout_sec = 10800`) |
+
+All secrets are read from the host environment (`${VAR}` in `task.toml` and `docker-compose.yaml`); none is stored
+in the task. During the build, only the `practice-model` container receives provider keys.
+
+### 7.2 What is pinned
+
+- **Base image** by digest (`python:3.12-slim@sha256:…`).
+- **Python dependencies** by exact version in `environment/requirements.lock`, including LiteLLM 1.104.2.
+- **Data**: the corpus (R0, R1), the billing console seeds and the 60 cases are files in the task.
+- **Embeddings**: `sentence-transformers/all-MiniLM-L6-v2`, downloaded once at build time and run locally; no
+  embedding API is used.
+- **The support model** is fixed per run by `SUPPORT_MODEL` and written into the builder-visible manifest.
+
+### 7.3 What is not pinned
+
+- **Debian packages** (`nodejs`, `npm`, `libfaketime`, `procps` and a few tools) are installed from the distribution at
+  build time.
+- **The embedding weights** are fetched from Hugging Face during the build.
+- **Claude Code** is installed by Harbor at run time from Anthropic's release host.
+
+### 7.4 Sources of variation
+
+- **The support model is sampled.** A case can flip between runs; the oracle missed 0 to 2 cases per run, a different
+  one each time, and scored 1.0 in every run. The gate allows three misses in 30.
+- **The builder is sampled.** Each trial is one build; results are reported per run, not averaged.
+- **Provider failures are not scored.** A rate-limit or provider error that survives LiteLLM's retries marks the
+  case invalid; it is excluded from the rates and listed for regrading (`scripts/grade_snapshots.sh`, `--only`).
 
 ## 8. Economic viability
 
