@@ -5,75 +5,95 @@ what the task is, why it is built this way, where it is hard, and why it is fair
 
 ## 1. What this task is
 
-The model under test is a builder: Claude Opus 5.5 in Claude Code, playing the engineer who owns the billing-support
-agent at Redwood Inference, a fictional LLM-inference company. It gets a minimal starter agent and a raw export of
-3,524 company records (Slack, Gmail, Jira, Confluence, Drive, HubSpot and more), messy the way a real enterprise is:
-most records have nothing to do with billing, and the billing ones mix current policy with drafts, superseded pages
-and chatter. Nothing says which records matter. The builder must find the rules and ship an agent that applies them
-(retrieval, console tools, a skill, a subagent and a guardrail hook), testing it in practice conversations.
-
-Then, in the same session, the export grows by 3,547 records: new rules land on top of old ones, three pages are
-revised in place, some changes apply only from a date onward, and the console's record format changes. The builder
+We have a company called Redwood Inference ,a fictional LLM-inference company which has a lot of messy , raw export of company records across multiple channels(Slack, Gmail, Jira, Confluence, Drive, HubSpot and more). We have a builder agent Claude Opus 5.5 in Claude Code who is tasked with 2 things: 1st build an initial version V0 of a support agent tasked at resolving billing issues for developers using redwood's platform and then as time moves on, the company policies, docs, customers evolve, the builder also has to evolve the billing support agent.
+Most records have nothing to do with billing, and the billing ones mix current policy with drafts, superseded pages and chatter. Nothing says which records matter. The builder must find the rules and ship an agent and make its different harness components(prompt, rules, skills, tools, hooks, RAG , other components). Then, in the same session, the export grows by 3,547 records: new rules land on top of old ones, three pages are revised in place, some changes apply only from a date onward, and the console's record format changes. The builder
 must judge which newer record supersedes which older one and evolve its agent without breaking what still applies.
-The deliverable is the agent itself: both versions hold 120 graded conversations with a scripted developer, and
-grading reads the billing console's end state and what the agent said, by code, never an LLM judge.
+The deliverable is the agent itself: both versions hold 120 graded conversations with a scripted developer, and grading reads the billing console's end state and what the  agent said, by code, never an LLM judge.
 
 ## 2. Why this design (methodology lineage)
 
-Method is borrowed; content is not.
+Built this task after reviewing hyper-tau bench, -- hyper tau's benchmark is not at all copied in it, although some of the verifier checks are inspired but the task , environment and checks are made by me.
 
-- **τ-bench-style grading** (Sierra, public): a simulated user, a tool-backed database, and grading on the
-  database end state plus required statements, instead of judging a transcript.
-- **Code-scripted user.** The developer's facts, consent answer and endings are code; a model only rewords each
-  scripted line, and a wording that drops a number falls back to the script. This removes the main source of
-  noise and leakage in model-played users.
-- **Agent-building as the task**, not answering. Most RAG and support benchmarks hand the model a fixed retriever
-  and grade its answers. Here the model must build the retriever, the tools and the procedures, and then
-  maintain them. That is the job companies actually pay for.
-- **Background corpus:** EnterpriseRAG-Bench's generated company data (MIT), split into R0 and R1. Every billing
-  rule, the console, its data, the 60 cases and all planted records were written for this task
-  (`tests/data/provenance.json` names each planted record).
+On reviewing Hyper Tau bench, there were 2-3 fundamental limitation, as more and more humans trust agents , we need to have agents that not only build an agent but also have the ability to evolve them given the change in distribution of data.
+
+Secondly , Hyper Tau Bench doesn't have an exhaustive environment like it doesn't replicates a real enterprise but a real enterprise has messy docs across multiple channels like slack , Gmail etc.
+
+Thirdly, Hyper tau bench only targets prompt, tools, policies whereas an agent has different components and generally support agents have a lot of retrieval/ranking algos which was never touched upon by them
+
+We present a novel task that not only measures how an agent builds another agent through verifier checks like DB end state, Tool actions, NL assertions but also measures the agent's ability to evolve/maintain a agent given changing information
 
 ## 3. The core capability under test
 
-Not "can the model build a RAG agent" (that's a solved capability by itself). The target capability is: when new
-information lands on top of old, can the agent maintain the agent it built -- decide which new records should
-change it, change exactly those rules, and keep the old ones that still apply? New is not always current (drafts,
-chatter), and current is not always total (a $250 limit that applies only to 2027 invoices). An agent that rebuilds
-from the latest text, or bolts new facts on without scoping them, will look maintained right up until a customer
-asks about last year's invoice.
+Not "can the model build a RAG agent" (that's a solved capability by itself). The target capability is: when new information lands on top of old, can the agent maintain the agent it built -- decide which new records should change it, change exactly those rules, and keep the old ones that still apply? New is not always current (drafts, chatter), and current is not always total (a $250 limit that applies only to 2027 invoices). An agent that rebuilds from the latest text, or bolts new facts on without scoping them, will look maintained right up until a customer asks about last year's invoice.
 
 ## 4. The designed traps
 
-All of these are in the shipped content (`Task.md` lists each record):
+All of these are real and present in the shipped content (`Task.md` names each record); none is a hidden
+requirement. They come in four groups: finding the rules, keeping them right when the world changes, applying
+them in a live conversation, and testing all of that before it ships.
 
-1. **Scattered rules.** No single record states the whole rule. The duplicate-credit limit lives only in
-   Finance's approvals matrix, which the credits page names; in R1 the matrix sets $250 for invoices rated on
-   the 2027 price book and keeps $500 for earlier ones, and only Finance's close calendar says the 2027 price
-   book starts on 1 March 2027.
-2. **Changed in place.** R1 revises the routing page, the failed-payments page and the approvals matrix at their
-   R0 paths. A builder that diffs file paths, or keeps its R0 index, misses them.
-3. **Date-scoped changes.** The usage-delay threshold becomes 60 minutes only after a Telemetry cut-over that the
-   routing page names (ENG-9120) and only that Linear ticket dates. R0 cases in September 2026 still need 30
-   minutes, so replacing 30 with 60 everywhere is a regression (Q10).
-4. **Inference, not lookup.** The payment-retry date after a processor incident is stated nowhere; four past
-   status cards fix it uniquely (retries complete 3 business days after the incident window ends).
-5. **A breaking console change** (stale cases). R1 exposes money as `{value, currency}` objects, renames the
-   account field on writable tables, adds `billing_timezone`, and requires an escalation priority. A0's tools
-   break even where the policy did not change.
-6. **Decoys on every platform.** A draft price-book plan in Drive, agents' "everything is urgent" chatter in
-   Slack, a provisional Finance x Support meeting, a superseded 2024 thread letting Support grant goodwill under
-   $200, and 14 look-alike pages in the same spaces. None states a competing current version of a scored rule.
-7. **Twins.** For each release, five cases have a near-identical twin whose correct result is the opposite
-   (only 20 minutes have passed, a self-serve account so no SLA claim, exactly at the $250 limit). Pattern
-   matching on the ask fails one half.
-8. **Developer behaviour.** Each non-twin case has three variants: the developer omits the deciding facts
-   (missing_info), is ambiguous, or asserts something false (conflict). Facts come only through the
-   `ask_developer` tool, never in chat.
-9. **Guardrails that matter.** Credits need the developer's consent first (checked by order), card digits must
-   never be repeated (`never_say`), and handoffs must go to the team current policy names.
-10. **The clock.** Each conversation runs on its own date and time (libfaketime). An agent that reads
-    `date.today()` sees the developer's day, so time-window rules work, and a host clock cannot leak in.
+**Finding the rules (step 1)**
+
+1. **Noise at enterprise scale.** 3,524 records across nine platforms; most are SRE runbooks, sales threads,
+   partner deals and products that have nothing to do with billing. Embedding runs on 2 CPUs and the instruction
+   forbids embedding everything, so the builder must decide what is billing knowledge before it can index it.
+2. **Authority, not recency.** Every scored rule has a plausible competitor: a draft price-book plan in Drive,
+   agents' "everything is urgent" chatter in Slack, a provisional Finance x Support meeting, a superseded 2024
+   thread letting Support grant goodwill under $200, an old RACI draft that routes meter questions to Telemetry,
+   and 14 look-alike pages in the same spaces. Only status, owner and date tell them apart.
+3. **Scattered rules.** No record states a whole rule; each piece names the next by key or title. The credits page
+   names Finance's approvals matrix, which holds the limit; the escalation priority is a #support announcement the
+   format page names; which table balances come from is a decision recorded in a Fireflies meeting. A builder that
+   indexes one page per topic gets half a rule.
+4. **Inference, not lookup.** The payment-retry date after a processor incident is stated nowhere. Four past status
+   cards fix it uniquely (retries complete 3 business days after the incident window ends), and the agent must
+   work it out for a new incident. *Opus failed a1-03 in every run, on A0 and A1.*
+5. **Restraint is a rule too.** The routing page says to *answer*, not hand off, when the published pages explain
+   what the customer sees (tokenizer counts, billed retries, console lag), "even if the customer calls it a bug".
+   Escalating feels safe and is wrong. *The a0-01 tokenizer cases and a0-09-T failed in both Opus runs (run 6 passed
+   only the plain a0-01, not its three variants): the agent retrieved the rule, then escalated to Billing
+   Engineering anyway.*
+6. **Rules can't live in the prompt.** `system_prompt.md` and `AGENTS.md` are capped (1,500 and 4,000 characters)
+   and may not hold exact billing rules, and no store of full source records is allowed. A rule has to become a
+   skill step, a tool behaviour or a retrievable chunk the agent reliably uses: retrieving it is not enough.
+
+**Keeping them right when the world changes (step 2)**
+
+7. **Changed in place.** R1 revises the routing page, the failed-payments page and Finance's approvals matrix at
+   their R0 paths with a later date. A builder that diffs file names, or keeps its R0 index, never sees the change.
+8. **Date-scoped changes.** The duplicate-credit limit drops to $250 only for invoices on the 2027 price book (only
+   Finance's close calendar says that starts 1 March 2027); the usage-delay threshold becomes 60 minutes only after a
+   cut-over that only a Linear ticket dates. The old rule still governs older invoices, and Q10 replays the R0
+   conversations to check it. *Opus's A1 dropped the $500 that still applies to 2026 invoices (a0-08 in run 5;
+   a0-07-C, a0-08, a0-08-T in run 6).*
+9. **A breaking console change with no policy change.** R1 serves money as `{value, currency}`, renames the account
+   field on writable tables, adds `billing_timezone` (the billing month is now in the account's timezone) and
+   requires an escalation priority. A0's tools break on cases whose rules never changed.
+10. **A procedure withdrawn.** The card-update procedure is retracted in place; card digits must never be repeated
+    (`never_say`), and the developer must be sent to their billing settings instead.
+
+**Applying them in a conversation (graded)**
+
+11. **Twins.** Five cases per release have a near-identical twin whose correct result is the opposite: only 20
+    minutes have passed, a self-serve account has no SLA, the duplicate is exactly at the $250 limit, the developer
+    counted only user messages. Matching the ask instead of checking the facts fails one half.
+12. **Developers who make it harder.** Each non-twin case has three variants: the deciding facts are missing, the
+    ask is ambiguous, or the developer asserts a false policy. Facts come only through the `ask_developer` form,
+    never in chat, so the agent must ask the right question. *Opus never asked when a runaway script ran (a1-07),
+    so it could not separate its tokens.*
+13. **Consent and forbidden values.** Credits are graded on order: no credit before the developer's yes. The stale
+    answer is itself checked (`never_say`): the calendar-day retry date, the UTC-month token total.
+14. **The conversation's own clock.** Each conversation runs on its own date and time (libfaketime), so "has it been
+    30 minutes?" and "which month is this?" depend on reading the clock, not the host's.
+
+**Verification has to be designed, not borrowed**
+
+15. **Five practice conversations per release.** The builder can test its agent on the real deployed model and a
+    practice console, but only five times, and the example scripts cover only the practice accounts. Testing the
+    hard rules means writing scripts for them. *Run 5 practised mostly on the provided examples; none touched a
+    tokenizer gap, a retry date or a scoped limit.*
+16. **One session, two deadlines.** Two hours to build, then one hour, in the same Claude Code session, to
+    understand a 3,547-record change to its own system. A0 is frozen and graded as delivered.
 
 ## 5. Fairness audit against the assignment rubric
 
