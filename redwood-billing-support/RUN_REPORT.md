@@ -2,10 +2,24 @@
 
 ## Summary
 
-Claude Opus 5.5 (high, Claude Code) **fails in 3 of 3 runs** (reward 0 every time), and the oracle **passes in 4 of 4**
-(reward 1.0 every time). The failure survives every correction from the fairness audit below: rescored with every
-case or verifier defect found removed, all three Opus runs still score 0, because the R0 build itself never
-reaches the 0.9 bar.
+`claude-opus-5-5` at `reasoning_effort=high` in Claude Code **fails this task consistently: 3/3 real runs score
+reward 0**, and the R0 build alone misses the 0.9 bar every time (Q00 0.833, 0.833, 0.733). The most repeatable
+failure appears in every run: when a developer reports more billed tokens than they counted locally and asks
+"can someone check the meter?", the support agent Opus built escalates to Billing Engineering (a0-01 and its
+variants, a0-09-T: 4-5 cases per run). The published routing page says the opposite: *"Answer, don't hand off:
+how billed tokens are counted (model-native tokenizer, full request payload) … explain it and stop there, even if
+the customer calls it a bug."* Opus's agents searched for exactly that rule (one query was "full request payload
+model-native tokenizer") and even told the developer the gap "doesn't by itself show the console is
+overcounting", then escalated anyway. The rule reached the agent but was never turned
+into behaviour it acts on. On maintenance, the same pattern shows as a scoping error: in two of three runs the
+updated agent replaced the $500 duplicate-credit limit with R1's $250 instead of keeping $500 for 2026 invoices.
+The oracle (a reference build that writes each rule into a skill and a rules file, run through the same
+conversation loop and console) passes cleanly at reward 1.0 in 4/4 runs. The task is solvable; the model's
+specific, repeatable failure is shipping an agent that knows a rule but doesn't follow it, and overwriting old
+rules instead of scoping new ones.
+
+The failure survives the fairness audit below: rescored with every case or verifier defect it found removed, all
+three runs still score 0.
 
 | Agent | Run | reward | q00 | q11 | drift | regression | behaviour_robustness | artifact_quality |
 |---|---|---|---|---|---|---|---|---|
