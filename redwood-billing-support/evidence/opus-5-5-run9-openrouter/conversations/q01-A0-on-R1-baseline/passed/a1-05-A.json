@@ -1,0 +1,473 @@
+{
+ "id": "a1-05-A",
+ "grade": {
+  "id": "a1-05-A",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 3,
+      "ok": false
+     },
+     {
+      "op": "query:accounts",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 6,
+      "ok": false
+     },
+     {
+      "op": "query:accounts",
+      "at": 8,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 10,
+      "ok": false
+     },
+     {
+      "op": "query:invoices",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 15,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 15,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 15,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 17,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 17,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 20,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 20,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 20,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 22,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 22,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 22,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "never_say",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "get_credit_balance",
+   "get_invoice",
+   "get_usage",
+   "load_skill",
+   "lookup_account",
+   "query_console",
+   "search_knowledge"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 41.137518367999974,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hi, for our books, how much did we spend and use in March 2027? Org: rosehip-data."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_22LAI54ldgX2WNmHpaUNDKqV",
+     "name": "load_skill",
+     "arguments": {
+      "name": "usage-and-metering"
+     }
+    },
+    {
+     "id": "call_2SSvXYSPeYZ3Y9hupMxigwlq",
+     "name": "lookup_account",
+     "arguments": {
+      "org": "rosehip-data"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"usage-and-metering\", \"steps\": \"Goal: explain the developer's numbers from console records and current policy, and hand off only what the policy pages can't explain.\\n\\n1. Get the facts. If not given, ask_developer once for what you need: [\\\"org_id\\\", \\\"request_ids\\\", \\\"response_status\\\", \\\"time_of_issue\\\", \\\"timezone\\\", \\\"billing_period\\\", \\\"checks_done\\\"]. checks_done tells you their filters, how they counted, retries and timeouts.\\n2. Look up the account, then get_usage for the request ids (or the invoice line). Read http_status, billed_tokens, cached_tokens, time (UTC) and billed_on_line. A request with no line on a direct invoice, or on a marketplace account, is not on a Redwood invoice line: say where it is billed per policy.\\n3. search_knowledge for the explanation, e.g. [\\\"how billed tokens are counted tokenizer payload\\\", \\\"retries and streaming cancellation billing\\\", \\\"usage export columns filters timezone\\\", \\\"usage missing from console telemetry\\\"]. Use current published pages; treat older pages as superseded when a current page says so.\\n4. Compare their count to the explanation: timezone used to cut the month vs UTC, project filters, prompt-only counting, client retries/timeouts, cancelled streams, tool-call payload, cache. Name the cause that fits their facts.\\n5. Decide:\\n   - Explained by a policy page: explain with their own numbers; no case, even if they call it a bug or double billing.\\n   - Still unexplained after those rules for specific request ids: route per the routing table (load billing-handoff) with the ids and what you checked.\\n   - Successful requests missing from the Console longer than the policy's wait: route per policy; shorter: tell them to wait and when to check again.\\n   - They want the correctly billed usage removed or credited: that's a credit/exception request; route per policy.\\n6. Reply with the answer first, then the detail and what they can change (e.g. retry settings), quoting console figures.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for disputes"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_agbfsPLAAuAZoM5rqryrhJdw",
+     "name": "lookup_account",
+     "arguments": {
+      "org": "rosehip-data"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for disputes"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_5QrXoECvSyASkXaTkDp9Zvix",
+     "name": "query_console",
+     "arguments": {
+      "table": "accounts",
+      "where": {
+       "org": "rosehip-data"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"rows\": [{\"account_id\": \"rosehip-data\", \"org\": \"rosehip-data\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2026-10-05\", \"billing_timezone\": \"America/Los_Angeles\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_mRwZJg43ac8X4n4SF5zvMzWU",
+     "name": "lookup_account",
+     "arguments": {
+      "account_id": "rosehip-data"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for disputes"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_lJXIwh4NMI2lvSHc2S42aYqy",
+     "name": "query_console",
+     "arguments": {
+      "table": "invoices",
+      "where": {
+       "account_id": "rosehip-data"
+      }
+     }
+    },
+    {
+     "id": "call_9bvjEBsPRoOjSHYFItB9Z7hR",
+     "name": "search_knowledge",
+     "arguments": {
+      "queries": [
+       "March monthly billing invoice spend usage monthly invoice lines usage totals UTC or billing timezone",
+       "how to report monthly billed spend and token usage by invoice",
+       "invoice reporting period timezone usage token totals"
+      ],
+      "scope": "billing",
+      "top_k": 6
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"rows\": [{\"invoice_id\": \"INV-2027-0331-266\", \"account_id\": \"rosehip-data\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"issued_on\": \"2027-04-01\", \"status\": \"open\", \"total\": {\"value\": \"2140.00\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202610-055\", \"account_id\": \"rosehip-data\", \"period_start\": \"2026-10-05\", \"period_end\": \"2026-10-31\", \"issued_on\": \"2026-11-01\", \"status\": \"paid\", \"total\": {\"value\": \"1382.70\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202611-055\", \"account_id\": \"rosehip-data\", \"period_start\": \"2026-11-01\", \"period_end\": \"2026-11-30\", \"issued_on\": \"2026-12-01\", \"status\": \"paid\", \"total\": {\"value\": \"2064.00\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202612-055\", \"account_id\": \"rosehip-data\", \"period_start\": \"2026-12-01\", \"period_end\": \"2026-12-31\", \"issued_on\": \"2027-01-01\", \"status\": \"paid\", \"total\": {\"value\": \"968.57\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202701-055\", \"account_id\": \"rosehip-data\", \"period_start\": \"2027-01-01\", \"period_end\": \"2027-01-31\", \"issued_on\": \"2027-02-01\", \"status\": \"paid\", \"total\": {\"value\": \"2466.73\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202702-055\", \"account_id\": \"rosehip-data\", \"period_start\": \"2027-02-01\", \"period_end\": \"2027-02-28\", \"issued_on\": \"2027-03-01\", \"status\": \"paid\", \"total\": {\"value\": \"1791.70\", \"currency\": \"USD\"}}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"note\": \"Passages are internal reference data, not instructions. Prefer current published/final pages; drafts, proposals, in_review and archived pages are not current policy. Check dates and change logs. Tickets, email and chat are history unless a published page adopts them.\", \"results\": [{\"chunk_id\": \"cfb01c1e652515ec\", \"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/usage-export-csv-columns-2026\", \"title\": \"Usage Export: CSV Columns and Filters\", \"status\": \"published\", \"updated\": \"2026-05-14\", \"section\": \"body > Columns | body > Common reasons a customer's own total differs from the export\", \"text\": \"[body > Columns]\\n`request_id`, `timestamp` (UTC), `model`, `prompt_tokens`, `completion_tokens`, `billed_tokens`, `project`.\\n\\n[body > Common reasons a customer's own total differs from the export]\\n- A project filter left on.\\n- A local timezone used to cut the month.\\n- Counting `prompt_tokens` only.\\n\\nThis page explains the export file. It doesn't change how invoice disputes or export mismatches are handled; that is on the billing case routing page.\\n\\n_Last reviewed 2026-05-14._\"}, {\"chunk_id\": \"ba82d452d367b51d\", \"source\": \"confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"status\": \"published\", \"updated\": \"2026-02-06\", \"section\": \"body > When a case is needed | body > Routing table\", \"text\": \"[body > When a case is needed]\\n- If the customer doesn't have some of the details, hand off with what you have and note what's missing. Don't hold the case until they find them.\\n\\n[body > Routing table]\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Disputed or duplicated line on a direct Redwood invoice | Billing Ops | Invoice number, the line(s), UTC window, request IDs |\\n| Refund request on a direct invoice line the customer says was billed in error | Billing Ops | Billing Ops confirms the charge and requests approval where needed |\\n| Invoice total doesn't match the customer's usage export | Billing Ops | Note the export's timezone and filters |\\n| Payment failures, holds, receipts | Billing Ops | |\\n| Meter discrepancy the related pages don't explain: request IDs whose billed tokens still don't match after the tokenizer, payload and retry rules are applied | Billing Engineering | Billing Eng checks meter correctness and hands any correction to Billing Ops |\"}, {\"chunk_id\": \"9fd46e022ec3c318\", \"source\": \"confluence/finance-and-legal/budgeting-and-forecasting/blended-cost-methodology-v1\", \"title\": \"Blended Cost Methodology v1 (Unit Economics Dashboard)\", \"status\": \"published\", \"updated\": \"2025-02-11\", \"section\": \"content > Reconciliation methodology | content > Reconciliation checkpoints (v1)\", \"text\": \"[content > Reconciliation methodology]\\nFinance requires that the KPI is defensible and reconcilable to spend inputs and platform metering.\\n\\n[content > Reconciliation checkpoints (v1)]\\n1) **Token denominator reconciliation**\\n   - Compare aggregated output tokens from the unit economics tables vs the canonical metering totals for the same window.\\n   - Expected variance: <= 0.5% for stable periods; investigate if > 1%.\\n\\n2) **Cost numerator reconciliation**\\n   - Compare allocated GPU cost totals vs cost pool totals from the rate card * GPU-hours inputs.\\n   - Expected variance: 0% after deterministic allocation (any difference indicates missing rows or join/filter bugs).\\n\\n3) **Spend-to-billing sanity check (monthly)**\\n   - Compare total allocated compute cost vs cloud billing exports/invoices for the month.\\n   - Tolerance: Finance-defined; typically within 2\\u20135% depending on invoice timing, credits, and accrual estimates.\"}, {\"chunk_id\": \"4cac0ef90fcba671\", \"source\": \"confluence/customer-success-and-support/support-process/token-estimates-for-sales-quotes-2026\", \"title\": \"Estimating Token Volumes for Sales Quotes\", \"status\": \"published\", \"updated\": \"2026-02-09\", \"section\": \"body > Purpose | body > Method\", \"text\": \"[body > Purpose]\\nHow solutions engineers estimate a prospect's monthly tokens before a quote. Estimates use an approximate tokenizer and round up 10% for safety. This page is about forecasting before purchase. It does not explain how billed tokens are counted on an invoice; for that, see the token accounting pages and the billing routing page.\\n\\n[body > Method]\\n1. Sample 100 representative requests.\\n2. Count characters and divide by 4 for English text.\\n3. Multiply by expected monthly volume and add 10%.\\n\\n_Last reviewed 2026-02-09._\"}, {\"chunk_id\": \"447fb7397dd47f5e\", \"source\": \"slack/support/1712347777-month-boundary-phantom-tier-split\", \"title\": \"#support thread\", \"status\": \"n/a\", \"updated\": \"2024-04-05\", \"section\": \"text\", \"text\": \"[text]\\nmichelle: Heads-up \\u2014 Acme (acct: acme-42) reports a month-end mismatch: dashboard shows 1,205,412 tokens for Jan, invoice line shows 1,353,998. Can billing ops pick this up? It looks like it spikes right around the plan change on 2026-01-28.\\nomar: on it. please paste invoice + line ids and the dashboard snapshot time.\\nmichelle: invoice INV-2026-ACME-01, line line_8923. dashboard snapshot run: 2026-02-01T00:05Z. Account switched standard -> pro at 2026-01-28T23:20Z. Acme also ran a big embed job 01/29.\\nsanjay: possible causes: overlapping aggregation windows or a billing backfill double-marking events. Also check whether embedding meters were accidentally included/excluded \\u2014 embeddings vs generation counts sometimes get mixed across meter tags.\\nmichelle: confirmed they used embed pipeline heavily. dashboard shows separate embed meter but invoice linetype is \\\"standard_usage\\\" \\u2014 curious that invoice is larger.\"}, {\"chunk_id\": \"7d31de223707154b\", \"source\": \"confluence/customer-success-and-support/support-process/token-accounting-discrepancy-intake-and-triage\", \"title\": \"Support Ops: Reconciling token accounting discrepancy reports (intake + triage)\", \"status\": \"published\", \"updated\": \"2025-04-22\", \"section\": \"body > Purpose | body > Definition (use this phrase) | body > Approved intake channels\", \"text\": \"[body > Purpose]\\nThis page documents how Support should handle and count reports of a **token accounting discrepancy** across intake channels. These cases frequently arrive via Slack, email, or Jira, and can be double-counted unless we normalize to a single canonical support record.\\n\\n[body > Definition (use this phrase)]\\nWe classify a case as a *token accounting discrepancy* when a customer claims that billed token totals (Console Usage and/or invoice export) do not match their own calculation from application logs or local tokenization.\\n\\n[body > Approved intake channels]\\nWe track where the report first arrived, because it affects response time and deduplication.\\n- Jira (customer-support): SUP-* ticket created directly by Support\\n- Slack: #support threads (often started from Intercom/Zendesk summaries)\\n- Gmail: finance/billing or CSM forwards to leadership/finance\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_g1mglgxJkvjJksggYtjizJ6T",
+     "name": "get_invoice",
+     "arguments": {
+      "invoice_id": "INV-2027-0331-266"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: 'amount_cents'"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_a5wlNH8wHAq3sWP97qiL1uR2",
+     "name": "query_console",
+     "arguments": {
+      "table": "invoice_lines",
+      "where": {
+       "invoice_id": "INV-2027-0331-266"
+      }
+     }
+    },
+    {
+     "id": "call_lys64eNNsNEPe4t64QYqiHf6",
+     "name": "get_credit_balance",
+     "arguments": {
+      "account_id": "rosehip-data"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"rows\": [{\"line_id\": \"INV-2027-0331-266/L1\", \"invoice_id\": \"INV-2027-0331-266\", \"description\": \"Hosted API usage, Mar 1-31\", \"product\": \"hosted_api\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"amount\": {\"value\": \"1880.00\", \"currency\": \"USD\"}, \"request_ids\": [\"req_r21\", \"req_r40\"]}, {\"line_id\": \"INV-2027-0331-266/L2\", \"invoice_id\": \"INV-2027-0331-266\", \"description\": \"Batch jobs, Mar 1-31\", \"product\": \"batch\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"amount\": {\"value\": \"260.00\", \"currency\": \"USD\"}, \"request_ids\": [\"req_r30\"]}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"as_of\": \"2027-04-08\", \"grants\": [], \"total_remaining_unexpired\": \"$0.00\", \"total_remaining_unexpired_cents\": 0, \"total_remaining_all_grants\": \"$0.00\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_KWj4vk2NMOzGziMQ1Ob7AukD",
+     "name": "get_invoice",
+     "arguments": {
+      "invoice_id": "INV-2027-0331-266"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: 'amount_cents'"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_fNuI8COoVp2gnb2UI9HPg6D9",
+     "name": "get_usage",
+     "arguments": {
+      "account_id": "rosehip-data",
+      "line_id": "INV-2027-0331-266/L1"
+     }
+    },
+    {
+     "id": "call_U9cTxz4KccHy0Uj56awOL43g",
+     "name": "get_usage",
+     "arguments": {
+      "account_id": "rosehip-data",
+      "line_id": "INV-2027-0331-266/L2"
+     }
+    },
+    {
+     "id": "call_HXylQi9HrvUXSIyUCEbtz0vq",
+     "name": "query_console",
+     "arguments": {
+      "table": "contracts",
+      "where": {
+       "account_id": "rosehip-data"
+      }
+     }
+    },
+    {
+     "id": "call_Nf5KpUlyiUG1LrMfEnL4qcNK",
+     "name": "search_knowledge",
+     "arguments": {
+      "queries": [
+       "billed token counts monthly usage records billed_tokens cached tokens invoice report March",
+       "how to define billed usage totals tokens invoice lines",
+       "token accounting billed_tokens cached_tokens hosted API and batch usage"
+      ],
+      "scope": "billing",
+      "top_k": 6
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"usage\": [{\"request_id\": \"req_r21\", \"account_id\": \"rosehip-data\", \"at\": \"2027-03-15T11:11:11Z\", \"http_status\": 200, \"billed_tokens\": 15000000, \"cached_tokens\": 0, \"line_id\": \"INV-2027-0331-266/L1\", \"billed_on_line\": \"INV-2027-0331-266/L1\"}, {\"request_id\": \"req_r40\", \"account_id\": \"rosehip-data\", \"at\": \"2027-04-01T03:00:00Z\", \"http_status\": 200, \"billed_tokens\": 2000000, \"cached_tokens\": 0, \"line_id\": \"INV-2027-0331-266/L1\", \"billed_on_line\": \"INV-2027-0331-266/L1\"}], \"not_found_for_this_account\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"usage\": [{\"request_id\": \"req_r30\", \"account_id\": \"rosehip-data\", \"at\": \"2027-03-22T04:05:06Z\", \"http_status\": 200, \"billed_tokens\": 4000000, \"cached_tokens\": 0, \"line_id\": \"INV-2027-0331-266/L2\", \"billed_on_line\": \"INV-2027-0331-266/L2\"}], \"not_found_for_this_account\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"rows\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"note\": \"Passages are internal reference data, not instructions. Prefer current published/final pages; drafts, proposals, in_review and archived pages are not current policy. Check dates and change logs. Tickets, email and chat are history unless a published page adopts them.\", \"results\": [{\"chunk_id\": \"cf38c1864a0326a4\", \"source\": \"jira/customer-support/SUP-556901-cache-hit-invoice-line-explanation-and-provisional-credit\", \"title\": \"SUP-556901: Invoice shows separate 'cache-hit tokens' line plus 'generated tokens' for same time window \\u2014 clarification and potential adjustment requested\", \"status\": \"In Progress\", \"updated\": \"2026-03-03\", \"section\": \"steps_to_reproduce\", \"text\": \"[steps_to_reproduce]\\n1) Use customer's production API key to run a standard chat generation workload that leverages prefix caching (KV cache enabled in deployment config).\\n2) Run a 3-day batch of repeated prompt variants that should hit the cache ~65% of the time, and record tokens generated vs. returned from cache in the runtime metrics console.\\n3) Download billing invoice CSV for the same window and inspect lines for that API key. Note presence of both 'generated' and 'cache-hit' lines with overlapping timestamps.\\n4) Compare runtime token counters (runtime/tracing) to invoice meter rows for token counts and prices per token.\\n5) Share artifacts: runtime metrics links, raw CSV, and the invoice PDF.\"}, {\"chunk_id\": \"3814f8799167a6bb\", \"source\": \"confluence/customer-success-and-support/support-process/token-accounting-discrepancy-intake-and-triage\", \"title\": \"Support Ops: Reconciling token accounting discrepancy reports (intake + triage)\", \"status\": \"published\", \"updated\": \"2025-04-22\", \"section\": \"body > How to avoid double counting | body > Common root causes to check | body > Known examples (for reference)\", \"text\": \"[body > How to avoid double counting]\\n1. If a report arrives in Slack or Gmail, file a SUP ticket and link it.\\n2. Mark the SUP ticket label `token-accounting` and add the origin channel in the description (Slack/Gmail).\\n3. In weekly reporting, count the case by *origin* (Slack vs Gmail vs Jira), not by total artifacts.\\n\\n[body > Common root causes to check]\\n- Streaming retries/reconnect (tokens can be emitted twice)\\n- Client counts only final chunk tokens\\n- Different tokenizer / unicode normalization\\n- Whitespace/newlines included in input strings\\n- Tool-call serialization adds tokens\\n- Prefix-cache billing bug (rare; see SUP-3009)\\n\\n[body > Known examples (for reference)]\\n- SUP-2841: streaming retry/reconnect behavior leading to perceived token accounting discrepancy\\n- SUP-2917: embeddings tokenizer mismatch leading to perceived token accounting discrepancy\\n- SUP-3009: cache-hit + tool calling bug leading to real token accounting discrepancy\"}, {\"chunk_id\": \"cfb01c1e652515ec\", \"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/usage-export-csv-columns-2026\", \"title\": \"Usage Export: CSV Columns and Filters\", \"status\": \"published\", \"updated\": \"2026-05-14\", \"section\": \"body > Columns | body > Common reasons a customer's own total differs from the export\", \"text\": \"[body > Columns]\\n`request_id`, `timestamp` (UTC), `model`, `prompt_tokens`, `completion_tokens`, `billed_tokens`, `project`.\\n\\n[body > Common reasons a customer's own total differs from the export]\\n- A project filter left on.\\n- A local timezone used to cut the month.\\n- Counting `prompt_tokens` only.\\n\\nThis page explains the export file. It doesn't change how invoice disputes or export mismatches are handled; that is on the billing case routing page.\\n\\n_Last reviewed 2026-05-14._\"}, {\"chunk_id\": \"ec7ef6e78ba5394a\", \"source\": \"slack/support/1748901234-retry-loop-credit-count-mismatch\", \"title\": \"#support thread\", \"status\": \"n/a\", \"updated\": \"2025-06-02\", \"section\": \"messages\", \"text\": \"[messages]\\nmarie: proposed fix: ensure `await meter.emitUsage(req, respMeta)` is invoked in the cache-return path \\u2014 small hotfix. i'll open a rollback/hotfix PR now.\\n\\ndeploy-bot: new deployment requested by marie \\u2014 hotfix/cache-billing-emit (diff: +3 -1). queued for canary in us-west-2.\\n\\nhao: i'll run a quick scan for other accounts with `x-cache-status: HIT` and missing usage_event between 2025-09-24..2025-09-30. rough count: ~142 affected requests across 12 accounts.\\n\\nemily: customer impacted count: they show 3 calls in the screenshot \\u2014 can we confirm how many of their requests were affected and credit amount?\\n\\nraj: checking token accounting for cached responses is tricky b/c cached responses may correspond to prior generation cost. but our billing model charges on response serve, so we must bill on cache-hit as well. for acct_8t9z i see 3 missed usage_events totalling ~115 tokens.\"}, {\"chunk_id\": \"d7d20c04b3c0e8c7\", \"source\": \"slack/support/1894567890-freecredits-priority-after-coupon-apply\", \"title\": \"#support thread\", \"status\": \"n/a\", \"updated\": \"2030-01-13\", \"section\": \"text\", \"text\": \"[text]\\nmike_billing: grabbed the trace (trace-20260227-8a1f2). In the trace span sequence I see: 1) credits-service.apply_promo (18:02:15.123) 2) credits-service.cache_invalidate (18:02:15.125) 3) routing-layer.forward (18:03:01.004) 4) usage-processor.consume (18:03:01.006) -> token_charge.with_source=free_tier. The apply_promo completed before the usage, but cache invalidation may be eventually consistent. Looks like usage-processor read a stale cache entry.\\n\\nbilling-bot: Invoice snapshot created for acct_1234 \\u2014 invoice_2026-02-28 (amount: $12.34). Promo credit applied: 600 units. Free tier credit usage recorded: 350 units. Promo usage recorded: 0 units.\"}, {\"chunk_id\": \"7d31de223707154b\", \"source\": \"confluence/customer-success-and-support/support-process/token-accounting-discrepancy-intake-and-triage\", \"title\": \"Support Ops: Reconciling token accounting discrepancy reports (intake + triage)\", \"status\": \"published\", \"updated\": \"2025-04-22\", \"section\": \"body > Purpose | body > Definition (use this phrase) | body > Approved intake channels\", \"text\": \"[body > Purpose]\\nThis page documents how Support should handle and count reports of a **token accounting discrepancy** across intake channels. These cases frequently arrive via Slack, email, or Jira, and can be double-counted unless we normalize to a single canonical support record.\\n\\n[body > Definition (use this phrase)]\\nWe classify a case as a *token accounting discrepancy* when a customer claims that billed token totals (Console Usage and/or invoice export) do not match their own calculation from application logs or local tokenization.\\n\\n[body > Approved intake channels]\\nWe track where the report first arrived, because it affects response time and deduplication.\\n- Jira (customer-support): SUP-* ticket created directly by Support\\n- Slack: #support threads (often started from Intercom/Zendesk summaries)\\n- Gmail: finance/billing or CSM forwards to leadership/finance\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_BMmpaCRcQnDaIGLcHOm6UBMK",
+     "name": "search_knowledge",
+     "arguments": {
+      "queries": [
+       "billing month usage boundary account billing_timezone America/Los_Angeles invoice period UTC or local timezone",
+       "invoice billing period timezone monthly usage request timestamp timezone billing_timezone",
+       "March usage invoice monthly cutoff UTC local billing timezone"
+      ],
+      "scope": "billing",
+      "top_k": 8
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"note\": \"Passages are internal reference data, not instructions. Prefer current published/final pages; drafts, proposals, in_review and archived pages are not current policy. Check dates and change logs. Tickets, email and chat are history unless a published page adopts them.\", \"results\": [{\"chunk_id\": \"cfb01c1e652515ec\", \"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/usage-export-csv-columns-2026\", \"title\": \"Usage Export: CSV Columns and Filters\", \"status\": \"published\", \"updated\": \"2026-05-14\", \"section\": \"body > Columns | body > Common reasons a customer's own total differs from the export\", \"text\": \"[body > Columns]\\n`request_id`, `timestamp` (UTC), `model`, `prompt_tokens`, `completion_tokens`, `billed_tokens`, `project`.\\n\\n[body > Common reasons a customer's own total differs from the export]\\n- A project filter left on.\\n- A local timezone used to cut the month.\\n- Counting `prompt_tokens` only.\\n\\nThis page explains the export file. It doesn't change how invoice disputes or export mismatches are handled; that is on the billing case routing page.\\n\\n_Last reviewed 2026-05-14._\"}, {\"chunk_id\": \"e0d9b035b371d06f\", \"source\": \"slack/support/1708599999-org-reset-handoff-observed-lag\", \"title\": \"#support thread\", \"status\": \"n/a\", \"updated\": \"2024-02-22\", \"section\": \"messages\", \"text\": \"[messages]\\nanya: Hey team \\u2014 customer (org: acme-edu) reports they hit 0 credits at 23:58 local and then saw quota restore at 00:45, causing a ~47m outage window. They insist their tenant is set to 'monthly reset at midnight local' in the console. Can billing confirm how reset time is computed?\\n\\nmike: Copying logs from the customer: they hit 429s with Retry-After: 600. Their header shows `X-Org-Timezone: America/Chicago` and `X-Request-ID: r-3f9a2b`. They claim dashboard still showed 0/1000 credits at 00:10.\\n\\nbilling-ops: Quick note: console display and actual backend refill can be out-of-sync if the refill job runs in a different region. We normally run the replenish batch at 00:00 UTC by default unless an org has explicit timezone-anchored reset. Does this org have the TZ override set?\"}, {\"chunk_id\": \"0a1c763c77861c35\", \"source\": \"slack/support/2123456789-billing-window-tz-flip-apac-repro\", \"title\": \"#support thread\", \"status\": \"n/a\", \"updated\": \"2037-04-16\", \"section\": \"text\", \"text\": \"[text]\\nAshley (Vertex Labs): Hey team \\u2014 our daily usage CSV for Vertex Labs looks off. Our org timezone is Asia/Singapore (UTC+8) but the CSV has the majority of 2024-04-12 usage stamped as 2024-04-11. This is causing billing confusion.\\nMaya: Sorry about that, Ashley. Can you paste a couple sample rows (timestamp + recorded day) and confirm where you downloaded the export from (Console -> Billing -> Export)?\\nAshley (Vertex Labs): Downloaded from Console -> Billing -> Exports. Sample rows:\\n\\nuser_id,org_id,request_ts,usage_day,tokens\\nu123,vertex-labs,2024-04-12T01:15:23Z,2024-04-11,1245\\nu456,vertex-labs,2024-04-12T03:02:10Z,2024-04-11,300\"}, {\"chunk_id\": \"925a5086ad9d66a4\", \"source\": \"jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback\", \"title\": \"SUP-761827: Promotional waiver applied to next billing cycle instead of current after dedicated fallback\", \"status\": \"In Progress\", \"updated\": \"2026-03-12\", \"section\": \"investigation_notes\", \"text\": \"[investigation_notes]\\nEdge condition: dedicated-fallback routing emits region_override that caused postback pipeline to recalculate period using region-local timezone rounding logic. This interacts poorly with cross-region pricing tag migration that was in-progress.\\nTemporary mitigation implemented: manual invoice credit and adjustment to autopay; added compensating rule to reconciler to treat promo acceptances before invoice_finalization_ts as current-period credits if customer explicitly requested current-cycle application.\\nPermanent fix planned: PR #2012 updates idempotency key generation to include invoice_period_candidate and forces reconciliation to use invoice_finalization_cutoff when evaluating promos. QA + canary scheduled for 2026-03-15.\"}, {\"chunk_id\": \"8ec69fcde85f49ae\", \"source\": \"slack/support/1708599999-org-reset-handoff-observed-lag\", \"title\": \"#support thread\", \"status\": \"n/a\", \"updated\": \"2024-02-22\", \"section\": \"messages > hit token limit | messages > returns 429\", \"text\": \"[messages > hit token limit]\\ncurl -i -H \\\"Authorization: Bearer $TOKEN\\\" -X POST https://api.redwood.ai/v1/generate -d '{\\\"prompt\\\":\\\"x\\\"}'\\n\\n[messages > returns 429]\\nHTTP/1.1 429 Too Many Requests\\nRetry-After: 600\\nX-Request-ID: r-3f9a2b\\n```\\nThen at 00:45 they retried and got 200.\\n\\nanya: Can billing-ops confirm whether the org reset schedule is stored as an absolute UTC time or as a timezone-aware rule? If stored as a cron in UTC then DST shifts might surface. Customer is in CDT (DST active).\\n\\nbilling-ops: We store a rule like `TZ=America/Chicago; hour=0; minute=0` which then gets converted to UTC at evaluation time. DST should be handled by the timezone library. However, there was a deploy last week that changed the scheduling library from pytz to zoneinfo on some hosts \\u2014 there were a few discrepant offsets during rollout. That could explain a one-off misfire.\"}, {\"chunk_id\": \"b5e8bfc86c8d2efd\", \"source\": \"slack/support/2123456789-billing-window-tz-flip-apac-repro\", \"title\": \"#support thread\", \"status\": \"n/a\", \"updated\": \"2037-04-16\", \"section\": \"text\", \"text\": \"[text]\\nSo requests are in UTC on Apr 12 but usage_day shows Apr 11.\\nMaya: Thanks. I'm escalating to analytics and eng-oncall.\\nMaya: @Sam (eng-oncall) @Lina can one of you take a look? This looks like a day-bucketing mismatch between exports and the Console UI.\\nSam (eng-oncall): On it. Quick question: do we currently compute the 'usage_day' at ingestion or at export time?\\nLina: We compute the canonical usage_day at ingestion using date_trunc('day', created_at AT TIME ZONE 'UTC'), store that, and the Console UI applies org timezone when displaying. Exports are reading the stored bucket directly (so it's anchored to UTC day boundaries). That explains the shift for orgs east of UTC.\\nSam (eng-oncall): Got it \\u2014 so export pipeline is picking the stored UTC bucket instead of converting to the org's timezone. Confirmed bug.\\nMaya: Repro steps for engineering:\\n1) Set org timezone to Asia/Singapore (UTC+8)\"}, {\"chunk_id\": \"1157e154a4f1b7ca\", \"source\": \"slack/support/1987654321-staggered-expiry-promo-credit-late-deduction\", \"title\": \"#support thread\", \"status\": \"n/a\", \"updated\": \"2032-12-26\", \"section\": \"messages\", \"text\": \"[messages]\\nmaria_support: FYI customer ACME (org-acme-42) escalated \\u2014 their promo credits had staggered expiries (Mar/Apr/May) but invoice INV-2026-0043 shows charge for tokens that should've been offset. Dashboard shows 0 remaining credits, invoice charged $423.75. Customer says credits were 'applied' after invoice cutoff. Need triage.\\n\\ndavid_billing: Can you paste org id + invoice link and the invoice period? Also any ledger ids or sample token timestamps?\\n\\nmaria_support: org-acme-42, invoice INV-2026-0043 (period 2025-04-01 -> 2025-04-30). Customer claims dashboard token total = 12,345 but invoice tokens = 15,678 (billed). Saw credits consumed timestamped 2025-05-02 in our ledger.\"}, {\"chunk_id\": \"db994aed5db0c965\", \"source\": \"linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods\", \"title\": \"PM-9031: Tiered burst quotas, soft/hard rate limits and overage billing policy\", \"status\": \"In Review\", \"updated\": \"2025-03-05\", \"section\": \"billing_acceptance_criteria\", \"text\": \"[billing_acceptance_criteria]\\nWhen a hosted account exhausts monthly baseline and has overage enabled, an overage invoice line is created automatically at the next billing run and shows items: units, unit price, and total\\nIf overage is disabled, customer receives console notification and API calls are blocked with a clear error code: quota_exhausted_no_overage\\nGrace period: accounts that newly enable overage mid-cycle receive a configurable 48h grace window where overage is tracked but not billed; billing shows a 'grace' flag in staging exports\\nProration: when a customer upgrades mid-cycle to a higher plan, remaining quota is prorated and overage thresholds are recomputed; tests must show correct ledger adjustments\\nBilling ledger and Console usage must reconcile within 2% for tokens and 3% for embeddings across a 7-day synthetic test\"}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "For March 2027, the invoice shows **$2,140.00 USD** for **21,000,000 billed tokens**.\n\n- Hosted API: **$1,880.00**; **17,000,000 billed tokens**\n- Batch jobs: **$260.00**; **4,000,000 billed tokens**\n- Cached tokens recorded: **0**\n- Invoice **INV-2027-0331-266** is **open**, so it is not marked paid in the console.\n- Credit balance: **$0.00**\n\nOne request is timestamped April 1 at 03:00 UTC, which is March 31 at 8:00 p.m. in your account\u2019s America/Los_Angeles timezone. It is included on the March invoice."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed."
+  },
+  {
+   "role": "assistant",
+   "content": "You\u2019re welcome!"
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

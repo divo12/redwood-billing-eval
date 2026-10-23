@@ -1,0 +1,184 @@
+{
+ "id": "a0-10-M",
+ "grade": {
+  "id": "a0-10-M",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:cases",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 9,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "get_invoice",
+   "load_skill",
+   "lookup_account"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 18.35367709100001,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hi, what was the total on our invoice, and what does it include?"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_ncZy2YmY1pB5hPyvrJpKx8CX",
+     "name": "load_skill",
+     "arguments": {
+      "name": "invoice-charge-review"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"invoice-charge-review\", \"steps\": \"Goal: decide from console facts and current policy whether Support credits the line itself, opens a dispute and hands off, or only routes the request, then do it and tell the developer exactly what happened.\\n\\n1. Identify. You need the org/account and the invoice (id or month). If missing, call ask_developer once with what is missing, e.g. [\\\"org_id\\\", \\\"invoice_id\\\", \\\"invoice_month\\\", \\\"line_items\\\", \\\"request_ids\\\"]. Don't ask for what they already wrote.\\n2. Look up. lookup_account (org or id). Note plan, billing_channel, billing_timezone, payment_method and contracts. If the invoice id is unknown, pick it from the account's invoices by period (the Console list sorts by issue date, not period); if several fit, ask.\\n3. Read the invoice. get_invoice. In duplicate_analysis:\\n   - Lines billing identical request ids where the usage records point to exactly one of them = console-confirmed duplicate. The line the usage points to is the ORIGINAL (leave it alone); the other is the COPY. Only the copy is credited or disputed, for its full amount.\\n   - Usage pointing to neither or both lines, or same amount/description with different request ids = not confirmed. Say so plainly, give each line's request id and amount, and don't credit.\\n   - Check already_credited and existing disputes so you don't act twice. Don't say a credit is likely before the console confirms the duplicate.\\n4. Get the policy. search_knowledge, e.g. [\\\"support console duplicate charge credit dispute current version\\\", \\\"billing adjustments approval matrix duplicate-charge credit limit price book\\\", \\\"support charter what support may credit contract accounts\\\"]. Use the current version of each page (v2 / newest published; superseded and draft pages are not policy). Find: (a) whether Support may credit on THIS account type (the charter decides: plan, signed contract); (b) the limit row and the condition that picks the limit for THIS invoice (e.g. which price book rates its usage period; Finance's close calendar says which usage each price book covers); note that passage's chunk_id.\\n5. Decide (from the passages, not memory):\\n   - Not a direct Redwood invoice (marketplace/reseller billing): Support issues nothing; tell them who bills and handles it, per the policy.\\n   - Confirmed duplicate, account where Support may credit, copy within the limit for this invoice: one credit note for the whole copy line, reason duplicate.\\n   - Confirmed duplicate but over that limit, or an account where Support may not credit (e.g. signed contract): no credit; open a dispute on the copy (reason duplicate_charge, its request ids), then escalate to the team the policy names with invoice, both line ids (original and copy), request ids, window in the account's billing timezone and the dispute id.\\n   - Not confirmed, or billed in error, or goodwill / exception / removal of a correct charge: no credit; route per the routing table (load billing-handoff).\\n6. Confirm. Credits and disputes need an explicit yes: confirm_with_developer with the exact action, line and amount, e.g. \\\"Issue a credit note of $X for the duplicated line L2 (copy of L1, same request id R) on invoice I\\\". If no: write nothing (no credit, dispute or case); say nothing was changed and they can come back.\\n7. Act. issue_credit_note with policy_chunk_id, policy_limit_cents and limit_basis (why that limit applies to this invoice); or open_dispute then escalate_case with dispute_id and full details. If a hook blocks, read why and follow that path; never retry a failed write blindly.\\n8. Reply. Say what the console showed (lines, request ids, amounts), what you did (credit note id and amount / dispute id and team), and what happens next per policy (e.g. when a credit is applied: search \\\"after a credit note close calendar\\\"), without promising a dispute outcome or date.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_1SH3WRkyasxnKZ9m4F6VSQ3T",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "org_id",
+       "invoice_id",
+       "invoice_month"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"org_id\": \"graniteworks\", \"invoice_id\": \"I don't have that.\", \"invoice_month\": \"August 2026\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_AgyiuSrMbfajzMIPKJKokid1",
+     "name": "lookup_account",
+     "arguments": {
+      "org": "graniteworks"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"graniteworks\", \"org\": \"graniteworks\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\", \"billing_timezone\": \"UTC\"}, \"billing_timezone\": \"UTC\", \"contracts\": \"none on file in the console\", \"invoices\": [{\"invoice_id\": \"INV-2026-0831-177\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total\": {\"value\": \"2730.00\", \"currency\": \"USD\"}, \"total_usd\": \"$2,730.00\", \"total_cents_int\": 273000}, {\"invoice_id\": \"INV-BG-202603-021\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total\": {\"value\": \"2277.82\", \"currency\": \"USD\"}, \"total_usd\": \"$2,277.82\", \"total_cents_int\": 227782}, {\"invoice_id\": \"INV-BG-202604-021\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total\": {\"value\": \"1908.82\", \"currency\": \"USD\"}, \"total_usd\": \"$1,908.82\", \"total_cents_int\": 190882}, {\"invoice_id\": \"INV-BG-202605-021\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total\": {\"value\": \"1150.56\", \"currency\": \"USD\"}, \"total_usd\": \"$1,150.56\", \"total_cents_int\": 115056}, {\"invoice_id\": \"INV-BG-202606-021\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total\": {\"value\": \"2834.39\", \"currency\": \"USD\"}, \"total_usd\": \"$2,834.39\", \"total_cents_int\": 283439}, {\"invoice_id\": \"INV-BG-202607-021\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total\": {\"value\": \"3301.11\", \"currency\": \"USD\"}, \"total_usd\": \"$3,301.11\", \"total_cents_int\": 330111}], \"disputes\": [], \"cases\": []}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_aIOjpmrGdUpAEEftNPh24lo3",
+     "name": "get_invoice",
+     "arguments": {
+      "invoice_id": "INV-2026-0831-177"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoice\": {\"invoice_id\": \"INV-2026-0831-177\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total\": {\"value\": \"2730.00\", \"currency\": \"USD\"}, \"total_usd\": \"$2,730.00\", \"total_cents_int\": 273000}, \"usage_period\": \"2026-08-01 to 2026-08-31\", \"lines\": [{\"line_id\": \"INV-2026-0831-177/L1\", \"invoice_id\": \"INV-2026-0831-177\", \"description\": \"Hosted API usage, Aug 1-31\", \"product\": \"hosted_api\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"amount\": {\"value\": \"2310.00\", \"currency\": \"USD\"}, \"request_ids\": [\"req_g12\"], \"amount_usd\": \"$2,310.00\", \"amount_cents_int\": 231000, \"already_credited\": \"$0.00\", \"uncredited_cents\": 231000}, {\"line_id\": \"INV-2026-0831-177/L2\", \"invoice_id\": \"INV-2026-0831-177\", \"description\": \"Embeddings, Aug 1-31\", \"product\": \"embeddings\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"amount\": {\"value\": \"420.00\", \"currency\": \"USD\"}, \"request_ids\": [\"req_g19\"], \"amount_usd\": \"$420.00\", \"amount_cents_int\": 42000, \"already_credited\": \"$0.00\", \"uncredited_cents\": 42000}], \"duplicate_analysis\": {\"lines_billing_identical_request_ids\": [], \"same_amount_and_description_lines\": [], \"reading\": \"No two lines bill the same request ids, so the console does not confirm a duplicate (same amount or description alone is not a duplicate).\"}, \"credit_notes\": [], \"disputes\": []}"
+  },
+  {
+   "role": "assistant",
+   "content": "Your August 2026 invoice, **INV-2026-0831-177**, totals **$2,730.00 USD**. It includes:\n\n- Hosted API usage (Aug 1\u201331): **$2,310.00**\n- Embeddings (Aug 1\u201331): **$420.00**\n\nThe invoice is currently marked **open**."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed for the books."
+  },
+  {
+   "role": "assistant",
+   "content": "You\u2019re welcome! Glad that helped."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

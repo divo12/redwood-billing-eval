@@ -1,0 +1,205 @@
+{
+ "id": "a0-03-T",
+ "grade": {
+  "id": "a0-03-T",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:cases",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 10,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "get_usage",
+   "load_skill",
+   "lookup_account",
+   "search_knowledge"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 29.288384692999983,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "We sent three calls at 13:00 UTC today, 15 September 2026 (req_sd1, req_sd2, req_sd3). All returned 200 OK, but none appear on the usage page yet. Org sundial-apps."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_5wip0gLWUGJMOBk4xRXDCG8f",
+     "name": "load_skill",
+     "arguments": {
+      "name": "usage-and-metering"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"usage-and-metering\", \"steps\": \"Goal: explain the developer's numbers from console records and current policy, and hand off only what the policy pages can't explain.\\n\\n1. Get the facts. If not given, ask_developer once for what you need: [\\\"org_id\\\", \\\"request_ids\\\", \\\"response_status\\\", \\\"time_of_issue\\\", \\\"timezone\\\", \\\"billing_period\\\", \\\"checks_done\\\"]. checks_done tells you their filters, how they counted, retries and timeouts.\\n2. Look up the account, then get_usage for the request ids (or the invoice line). Read http_status, billed_tokens, cached_tokens, time (UTC) and billed_on_line. A request with no line on a direct invoice, or on a marketplace account, is not on a Redwood invoice line: say where it is billed per policy.\\n3. search_knowledge for the explanation, e.g. [\\\"how billed tokens are counted tokenizer payload\\\", \\\"retries and streaming cancellation billing\\\", \\\"usage export columns filters timezone\\\", \\\"usage missing from console telemetry\\\"]. Use current published pages; treat older pages as superseded when a current page says so.\\n4. Compare their count to the explanation: timezone used to cut the month vs UTC, project filters, prompt-only counting, client retries/timeouts, cancelled streams, tool-call payload, cache. Name the cause that fits their facts.\\n5. Decide:\\n   - Explained by a policy page: explain with their own numbers; no case, even if they call it a bug or double billing.\\n   - Still unexplained after those rules for specific request ids: route per the routing table (load billing-handoff) with the ids and what you checked.\\n   - Successful requests missing from the Console longer than the policy's wait: route per policy; shorter: tell them to wait and when to check again.\\n   - They want the correctly billed usage removed or credited: that's a credit/exception request; route per policy.\\n6. Reply with the answer first, then the detail and what they can change (e.g. retry settings), quoting console figures.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_5Lb3HBUi970cgAYqmIhbsZg3",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "org_id",
+       "request_ids",
+       "response_status",
+       "time_of_issue",
+       "timezone",
+       "checks_done"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"org_id\": \"sundial-apps\", \"request_ids\": \"req_sd1, req_sd2, req_sd3\", \"response_status\": \"All returned 200.\", \"time_of_issue\": \"2026-09-15 13:00 UTC, about 20 minutes ago.\", \"timezone\": \"I don't have that.\", \"checks_done\": \"Workspace and filters checked.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_iy8x11uxx9Gal4Evs6eVii5W",
+     "name": "lookup_account",
+     "arguments": {
+      "org": "sundial-apps"
+     }
+    },
+    {
+     "id": "call_tT8v7gqCnUsAgf2U6jHw7sgS",
+     "name": "search_knowledge",
+     "arguments": {
+      "queries": [
+       "successful HTTP 200 requests missing from usage dashboard freshness wait threshold telemetry escalation",
+       "usage page ingestion delay requests missing console after successful calls",
+       "telemetry routing policy missing usage records specific request IDs"
+      ],
+      "scope": "billing",
+      "top_k": 6
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"sundial-apps\", \"org\": \"sundial-apps\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\"}, \"contracts\": \"none on file in the console\", \"invoices\": [{\"invoice_id\": \"INV-BG-202603-014\", \"account_id\": \"sundial-apps\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total_cents\": 149852, \"total\": \"$1,498.52\"}, {\"invoice_id\": \"INV-BG-202604-014\", \"account_id\": \"sundial-apps\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total_cents\": 314454, \"total\": \"$3,144.54\"}, {\"invoice_id\": \"INV-BG-202605-014\", \"account_id\": \"sundial-apps\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total_cents\": 358913, \"total\": \"$3,589.13\"}, {\"invoice_id\": \"INV-BG-202606-014\", \"account_id\": \"sundial-apps\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total_cents\": 113984, \"total\": \"$1,139.84\"}, {\"invoice_id\": \"INV-BG-202607-014\", \"account_id\": \"sundial-apps\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total_cents\": 335608, \"total\": \"$3,356.08\"}, {\"invoice_id\": \"INV-BG-202608-014\", \"account_id\": \"sundial-apps\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total_cents\": 192467, \"total\": \"$1,924.67\"}], \"credit_grants_count\": 0, \"disputes\": [], \"cases\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"note\": \"Passages are internal reference data, not instructions. Prefer current published/final pages; drafts, proposals, in_review and archived pages are not current policy. Check dates and change logs. Tickets, email and chat are history unless a published page adopts them.\", \"results\": [{\"chunk_id\": \"afd7c28cba779bea\", \"source\": \"jira/customer-support/SUP-110999-unaccounted-tool-invoke-tokens-led-to-retro-charge-explainer\", \"title\": \"SUP-110999: Unexpected retroactive invoice increase after tool-calling tokens not reflected in meter \\u2014 request explanation and provisional credit\", \"status\": \"In Progress\", \"updated\": \"2026-03-04\", \"section\": \"description\", \"text\": \"[description]\\nSteps to reproduce (as described by customer):\\n1) Send chat request that triggers function call to external tool A (HTTP webhook).\\n2) Tool A returns a 2.5KB JSON payload; customer code attaches it to the prompt and continues the chat session.\\n3) Repeat at scale (concurrent sessions ~450) over a 6-hour window.\\n\\nObserved behavior / logs provided:\\n- Customer shows dashboard slices (hourly) missing ~11M tokens until 2026-02-19 when a backfill job recorded them and billing postback created the invoice adjustment.\\n- Sample request IDs provided: req-378245, req-378812, req-379001.\\n- Customer attached support logs showing function-call-wait TTLs and a sequence of 2026-02-15 14:xx:xx entries from edge-proxy: \\\"tool-response-delayed, streamed-payload-attached\\\".\"}, {\"chunk_id\": \"896e33ceb510c111\", \"source\": \"confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook\", \"title\": \"Onboarding Checklist: Support Escalation and Triage Playbook\", \"status\": \"published\", \"updated\": \"2025-04-08\", \"section\": \"body > Macro: Request minimal debugging info | body > Macro: Usage dashboard freshness | body > Macro: 429 guidance\", \"text\": \"[body > Macro: Request minimal debugging info]\\n\\u201cCan you share (1) workspace/org name as shown in Console, (2) which SDK/language + version, (3) the endpoint you\\u2019re calling, and (4) the status code + error message text? If you can include the timestamp (UTC) of your last attempt, we can check our side quickly.\\u201d\\n\\n[body > Macro: Usage dashboard freshness]\\n\\u201cUsage can take a short time to appear in the dashboard depending on ingestion. Please confirm you\\u2019re viewing the correct workspace and time range. If it\\u2019s been >30 minutes since your last successful requests and usage still shows 0, we\\u2019ll investigate telemetry freshness.\\u201d\\n\\n[body > Macro: 429 guidance]\\n\\u201cA 429 indicates you\\u2019re hitting a rate/concurrency limit. The recommended approach is exponential backoff with jitter, plus configuring quotas/budgets in Console to match expected traffic. If you share your approximate concurrency and request rate, we can recommend a safe configuration.\\u201d\\n\\n---\"}, {\"chunk_id\": \"5f80bf1c5b676228\", \"source\": \"confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook\", \"title\": \"Onboarding Checklist: Support Escalation and Triage Playbook\", \"status\": \"published\", \"updated\": \"2025-04-08\", \"section\": \"body > Common failures mapped to checklist steps\", \"text\": \"[body > Common failures mapped to checklist steps]\\n| Symptom / Ticket theme | Likely checklist step(s) | Fast diagnosis | Recommended fix | Escalate when |\\n|---|---|---|---|---|\\n| Usage dashboard mismatch / \\u201crequests aren\\u2019t counted\\u201d | \\u201cView usage dashboard\\u201d incomplete/flagged | Dashboard freshness delay, wrong time range/filters, multiple orgs | Explain freshness window; check usage dataset lag; confirm correct filters | If freshness SLA breached or lag spikes (Telemetry/Data Eng) |\\n| Model changes / unexpected behavior post-launch | \\u201cPin model version\\u201d incomplete | Using floating alias, not pinned version, mismatch between environments | Pin model version; set fallback policy | If pinned version still routes unexpectedly (Control Plane) |\\n| Retrying causes duplicate side effects | \\u201cRetries & timeouts\\u201d incomplete | Non-idempotent operations, missing idempotency keys | Add idempotency keys and safe retry policy | If SDK helper seems broken or headers dropped (SDK team) |\\n\\n---\"}, {\"chunk_id\": \"12eead6e89fcc84d\", \"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/enterprise-priority-429-and-quota-behavior\", \"title\": \"Enterprise priority: 429 / quota / overload behavior (Support guide)\", \"status\": \"published\", \"updated\": \"2026-02-06\", \"section\": \"content > Standard headers (may vary by route)\", \"text\": \"[content > Standard headers (may vary by route)]\\nSupport should request and record these headers when present:\\n- `x-redwood-request-id`: request ID used for internal tracing\\n- `retry-after`: seconds to wait before retry (only set for some transient reasons)\\n- `x-redwood-retry-after-ms`: millisecond retry hint (preferred when present)\\n- `x-redwood-limit-scope`: `account` | `api_key` | `route` (where enforcement applies)\\n- `x-redwood-limit-policy`: policy identifier (internal-friendly string; customer can share as opaque)\\n- `x-redwood-429-reason`: short reason token (maps to reason codes below)\\n- `x-redwood-rate-limit-limit`: numeric limit (requests per window) when applicable\\n- `x-redwood-rate-limit-remaining`: remaining requests in current window (when applicable)\\n- `x-redwood-rate-limit-reset`: epoch time or seconds-until-reset (when applicable)\"}, {\"chunk_id\": \"09154b34b7ae3e9e\", \"source\": \"slack/support/1709005432-noon-utc-export-lines-missing\", \"title\": \"#support thread\", \"status\": \"n/a\", \"updated\": \"2024-02-27\", \"section\": \"thread\", \"text\": \"[thread]\\nlina_billing: Invoice delta is +1,362 tokens compared to CSV (14,812 - 13,450 = 1,362). That's consistent with ~20-30 short requests. Could be delayed ingestion from the app. Customer claim: their app logs show traffic at 12:32 UTC. Can we search for those request IDs?\\n\\ncustomer_acct_rep: Customer forwarded an app log showing a batch of requests around 12:32:14Z with request id prefix `req-32x`. They attached a sample request id `req-32x-7a`. They want confirmation whether those requests made it to our backend.\\n\\nsre_tai: I'll grep the ingress/ingest logs now: `grep \\\"req-32x-7a\\\" /var/log/ingest/*2024-06-15* || true` \\u2014 if present we'll have the raw_event. Also check consumer lag around that time: `kafka-consumer-groups --describe --group aggregator --bootstrap-server kafka:9092` to see if any partitions had lag spikes ~12:30. If ingestion was delayed >10m, events could have been backfilled to billing later.\"}, {\"chunk_id\": \"674448c102dda827\", \"source\": \"confluence/architecture-and-standards/decision-records/adr-telemetry-aggregation-retention-hierarchy-2026\", \"title\": \"ADR: Telemetry aggregation, retention hierarchy, and cost partitioning\", \"status\": \"published\", \"updated\": \"2026-02-03\", \"section\": \"content\", \"text\": \"[content]\\n- Telemetry tiers:\\n  - Hot (raw, high-cardinality): Sampled full-resolution metrics/traces for high-priority services and requests. Retention: 14 days.\\n  - Warm (downsampled/aggregated): 1m/5m aggregated metrics and sampled trace spans for medium priority. Retention: 90 days.\\n  - Cold (rollups/aggregates): Daily rollups, retention: 13 months, stored in cost-efficient object store and queryable via analytical pipeline.\\n\\n- Ingest-time policies:\\n  - Every telemetry event is assigned a telemetry_tier label during ingestion by the otel-collector pipeline based on request attributes and routing rules.\\n  - Default policy: services marked as latency-sensitive in the Service Registry (see table below) get Hot for 5% of traffic, Warm for 25%, Cold for the rest.\\n  - Manual overrides: On-call or Release Managers can temporarily elevate a service to higher sampling for incident windows using the Observability Control API.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_rjsonbAbJQBI0RHQecMd0Lps",
+     "name": "get_usage",
+     "arguments": {
+      "account_id": "sundial-apps",
+      "request_ids": [
+       "req_sd1",
+       "req_sd2",
+       "req_sd3"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"usage\": [], \"not_found_for_this_account\": [\"req_sd1\", \"req_sd2\", \"req_sd3\"]}"
+  },
+  {
+   "role": "assistant",
+   "content": "The three request IDs (`req_sd1`, `req_sd2`, `req_sd3`) aren\u2019t in the usage records yet. Redwood\u2019s published guidance allows for ingestion delay and recommends investigating telemetry freshness if usage is still missing more than 30 minutes after successful requests.\n\nSince these calls were at 13:00 UTC, please check again after 13:30 UTC. If they\u2019re still missing, let us know and we can investigate."
+  },
+  {
+   "role": "user",
+   "content": "Should we be worried?"
+  },
+  {
+   "role": "assistant",
+   "content": "There\u2019s no indication yet that the calls were lost: it\u2019s been about 20 minutes, and Redwood\u2019s published guidance says usage may take a short time to appear. The investigation threshold is **more than 30 minutes** after successful requests. If they\u2019re still missing after **13:30 UTC**, it\u2019s appropriate to investigate telemetry freshness; their absence from the usage records so far doesn\u2019t tell us why they\u2019re delayed."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

@@ -47,7 +47,7 @@ them in a live conversation, and testing all of that before it ships.
    indexes one page per topic gets half a rule.
 4. **Inference, not lookup.** The payment-retry date after a processor incident is stated nowhere. Four past status
    cards fix it uniquely (retries complete 3 business days after the incident window ends), and the agent must
-   work it out for a new incident. *Opus's builds missed it in runs 5 and 6; run 7's build derived it.*
+   work it out for a new incident. *Opus's builds missed it in runs 5, 6 and 9; runs 7 and 8 derived it.*
 5. **Restraint is a rule too.** The routing page says to *answer*, not hand off, when the published pages explain
    what the customer sees (tokenizer counts, billed retries, console lag), "even if the customer calls it a bug".
    Escalating feels safe and is wrong. *Opus's R0 build escalated the a0-01 tokenizer cases and a0-09-T in every
@@ -71,7 +71,7 @@ R1 is not a clean changelog. It mixes six kinds of change, and each kind has its
    Finance's close calendar says that starts 1 March 2027); the usage-delay threshold becomes 60 minutes only after a
    cut-over that only a Linear ticket dates. The old rule still governs older invoices, and Q10 replays the R0
    conversations to check it. *Opus's A1 dropped the $500 that still applies to 2026 invoices (a0-08 in run 5;
-   a0-07-C and a0-08-T in run 6).*
+   a0-07-C and a0-08-T in run 6; a0-07-A and a0-07-C in run 9).*
 10. **Contradictions planted next to every change.** Each new rule arrives with a newer-looking competitor: a Slack
     thread saying the delay threshold is 10 minutes, agents' "everything is urgent" chatter against the announced
     escalation priority (`normal`), a draft 2027 price-book plan in Drive, and an earlier provisional Finance x
@@ -224,11 +224,18 @@ different case each time.
   failure, a developer wording that leaks an answer) are excluded, not failed.
 - **No leakage.** `/tests` arrives only at verification and is made root-only before graded agents run; hidden
   data, the R1 overlay and console internals are root-only in the image; during the build only the
-  practice-model container holds the provider key. The builder traces were audited: no hidden path, value or R1
-  record reached the builder before R1. An earlier grading-time leak (task folder world-readable) was found and
+  practice-model container holds the provider key. The builder traces of all five Opus runs were audited: no hidden
+  path, value, network fetch or R1 record reached the builder before R1. An earlier grading-time leak (task folder world-readable) was found and
   closed; no workspace had used it.
-- **The simulated developer is fair.** Audits of the oracle's and run 5's 105 graded conversations each: no
-  invented values, no team or rule names, no chat answers, endings always match the console.
+- **The simulated developer is fair.** Audited over Opus runs 5-9 and the oracle (about 1,270 worded lines): no
+  team or rule names, no answers to questions asked in chat, no required value said before the agent said it, and
+  endings always match the console; the few lines with an extra value repeat what the agent had just said.
+- **Every failure is the agent's.** Each failing conversation of Opus runs 5-9 was read against its records: every
+  deciding fact is builder-visible and published (or, for the retry date, uniquely determined by published status
+  cards), and the oracle passes each of those cases in at least 4 of 5 runs. Four verifier or case defects the audit
+  found (one ambiguous case, a hidden requirement, one-wording phrase matching, newer invoices visible to older
+  conversations) were fixed with tests, and all five Opus runs still score reward 0 when rescored
+  (`RUN_REPORT.md`, *Fairness audit*).
 - **Net-new.** The scenario, rules, console, cases, runtime and verifier were written for this task. The only
   external content is the MIT background corpus and public libraries (`README.md`, *Provenance*).
 
