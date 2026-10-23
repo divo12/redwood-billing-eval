@@ -26,7 +26,8 @@ conversations/
   q00-A0-on-R0/              A0 on the 30 R0 cases                    (counts toward the reward)
   q10-A1-on-R0-regression/   A1 on the same R0 cases, R1 console      (counts: did maintenance break anything?)
   q11-A1-on-R1/              A1 on the 30 R1 cases                    (counts)
-  q01-A0-on-R1-diagnostic/   A0 on R1 base cases: how stale the unmaintained agent is (diagnostic only)
+  q01-A0-on-R1-baseline/     A0 on the R1 cases: how stale the unmaintained agent is (baseline for drift;
+                             these runs graded base cases only)
     failed/  passed/         one JSON file per case
 ```
 

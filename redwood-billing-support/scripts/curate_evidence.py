@@ -26,7 +26,7 @@ from pathlib import Path
 TASK = Path(__file__).resolve().parents[1]
 MAX_SOURCE_BYTES = 1_000_000
 STEPS = {"build_r0": ("1", "A0-after-build_r0"), "maintain_r1": ("2", "A1-after-maintain_r1")}
-QS = {"q00": "q00-A0-on-R0", "q01": "q01-A0-on-R1-diagnostic", "q10": "q10-A1-on-R0-regression",
+QS = {"q00": "q00-A0-on-R0", "q01": "q01-A0-on-R1-baseline", "q10": "q10-A1-on-R0-regression",
       "q11": "q11-A1-on-R1"}
 
 
@@ -101,7 +101,7 @@ def curate(trial: Path, out: Path, label: str) -> None:
     verifier = trial / "steps" / "maintain_r1" / "verifier"
     graded = trial / "graded" if (trial / "graded").is_dir() else verifier / "graded"
     harbor_reward = verifier / "reward.json"
-    graded_in_harbor = harbor_reward.is_file() and json.loads(harbor_reward.read_text()).get("graded") is True
+    graded_in_harbor = harbor_reward.is_file() and "q00" in json.loads(harbor_reward.read_text())  # not a placeholder
     _copy(harbor_reward if graded_in_harbor else graded / "reward.json", out / "reward.json")
     _copy(graded / "scores.json", out / "scores.json")
     _builder(trial, out)

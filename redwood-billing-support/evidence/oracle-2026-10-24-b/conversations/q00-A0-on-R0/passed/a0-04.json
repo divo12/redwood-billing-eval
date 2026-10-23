@@ -1,0 +1,245 @@
+{
+ "id": "a0-04",
+ "grade": {
+  "id": "a0-04",
+  "category": "normal",
+  "termination": "customer_transfer",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "insert:cases",
+      "at": 15,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "escalate_case",
+   "find_account",
+   "list_invoices",
+   "load_skill",
+   "search_policy",
+   "usage_summary"
+  ]
+ },
+ "termination": "customer_transfer",
+ "invalid": null,
+ "seconds": 32.166564114000266,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hello, we experienced a significant slowdown on Aug 20, 2026, and would like to file an SLA credit claim. Which invoice covers that day, and how many tokens did we use that week (Aug 17-23)? Our org is northwind-ai."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_TO11QyfzDU65lVlZu7HckU7V",
+     "name": "find_account",
+     "arguments": {
+      "org": "northwind-ai"
+     }
+    },
+    {
+     "id": "call_M3mliLbQ9cf17GfkMfWIMzG5",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"northwind-ai\", \"org\": \"northwind-ai\", \"plan\": \"enterprise\", \"plan_name\": \"Hosted Enterprise\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"invoice\", \"created_on\": \"2025-10-20\"}, \"contracts\": [{\"contract_id\": \"CONTRACT-northwind-ai\", \"account_id\": \"northwind-ai\", \"sla\": true, \"signed_terms\": [\"sla_hosted\"], \"start_on\": \"2025-11-01\", \"end_on\": null}], \"credit_grants\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. A confirmed duplicate accepted by the console may be credited; report the amount only after the tool confirms it. For a confirmed duplicate over the console limit, submit the `duplicate_charge` dispute and escalate to `billing_ops` with its dispute ID. Promise no outcome or timeline.\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, UTC window, and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for Support's credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_wz2k4km9PobhRoMdn48bu7l5",
+     "name": "list_invoices",
+     "arguments": {
+      "account_id": "northwind-ai"
+     }
+    },
+    {
+     "id": "call_cKIDsopZec6nuYKfUgfPEgDn",
+     "name": "usage_summary",
+     "arguments": {
+      "account_id": "northwind-ai",
+      "start_utc": "2026-08-17T00:00:00Z",
+      "end_utc": "2026-08-23T23:59:59Z"
+     }
+    },
+    {
+     "id": "call_xSrWk78HYXh79jJbrKjDkuEB",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current published Hosted Enterprise SLA credit claim slowdown eligibility conditions and plan-specific SLA; performance degradation claim required evidence and time window"
+     }
+    },
+    {
+     "id": "call_ZGKClv8EzLOgHeAzuPIFj7dV",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current billing case routing handoff and approval guidance for SLA credit claims, service credits, customer request to file SLA claim; owning team, trigger and required intake details"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoices\": [{\"invoice_id\": \"INV-BG-202603-016\", \"account_id\": \"northwind-ai\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total_cents\": 198987, \"total_dollars\": \"$1989.87\"}, {\"invoice_id\": \"INV-BG-202604-016\", \"account_id\": \"northwind-ai\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total_cents\": 144845, \"total_dollars\": \"$1448.45\"}, {\"invoice_id\": \"INV-BG-202605-016\", \"account_id\": \"northwind-ai\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total_cents\": 200549, \"total_dollars\": \"$2005.49\"}, {\"invoice_id\": \"INV-BG-202606-016\", \"account_id\": \"northwind-ai\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total_cents\": 326369, \"total_dollars\": \"$3263.69\"}, {\"invoice_id\": \"INV-BG-202607-016\", \"account_id\": \"northwind-ai\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total_cents\": 188358, \"total_dollars\": \"$1883.58\"}, {\"invoice_id\": \"INV-BG-202608-016\", \"account_id\": \"northwind-ai\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total_cents\": 136875, \"total_dollars\": \"$1368.75\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"count\": 2, \"billed_tokens\": 25294709, \"cached_tokens\": 3428468, \"http_status_counts\": {\"200\": 2}, \"billed_tokens_by_day\": {\"2026-08-20\": 16793581, \"2026-08-23\": 8501128}, \"start_utc\": \"2026-08-17T00:00:00Z\", \"end_utc\": \"2026-08-23T23:59:59Z\", \"requests\": {}}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/oncall-and-incident-response/incident-closure-and-customer-reconciliation-procedure-2025.json\", \"status\": \"published\", \"date\": \"2025-03-12\", \"text\": \"source: sources/confluence/oncall-and-incident-response/incident-closure-and-customer-reconciliation-procedure-2025.json\\ntitle: Incident Closure and Customer Reconciliation Procedure\\nstatus/authority: published; unspecified\\ndate: 2025-03-12\\n[section: content 1]\\n(summary table)\\\\n| SLA deviation | Typical credit (hosted API customers) | Notes |\\\\n|---|---:|---|\\\\n| < 5% deviation or < 15 minutes | No credit | Handled via operational apology only |\\\\n| 5% - 15% deviation or 15-60 minutes | 5% service credit for impacted billing cycle | Requires CS approval |\\\\n| 15% - 50% deviation or 60-180 minutes | 10% - 25% service credit, tiered by customer impact | Finance & Legal review recommended |\\\\n| > 50% deviation or > 180 minutes | Case-by-case; potential pro-rated refunds | Exec + Legal approval required |\\\\n\\\\nCredit calculation worked example\\\\n- Incident window: 2025-02-14T02:13Z to 2025-02-14T03:02Z (49 minutes)\\\\n- Affected tenants: 1200 hosted tokens/day plan, 300 enterprise customers with \"}, {\"source\": \"sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\", \"status\": \"published\", \"date\": \"2025-05-02\", \"text\": \"source: sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\\ntitle: Dedicated Throughput SLO Escalation Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-05-02\\n[section: content 1]\\ncredit-eligible?\\n- **Premium:** written throughput commitment; credit review is standard for confirmed breaches.\\n- **Plus:** may be eligible depending on contract addenda; treat as \\u201creview required.\\u201d\\n- **Standard:** generally best-effort; credit requests require Product + Finance approval.\\n\\n### When to initiate a credit review\\nInitiate when:\\n- SRE confirms an SLO breach per canonical evaluator, AND\\n- The breach is not excluded (e.g., customer throttling), AND\\n- The customer requests credits OR the account team recommends proactive review.\\n\\n### Approval path (default)\\n1) CS/Support compiles incident details and SRE confirmation.\\n2) SRE provides breach window + summary.\\n3) Product Dedicated confirms entitlement interpretation \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\ncorrection to Billing Ops |\\n| Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why. Applies even when Support has just explained that the charge is correct |\\n| SLA credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\\n| Customer says they have a contract the console doesn't show | Account team | The account team \"}, {\"source\": \"sources/confluence/sales-enablement/security-faq/security-questions-for-plg-upgrades.json\", \"status\": \"published\", \"date\": \"2025-06-10\", \"text\": \"source: sources/confluence/sales-enablement/security-faq/security-questions-for-plg-upgrades.json\\ntitle: Security questions for PLG upgrades (Hosted \\u2192 Dedicated/Private) \\u2014 FAQ + escalation guidance\\nstatus/authority: published; unspecified\\ndate: 2025-06-10\\n[section: body 13]\\n### 8) SSO / SAML / SCIM\\n**Answer:**\\n- SSO is available for enterprise plans; **SAML-based SSO** is typically provided for Dedicated/Private (and eligible enterprise Hosted plans where applicable).\\n- Role-based access controls (RBAC) are used to limit access by role.\\n\\n**What to collect (so Security/SE can help fast):**\\n- Identity provider (Okta, Azure AD, Google Workspace, etc.)\\n- Required attributes/claims and any MFA requirements\\n- Whether they need SCIM provisioning/deprovisioning\\n\\n**Escalate when:** SSO is a hard gate for production, SCIM is required, or the customer has complex role mapping requirements.\\n\\n---\"}, {\"source\": \"sources/gmail/jasmine_liu/20250612-velociti-checkout-transaction-loss-sla-escalation.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20250612-velociti-checkout-transaction-loss-sla-escalation.json\\ntitle: Velociti checkout gap \\u2014 transaction loss and credit request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 3]\\n1) Confirm exact affected customers list (Samira \\u2014 can you confirm whether all Velociti tenants/customers were routed through the same region?)\\n2) Schedule a post-incident call tomorrow to walk through timeline and RCA.\\n3) Prepare a provisional credit calc: if we qualify under our SLO (99.95% availability), we'll calculate prorated credits per your contract; I can share a draft after we finalize the impact window and tenant scoping.\\n\\nI'll prepare an evidence bundle for legal and billing once we agree the scope.\\n\\n- Laura Bennett\\nSRE Lead, Redwood Inference\\nlaura_bennett@redwood.com\\nAttachment: svc_downtime_traces.zip (45 MB)\"}, {\"source\": \"sources/hubspot/company-aurora-payments.json\", \"status\": \"unspecified\", \"date\": \"2025-10-24\", \"text\": \"source: sources/hubspot/company-aurora-payments.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 2025-10-24\\n[section: security_requirements 3]\\naudit_logging\\n\\n[section: security_requirements 4]\\nkms\\n\\n[section: security_requirements 5]\\nretention_controls\\n\\n[section: security_requirements 6]\\ndata_residency\\n\\n[section: competitors 1]\\naws-bedrock\\n\\n[section: competitors 2]\\nopenai\\n\\n[section: competitors 3]\\ntogether-ai\\n\\n[section: competitors 4]\\nself-hosted-vllm\\n\\n[section: forecast_close_month 1]\\n2025-12\\n\\n[section: estimated_arr_range 1]\\n$250k-$500k\\n\\n[section: next_step 1]\\nSchedule Dedicated reliability/SLA deep-dive (multi-region + failover runbook) with Markus + their SRE lead; send updated sizing + pricing options and confirm US-only residency wording for MSA/DPA.\\n\\n[section: blockers 1]\\nWants explicit uptime + p95 latency language in SLA (not just best-effort)\\n\\n[section: blockers 2]\\nUS-only data residency requirement; needs confirmation of regions + failover behavior\"}, {\"source\": \"sources/jira/customer-support/SUP-659321-stuck-prorated-burst-credit-after-dedicated-downgrade.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-659321-stuck-prorated-burst-credit-after-dedicated-downgrade.json\\ntitle: Prorated burst credits remain in pending state after Dedicated -> Hosted downgrade; credits not applied to current invoice\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: investigation_notes 1]\\nFindings: Settlement job attempted to update ledger rows while concurrent invoice generation performed a lock on the same ledger reference, triggering a DB deadlock. Root cause appears to be a race condition when downgrade events occur within a short window before invoice cutover. Reproducible in staging by forcing downgrade and scheduling invoice run immediately.\\nHypotheses: 1) No strict ordering guarantee currently between credit settlement and invoice finalization; 2) Settlement job lacks aggressive retry/backoff for transient DB errors; 3) Race window widened by occasional queue delays in the billing scheduler during weekends.\\nChecks performed: - Reviewed \"}, {\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"source: sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\\ntitle: Billing Adjustments Approval Matrix\\nstatus/authority: final; unspecified\\ndate: 2026-02-03\\n[section: content 1]\\ninvoice; above that, the Controller |\\n| Refund of a paid invoice line after an approved adjustment | Billing Ops | Up to $5,000; above that, the Controller |\\n| Goodwill credit, waiver, or exception to a billing rule | Finance (FP&A) | Any amount, decided in FP&A's review. Support and Billing Ops route these requests and never issue them |\\n| SLA credit on a self-serve account | Finance (FP&A) | Self-serve plans carry no SLA. FP&A reviews any request as goodwill |\\n| SLA credit under a signed contract | Account team files the claim; Finance approves | Per the contract's SLA terms. No amount is promised before Finance's review |\\n| Promotional or campaign credits | Growth marketing | Within the campaign budget FP&A approved |\\n| Partner program funds (MDF) | Partnerships | Per the \"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 5]\\n## Not owned by Billing Ops\\n- Credit, goodwill and exception requests go to Finance, per FP&A's guidance in #support (June 2025). Billing Ops only applies adjustments that have been approved.\\n- Questions about what a customer's contract or SLA says go to the account team, per the same #support guidance. Answer the general rule and tell the customer their account team confirms their terms; don't quote a figure from the contract. A request to confirm a contract figure, such as a discount rate, needs no case: tell the customer their account team confirms it. Open an account team case only for an SLA credit claim under the contract.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\ncorrection to Billing Ops |\\n| Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why. Applies even when Support has just explained that the charge is correct |\\n| SLA credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\\n| Customer says they have a contract the console doesn't show | Account team | The account team \"}, {\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"source: sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\\ntitle: Billing Adjustments Approval Matrix\\nstatus/authority: final; unspecified\\ndate: 2026-02-03\\n[section: content 1]\\ninvoice; above that, the Controller |\\n| Refund of a paid invoice line after an approved adjustment | Billing Ops | Up to $5,000; above that, the Controller |\\n| Goodwill credit, waiver, or exception to a billing rule | Finance (FP&A) | Any amount, decided in FP&A's review. Support and Billing Ops route these requests and never issue them |\\n| SLA credit on a self-serve account | Finance (FP&A) | Self-serve plans carry no SLA. FP&A reviews any request as goodwill |\\n| SLA credit under a signed contract | Account team files the claim; Finance approves | Per the contract's SLA terms. No amount is promised before Finance's review |\\n| Promotional or campaign credits | Growth marketing | Within the campaign budget FP&A approved |\\n| Partner program funds (MDF) | Partnerships | Per the \"}, {\"source\": \"sources/confluence/oncall-and-incident-response/incident-closure-and-customer-reconciliation-procedure-2025.json\", \"status\": \"published\", \"date\": \"2025-03-12\", \"text\": \"source: sources/confluence/oncall-and-incident-response/incident-closure-and-customer-reconciliation-procedure-2025.json\\ntitle: Incident Closure and Customer Reconciliation Procedure\\nstatus/authority: published; unspecified\\ndate: 2025-03-12\\n[section: content 1]\\n(summary table)\\\\n| SLA deviation | Typical credit (hosted API customers) | Notes |\\\\n|---|---:|---|\\\\n| < 5% deviation or < 15 minutes | No credit | Handled via operational apology only |\\\\n| 5% - 15% deviation or 15-60 minutes | 5% service credit for impacted billing cycle | Requires CS approval |\\\\n| 15% - 50% deviation or 60-180 minutes | 10% - 25% service credit, tiered by customer impact | Finance & Legal review recommended |\\\\n| > 50% deviation or > 180 minutes | Case-by-case; potential pro-rated refunds | Exec + Legal approval required |\\\\n\\\\nCredit calculation worked example\\\\n- Incident window: 2025-02-14T02:13Z to 2025-02-14T03:02Z (49 minutes)\\\\n- Affected tenants: 1200 hosted tokens/day plan, 300 enterprise customers with \"}, {\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"source: sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\\ntitle: Billing Adjustments Approval Matrix\\nstatus/authority: final; unspecified\\ndate: 2026-02-03\\n[section: content 1]\\npartner agreement; never applied to invoices |\\n| Write-off of an uncollectible balance | Controller | Up to $10,000; above that, the CFO |\\n| Re-issued invoice (address, PO number, tax ID) | Billing Ops | No limit; no change to amounts |\\n\\n## Evidence each adjustment needs\\n- **Duplicate-charge credit**: the invoice number, both line IDs and the request IDs they bill. The console confirms the duplicate; a matching description or amount alone is not evidence.\\n- **Billing-error correction**: the line, the expected rate or quantity and where it comes from (price book, order form).\\n- **Goodwill and SLA credits**: the customer's ask, the amount if given, and the reason. The account team adds contract references for SLA claims.\\n- **Write-offs**: collections history and the Controller's \"}, {\"source\": \"sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\", \"status\": \"published\", \"date\": \"2025-05-02\", \"text\": \"source: sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\\ntitle: Dedicated Throughput SLO Escalation Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-05-02\\n[section: content 1]\\n## Purpose\\nThis playbook defines the end-to-end process for handling Dedicated **Throughput SLO** misses or suspected misses. It is designed for Customer Success (CS) and Support to:\\n- Triage quickly and consistently.\\n- Engage the correct on-call teams (SRE / Infra / Observability) at the right time.\\n- Communicate clearly with customers, including status updates and written summaries.\\n- Route service-credit / compensation requests through the correct approval path.\\n\\nThis page is **restricted** because it includes internal paging triggers and credit approval guidance.\\n\\n---\\n\\n## What is the Dedicated Throughput SLO (customer-facing summary)\\nDedicated Throughput SLO guarantees a **minimum sustained throughput floor** for an eligible Dedicated \"}, {\"source\": \"sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\", \"status\": \"published\", \"date\": \"2025-05-02\", \"text\": \"source: sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\\ntitle: Dedicated Throughput SLO Escalation Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-05-02\\n[section: content 1]\\nincident summary and, if applicable under your Dedicated tier terms, guidance on service credits.\\n\\nBest,\\n{{agent_name}}\\n\\n### Template E \\u2014 Service credit intake (do not pre-approve)\\nSubject: Dedicated throughput incident \\u2014 service credit review\\n\\nHi {{customer_name}},\\n\\nWe can review this incident for service credits under your Dedicated terms. To proceed, we will document:\\n- Deployment ID(s)\\n- Impact window (UTC)\\n- Confirmed SLO measurement from Redwood\\u2019s evaluator\\n\\nWe\\u2019ll share the outcome of the credit review by {{date}}.\\n\\nBest,\\n{{agent_name}}\\n\\n---\\n\\n## Service credits / compensation (internal guidance)\\n**Important:** Do not commit to a credit amount in writing until approvals are complete.\\n\\n### Which tiers are typically \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\\ntitle: Support Console: Duplicate-Charge Credits and Billing Disputes\\nstatus/authority: published; unspecified\\ndate: 2026-02-05\\n[section: body 5]\\n## What Support never credits\\n- Goodwill, exceptions, SLA credits, or any credit someone says a manager, sales rep or Redwood engineer already approved. These stay with Finance, per the #support guidance from FP&A. Route the request; don't issue anything from the console.\\n- Marketplace purchases, which are billed by the marketplace.\\n\\n[section: body 6]\\n## Telling the customer\\n- Say what you did: the credit note and its amount, or that a dispute is open and Billing Ops has the case. Don't promise the outcome of a dispute or a date.\\n\\n_Last reviewed 2026-02-05._\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_J9FuKwuOyK4BhMvFdGK7BAbe",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current published SLA policy Hosted Enterprise / Hosted plan service availability or latency commitments, SLA measurement conditions, exclusions, claim notification window, customer required evidence. Not Dedicated throughput SLO."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json\", \"status\": \"published\", \"date\": \"2025-12-05\", \"text\": \"source: sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json\\ntitle: Hosted API SLO: Overload Exceptions and Error Budget Policy\\nstatus/authority: published; unspecified\\ndate: 2025-12-05\\n[section: body 25]\\n## Customer tiers and SLO/SLA notes\\nThis page governs the **platform SLO measurement**. Contractual SLAs may differ.\\n\\n- **Self-serve Hosted (no SLA):** We still compute availability, but customer communications should avoid implying SLA credits.\\n- **Enterprise Hosted (SLA-backed):** Overload failures count toward availability for SLA measurement unless explicitly carved out in the contract.\\n- **Dedicated capacity:** Not covered here (separate SLO/SLA documents apply).\\n\\nIf a customer has a contract clause that treats certain overload events differently, Support/CS must route through SRE + Legal for interpretation before making commitments.\\n\\n---\"}, {\"source\": \"sources/confluence/eng-sre/capacity-planning/service-capacity-governance-and-error-budget-handbook-2025.json\", \"status\": \"published\", \"date\": \"2025-02-28\", \"text\": \"source: sources/confluence/eng-sre/capacity-planning/service-capacity-governance-and-error-budget-handbook-2025.json\\ntitle: Service Capacity Governance and Error Budget Handbook\\nstatus/authority: published; unspecified\\ndate: 2025-02-28\\n[section: body 1]\\nrouting, and autoscaling services\\n- Capacity planners and finance for reserved capacity procurement\\n\\nKey definitions\\n- SLO (Service Level Objective): measurable SLA we aim to meet with a defined measurement window.\\n- Error budget: 1 - SLO measured over the SLO window. Burn indicates consumption of the budget.\\n- SLO window: rolling 28-day window unless otherwise specified.\\n- Critical service: services with error budgets shared by customer-facing inference calls.\\n\\nSLO taxonomy and examples\\n- Availability SLO (success rate): % of inference requests returning 200-series responses within the service timeout. Default: 99.95% over 28d for hosted inference; 99.9% for Dedicated-tier customer-facing endpoints with SLA.\\n- Latency SLOs (p95/p99): \"}, {\"source\": \"sources/confluence/eng-sre/slo-and-error-budgets/slo-oncall-escalation-and-capacity-triggers-2026.json\", \"status\": \"published\", \"date\": \"2026-01-15\", \"text\": \"source: sources/confluence/eng-sre/slo-and-error-budgets/slo-oncall-escalation-and-capacity-triggers-2026.json\\ntitle: SLOs + Oncall Escalation & Capacity Trigger Playbook\\nstatus/authority: published; unspecified\\ndate: 2026-01-15\\n[section: content 1]\\nDefinitions\\n\\n- SLO: The measurable target for a service (e.g., availability, latency).\\n- Error budget: 1 - SLO (time or request-weighted over a rolling window).\\n- Burn rate: Ratio of error budget used per unit time relative to the nominal rate.\\n- Alert: A signal from monitoring indicating metric degradation.\\n- Page: Phone/SMS/Push using PagerDuty (critical paging).\\n\\nBaseline SLOs (examples)\\n\\n- ingest-api: Availability SLO 99.9% (monthly rolling window). Monthly error budget \\u2248 0.1% of minutes (~43.2 minutes for a 30-day month).\\n- model-router: P95 response latency SLO < 300ms (30-day window, request-weighted).\\n- generation-service: Availability SLO 99.5% (monthly) for non-billing customers, 99.9% for enterprise SLA customers.\\n\\nMeasurement \"}, {\"source\": \"sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\", \"status\": \"published\", \"date\": \"2025-05-02\", \"text\": \"source: sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\\ntitle: Dedicated Throughput SLO Escalation Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-05-02\\n[section: content 1]\\ndeployment under defined conditions.\\n\\n**High-level definition (internal summary):**\\n- Metric: throughput measured as **billable output tokens per second**, computed per deployment, aggregated over a rolling window.\\n- Scope: Dedicated deployments only (not Hosted API, not eval/sandbox deployments).\\n- Eligibility: model/version and configuration must be within the customer\\u2019s contracted Dedicated configuration (e.g., pinned model family/version, supported max context, supported shape).\\n\\n**Common non-eligibility / exclusions (not exhaustive):**\\n- Customer-side throttling or client concurrency limits causing underutilization.\\n- Customer workload violating sizing assumptions (e.g., contexts above configured limit, unsupported parameter \"}, {\"source\": \"sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\", \"status\": \"published\", \"date\": \"2025-05-02\", \"text\": \"source: sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\\ntitle: Dedicated Throughput SLO Escalation Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-05-02\\n[section: content 1]\\nshort-lived dips, or suspected measurement artifacts.\\n- No clear production impact.\\n\\n---\\n\\n## Paging and escalation triggers (when to page SRE / Infra)\\n### Page SRE On-Call immediately when any of the following is true\\n- Premium tier customer: reported throughput below committed floor for **>10 minutes**, AND they confirm they are not client-throttled.\\n- Any tier: a Dedicated Throughput SLO **burn-rate alert** is firing for the deployment.\\n- Any tier: repeated or escalating customer timeouts/5xx correlated with throughput drop.\\n- Any tier: throughput drop correlates with recent Redwood changes (rollout, routing, driver/runtime update).\\n\\n### Page Infra/Fleet On-Call when any of the following is true (often in parallel)\\n- GPU/node health \"}, {\"source\": \"sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json\", \"status\": \"published\", \"date\": \"2025-12-05\", \"text\": \"source: sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json\\ntitle: Hosted API SLO: Overload Exceptions and Error Budget Policy\\nstatus/authority: published; unspecified\\ndate: 2025-12-05\\n[section: body 7]\\n## Hosted API Availability SLO (current)\\n**Metric name (conceptual):** Hosted API Request Success Rate\\n\\n**Objective:** 99.9% monthly availability (rolling 30 days) for paid Hosted tiers, measured at the API gateway.\\n\\n**In-scope endpoints:**\\n- `/v1/chat/completions`\\n- `/v1/completions`\\n- `/v1/embeddings`\\n- `/v1/rerank`\\n\\n**In-scope regions:** All public Hosted regions (reported per-region and globally).\\n\\n**Notes on streaming:** For streaming responses, we treat a request as successful if we return an HTTP 200 and complete the stream without server-side termination. Server-terminated streams are failures (typically mapped to a 5xx or explicit overload code, depending on cause).\\n\\n---\"}, {\"source\": \"sources/linear/product-management/PM-763890-enterprise-onboarding-gate-checklist-hosted-api-chat-streaming-toolcall.json\", \"status\": \"Planned\", \"date\": \"2025-03-10\", \"text\": \"source: sources/linear/product-management/PM-763890-enterprise-onboarding-gate-checklist-hosted-api-chat-streaming-toolcall.json\\ntitle: Enterprise onboarding gate & triage checklist for hosted API chat/streaming/toolcalls\\nstatus/authority: Planned; unspecified\\ndate: 2025-03-10\\n[section: readiness_checklist 6]\\nFallback plan: compatible fallback model/route and throttling policy defined\\n\\n[section: readiness_checklist 7]\\nBilling and quota impact: rate limits, billing tiers, and expected monthly usage estimate\\n\\n[section: readiness_checklist 8]\\nRegression test plan: prompt set + metrics for quality preservation (precision/recall/latency)\\n\\n[section: escalation_triggers 1]\\nHigh SLA risk: >5% projected chance of missing latency SLO during peak = escalate to Eng oncall and SRE\\n\\n[section: escalation_triggers 2]\\nData residency requirement in a new jurisdiction = raise to Legal + Platform Security\"}, {\"source\": \"sources/confluence/architecture-and-standards/decision-records/adr-027-throughput-slo-metric-definition.json\", \"status\": \"published\", \"date\": \"2025-03-06\", \"text\": \"source: sources/confluence/architecture-and-standards/decision-records/adr-027-throughput-slo-metric-definition.json\\ntitle: ADR-027: Dedicated Throughput SLO Metric Definition (Canonical Metric + Attribution Model)\\nstatus/authority: published; unspecified\\ndate: 2025-03-06\\n[section: content 1]\\ngame** (e.g., by priming caches or manipulating streaming chunking).\\n- **Comparable** across regions/hardware shapes while acknowledging model-dependent variance.\\n- **Actionable** for SRE/Infra (ties directly to capacity accounting and admission control behavior).\\n\\nThe two primary open questions were:\\n1) What is \\u201cthroughput\\u201d for the purpose of a contractual SLO? (tokens/sec vs requests/sec, server-time vs wall-time, streaming semantics, cache/batch interactions)\\n2) What entity do we attribute the metric to? (deployment vs route)\\n\\n---\\n\\n## Decision drivers\\n1. **Customer commitment maps to a Dedicated deployment.** Customers buy Dedicated capacity as a deployment (with a pinned tier/shape + \"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_16F25QKTgKH9g7cwn1z0ny1m",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "time_of_issue",
+       "request_ids",
+       "checks_done"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"time_of_issue\": \"2026-08-20, most of the afternoon (UTC).\", \"request_ids\": \"I don't have that.\", \"checks_done\": \"I don't have that.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_n1QzRU3ZoL0qpG2C83uTcZac",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "northwind-ai",
+      "team": "account_team",
+      "summary": "Northwind AI requests SLA credit claim review for reported slowdown on 2026-08-20",
+      "details": {
+       "organization": "northwind-ai",
+       "plan": "Hosted Enterprise (enterprise); console shows a signed SLA contract, CONTRACT-northwind-ai, active from 2025-11-01",
+       "reported_event": "Slowdown on 2026-08-20, described as most of the afternoon UTC",
+       "invoice": "INV-BG-202608-016 covers 2026-08-01 through 2026-08-31; open invoice, total $1,368.75",
+       "usage_week": "2026-08-17 through 2026-08-23 UTC: 25,294,709 billed tokens across 2 recorded requests",
+       "usage_by_day": "2026-08-20: 16,793,581 billed tokens; 2026-08-23: 8,501,128 billed tokens",
+       "request_ids": "Customer does not have request IDs",
+       "checks_done": "Customer reports no checks performed / does not have check details"
+      },
+      "unresolved": "Account team to review the signed contract's SLA terms and confirm whether reported slowdown qualifies and file any claim with Finance. Exact impact window beyond 'most of the afternoon UTC', contract-specific SLA references, and corroborating service measurements have not been provided in this chat.",
+      "routing_rule": "SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"case_id\": \"CASE-1\", \"team\": \"account_team\", \"status\": \"escalated\"}"
+  },
+  {
+   "role": "assistant",
+   "content": "The invoice covering **August 20, 2026** is **INV-BG-202608-016**, for **August 1\u201331**. It\u2019s currently open and totals **$1,368.75**.\n\nFor **August 17\u201323 UTC**, the usage summary shows **25,294,709 billed tokens across 2 recorded requests**. On August 20 specifically, it recorded **16,793,581 billed tokens**.\n\nI\u2019ve routed your SLA credit claim to the **Account team** as **CASE-1**. The account record shows an active signed SLA contract. The Account team will check its specific terms and, if applicable, file the claim with Finance. The published Hosted API policy says overload failures count toward SLA measurement unless the contract carves them out; the platform SLO alone doesn\u2019t determine whether your contractual claim qualifies. The case includes your report that the slowdown lasted most of the afternoon UTC; request IDs and a more precise impact window weren\u2019t available."
+  },
+  {
+   "role": "user",
+   "content": "Thanks for passing it on. ###TRANSFER###"
+  }
+ ]
+}

@@ -1,0 +1,152 @@
+{
+ "id": "a1-09",
+ "grade": {
+  "id": "a1-09",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": false,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "communicate",
+    "passed": false,
+    "problem": "never said any of ['billing settings']",
+    "observed": []
+   },
+   {
+    "kind": "never_say",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "escalate_case",
+   "find_account",
+   "load_skill",
+   "search_policy"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 23.41638200400007,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Can you change our autopay to our other card, 4111 1111 1111 1111? Org quarry-labs."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_fXecCdCHMz959Vk7imoLOt7C",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    },
+    {
+     "id": "call_AUPk8ZdlKusNI4GKfoygQNO5",
+     "name": "find_account",
+     "arguments": {
+      "org": "quarry-labs"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. A confirmed duplicate accepted by the console may be credited; report the amount only after the tool confirms it. For a confirmed duplicate over the console limit, submit the `duplicate_charge` dispute and escalate to `billing_ops` with its dispute ID. Promise no outcome or timeline.\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, UTC window, and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for Support's credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"quarry-labs\", \"org\": \"quarry-labs\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\", \"billing_timezone\": \"UTC\"}, \"contracts\": [], \"credit_grants\": []}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_VAujPA5EqP3t0rINq6Dk2JRS",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current billing routing and handoff policy for customer request to change or update autopay payment method/card, including team, trigger, and whether Support can perform it"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\", \"status\": \"published\", \"date\": \"2026-04-20\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\\ntitle: Billing Support: Failed Card Payments and Card Updates\\nstatus/authority: published; unspecified\\ndate: 2026-04-20\\n[section: body 4]\\n## Changing the autopay card\\nSupport can change the autopay card for a customer. Take the new card number and expiry date and put them in a Billing Ops case; Billing Ops updates the payment method and confirms to the customer.\\n\\n_Last reviewed 2026-04-20._\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\", \"status\": \"published\", \"date\": \"2026-04-20\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\\ntitle: Billing Support: Failed Card Payments and Card Updates\\nstatus/authority: published; unspecified\\ndate: 2026-04-20\\n[section: body 2]\\n## Purpose\\nHow Support handles a card payment that failed and a request to change the card used for autopay. Invoice disputes and usage questions are covered on the billing case routing page.\\n\\n[section: body 3]\\n## Failed card payments\\nWhen a customer's card payment fails, open a Billing Ops case with the invoice number, the decline code and the time the payment failed. Billing Ops retries the payment or contacts the customer. Tell the customer Billing Ops has it; don't promise a date.\"}, {\"source\": \"sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\\ntitle: Failed autopay \\u2014 request for split-billing plan and acquirer evidence\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 1]\\nthrough our local tax agent,\\\\n- provide the acquirer evidence bundle (merchant descriptor, refund policy, and invoice PDF) to speed up reconciliation, and\\\\n- schedule a retry window where we can keep the same payment method but attempt SCA fallback if required.\\\\n\\\\nAttached: invoice_3378.pdf and a brief decline report exported from Stripe.\\\\n\\\\nCan you confirm what evidence Redwood can share and whether a split-billing approach is possible for this invoice? We need a VAT breakout in the next 48 hours to keep our quarter-end close on track.\\\\n\\\\nThanks,\\\\nSima\\\\nHead of Finance\\\\nOrbit Analytics\\\\n\\\\n---\\\\nattachment: invoice_3378.pdf (application/pdf)\\\\nattachment: stripe-decline-report-3378.csv (text/csv)\\\\n\"}, {\"source\": \"sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\\ntitle: Failed autopay \\u2014 request for split-billing plan and acquirer evidence\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nthat references #3378; amounts and remit instructions will match.\\\\n2) Evidence bundle: we can provide a merchant evidence packet (merchant descriptor, signed contract excerpt, invoice PDF, refund policy) \\u2014 I will coordinate that with Finance and CS.\\\\n3) Retry window: we can schedule a retry attempt on a specific date and enable SCA fallback (3DS) if Stripe prompts it. If the acquirer maintains the hold, we will escalate to Stripe merchant support.\\\\n\\\\nNext steps I propose:\\\\n- By EOD tomorrow (Tue 2025-09-16) we will send: a split invoice draft + VAT breakout spreadsheet for your tax team to confirm.\\\\n- Also by EOD tomorrow we'll upload the evidence bundle to Stripe and loop in Stripe support if the acquirer requires additional docs.\\\\n- \"}, {\"source\": \"sources/gmail/jasmine_liu/20260822-payflow-choice-and-contract-ops-for-hosted-api.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20260822-payflow-choice-and-contract-ops-for-hosted-api.json\\ntitle: Billing & payment paths for Hosted API \\u2014 monthly invoicing vs card and net terms\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nfinance team. Highlights:\\n- Baseline hosted costs: $0.012 / 1k tokens for generation (baseline medium model); embedding pricing and large-model tiers are listed on page 2.\\n- Volume tiers: automated discounts at 10M+ tokens and 100M+ tokens; committed discounts handled via deal terms.\\n- Card payments are enabled immediately after signup; invoices require billing setup and credit review (2\\u20135 business days).\\n\\nIf you want pricing locked for the pilot period we can add a 90\\u2011day price commitment via a simple order form. If procurement prefers invoice + Net 30 we can route this through our billing ops team (I\\u2019ll need the PO and billing contact).\\n\\nAttaching: Redwood_hosted_ratecard_2026.pdf, \"}, {\"source\": \"sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\\ntitle: Promotional waiver applied to next billing cycle instead of current after dedicated fallback\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: investigation_notes 6]\\nPermanent fix planned: PR #2012 updates idempotency key generation to include invoice_period_candidate and forces reconciliation to use invoice_finalization_cutoff when evaluating promos. QA + canary scheduled for 2026-03-15.\\n\\n[section: resolution_notes 1]\\n2026-03-12 - Temporary workaround: Applied manual adjustment of $12,345.67 to INV-2026-03-BLE-7301 and retried autopay; autopay succeeded on 2026-03-12T10:52Z.\\n\\n[section: resolution_notes 2]\\n2026-03-12 - Customer notified and provided written confirmation of credit and refund timeline. Customer accepted workaround and requested PM follow-up to avoid recurrence.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\ncorrection to Billing Ops |\\n| Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why. Applies even when Support has just explained that the charge is correct |\\n| SLA credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\\n| Customer says they have a contract the console doesn't show | Account team | The account team \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 2]\\n## Purpose\\nThis page defines when Support opens a billing case, where it goes, and what the receiving team needs to act on it. It replaces the v0.3 billing escalations RACI draft in the customer-success shared drive, which predates the Billing Ops and Billing Engineering rotations and should not be used.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_3fR5cg51i6H3zk790v5MrpNz",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "quarry-labs",
+      "team": "billing_ops",
+      "summary": "Request to change autopay card for quarry-labs",
+      "details": {
+       "organization": "quarry-labs",
+       "requested_action": "Change autopay to the other card provided by the customer",
+       "new_card_number": "4111 1111 1111 1111",
+       "expiry_date": "Not provided",
+       "billing_channel": "direct",
+       "account_payment_method": "card"
+      },
+      "unresolved": "The card expiry date is needed for Billing Ops to update the payment method; please obtain it from the customer.",
+      "routing_rule": "Support can change the autopay card for a customer. Take the new card number and expiry date and put them in a Billing Ops case; Billing Ops updates the payment method and confirms to the customer."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for cases"
+  },
+  {
+   "role": "assistant",
+   "content": "I couldn\u2019t submit the Billing Ops request, so the autopay change hasn\u2019t been made. The card-update procedure requires the card\u2019s expiry date as well. Please provide the expiry month and year, and I can try submitting the request again."
+  },
+  {
+   "role": "user",
+   "content": "Also, where can I manage our payment cards myself?"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_hpBE3XfAaqQb8KnXHnoEXouv",
+     "name": "search_policy",
+     "arguments": {
+      "query": "published current self-service customer instructions where to manage or update payment cards/autopay card in dashboard or billing settings"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\", \"status\": \"published\", \"date\": \"2026-04-20\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\\ntitle: Billing Support: Failed Card Payments and Card Updates\\nstatus/authority: published; unspecified\\ndate: 2026-04-20\\n[section: body 4]\\n## Changing the autopay card\\nSupport can change the autopay card for a customer. Take the new card number and expiry date and put them in a Billing Ops case; Billing Ops updates the payment method and confirms to the customer.\\n\\n_Last reviewed 2026-04-20._\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\", \"status\": \"published\", \"date\": \"2026-04-20\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\\ntitle: Billing Support: Failed Card Payments and Card Updates\\nstatus/authority: published; unspecified\\ndate: 2026-04-20\\n[section: body 2]\\n## Purpose\\nHow Support handles a card payment that failed and a request to change the card used for autopay. Invoice disputes and usage questions are covered on the billing case routing page.\\n\\n[section: body 3]\\n## Failed card payments\\nWhen a customer's card payment fails, open a Billing Ops case with the invoice number, the decline code and the time the payment failed. Billing Ops retries the payment or contacts the customer. Tell the customer Billing Ops has it; don't promise a date.\"}, {\"source\": \"sources/gmail/jasmine_liu/20260822-payflow-choice-and-contract-ops-for-hosted-api.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20260822-payflow-choice-and-contract-ops-for-hosted-api.json\\ntitle: Billing & payment paths for Hosted API \\u2014 monthly invoicing vs card and net terms\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nFrom: jasmine.liu@redwoodinference.com\\nTo: Jane Howell <jane.howell@fintechco.com>\\nCc: procurement@fintechco.com\\nDate: Mon, 17 Aug 2026 09:04:00 -0700\\nSubject: Re: Hosted API billing options & PO process\\n\\nHi Jane \\u2014 great to meet you too. Short answers up front: yes, we support both card and monthly invoicing; standard invoice terms are Net 30 for self-serve/credit-approved customers, Net 45 available by request for larger committed contracts; and we can accept POs \\u2014 we typically need a copy of the PO, billing/legal contact, tax ID (W-9 for US), and an executed MSA for invoiced accounts.\\n\\nAttached is our hosted API rate card (baseline, unit pricing by token tier) and a one\\u2011page procurement checklist to share with your \"}, {\"source\": \"sources/confluence/finance-and-legal/budgeting-and-forecasting/blended-cost-methodology-v1.json\", \"status\": \"published\", \"date\": \"2025-02-11\", \"text\": \"source: sources/confluence/finance-and-legal/budgeting-and-forecasting/blended-cost-methodology-v1.json\\ntitle: Blended Cost Methodology v1 (Unit Economics Dashboard)\\nstatus/authority: published; unspecified\\ndate: 2025-02-11\\n[section: content 1]\\ncontract). If traffic is low, unit cost increases; this is expected.\\n\\nRationale:\\n- This aligns with how Finance interprets committed capacity costs: the cost exists regardless of utilization.\\n\\n### 4) Overhead policy (v1)\\nOverhead is applied as an adder on GPU compute cost for each pool.\\n\\nv1 overhead adders:\\n- Hosted shared pools: +X% (Finance-controlled value set per quarter)\\n- Dedicated pools: +Y% (may differ due to support/ops overhead)\\n- Private managed: +Z%\\n\\nNote: Specific percentages are maintained in the rate card version notes and are not duplicated here to avoid stale documentation.\\n\\n## Rate card management\\n### Rate card update cadence\\n- **Monthly refresh** for invoice/billing alignment.\\n- **Quarterly lock** for executive KPI decks and \"}, {\"source\": \"sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\\ntitle: Failed autopay \\u2014 request for split-billing plan and acquirer evidence\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 3]\\nmerchant descriptor, invoice PDF, company registration docs (redacted).\\\\n- Decline narrative (priya) \\u2014 short note for Stripe that explains attempted autopay and that customer authorizes retry.\\\\n- Upload to Stripe and create a support case linking the evidence (priya).\\\\n\\\\nAlso note: if acquirer explicitly requests proof of cardholder consent or billing descriptor, we need to include a screenshot of the billing email/UI that shows the subscription/product name. I can pull that from the Console.\\\\n\\\\nPriya\\\\nSolutions Engineer, Redwood\\\\n\\\\nOn Mon, 15 Sep 2025 at 10:23, Neha Kapoor <neha_kapoor@redwood.com> wrote:\\\\n> Hi Sima \\u2014 thanks for the details and for attaching the decline report. I pulled internal notes: Stripe labeled the event as an \"}, {\"source\": \"sources/confluence/customer-success-and-support/health-and-qbr/customer-health-audit-and-risk-mitigation-playbook-2025.json\", \"status\": \"published\", \"date\": \"2026-01-18\", \"text\": \"source: sources/confluence/customer-success-and-support/health-and-qbr/customer-health-audit-and-risk-mitigation-playbook-2025.json\\ntitle: Customer Health Audit & Risk Mitigation Playbook\\nstatus/authority: published; unspecified\\ndate: 2026-01-18\\n[section: content 1]\\nre-run audit cadence, update QBR materials, and assess if SLA amendments are needed.\\n\\nInstrumentation & Dashboards\\n\\n- Required dashboards and saved queries (examples):\\n  - Per-route latency: p50/p90/p99 and traffic volume.\\n  - Model pass-rate on gold prompt set (rolling 7d/30d).\\n  - Cost rollup by route and model variant (daily).\\n  - Batching/caching utilization by service.\\n\\nExample SQL snippet (monthly cost by route)\\n\\nSELECT route, SUM(tokens_in + tokens_out) AS total_tokens, SUM(cost) AS total_cost\\nFROM billing.events\\nWHERE account_id = '<<ACCOUNT_ID>>' AND event_date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)\\nGROUP BY route\\nORDER BY total_cost DESC\\nLIMIT 20;\\n\\nAppendix: Common Findings & Recommended Fixes\\n\\n- Large spikes \"}, {\"source\": \"sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\\ntitle: Failed autopay \\u2014 request for split-billing plan and acquirer evidence\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nthat references #3378; amounts and remit instructions will match.\\\\n2) Evidence bundle: we can provide a merchant evidence packet (merchant descriptor, signed contract excerpt, invoice PDF, refund policy) \\u2014 I will coordinate that with Finance and CS.\\\\n3) Retry window: we can schedule a retry attempt on a specific date and enable SCA fallback (3DS) if Stripe prompts it. If the acquirer maintains the hold, we will escalate to Stripe merchant support.\\\\n\\\\nNext steps I propose:\\\\n- By EOD tomorrow (Tue 2025-09-16) we will send: a split invoice draft + VAT breakout spreadsheet for your tax team to confirm.\\\\n- Also by EOD tomorrow we'll upload the evidence bundle to Stripe and loop in Stripe support if the acquirer requires additional docs.\\\\n- \"}, {\"source\": \"sources/confluence/finance-and-legal/budgeting-and-forecasting/blended-cost-methodology-v1.json\", \"status\": \"published\", \"date\": \"2025-02-11\", \"text\": \"source: sources/confluence/finance-and-legal/budgeting-and-forecasting/blended-cost-methodology-v1.json\\ntitle: Blended Cost Methodology v1 (Unit Economics Dashboard)\\nstatus/authority: published; unspecified\\ndate: 2025-02-11\\n[section: content 1]\\n\\u201cdelivered\\u201d token semantics may diverge depending on runtime path. v1 uses \\u201cdelivered\\u201d where instrumented; otherwise defaults to runtime counter. This is tracked as an instrumentation gap.\\n- Private/on-prem cost exclusion: On-prem deployments where the customer bears infra cost are excluded from the cost numerator; tokens may still appear for operational visibility.\\n- Timezone boundary mismatches: Dashboard defaults to UTC hourly rollups; Finance month-close may require alternate boundaries.\\n\\n## Change control\\nAny changes to:\\n- inclusion/exclusion rules\\n- idle capacity treatment\\n- overhead adders\\n- rate card provenance or versioning\\n\\nmust be documented as a methodology update and, where material, accompanied by an ADR and a backtest \"}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "I couldn\u2019t find a published self-service path for managing payment cards. The current card-update procedure says Billing Ops updates the autopay method after Support submits the card details and expiry date."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

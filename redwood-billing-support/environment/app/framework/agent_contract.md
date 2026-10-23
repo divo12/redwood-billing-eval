@@ -171,8 +171,8 @@ There is no scoring service: you judge the retrieved passages yourself.
 The builder has 7200 seconds in R0 and 3600 seconds in R1, in a container with
 2 CPUs, 8 GiB memory, and 20 GiB storage. Besides your own model provider, it
 has no network access; embeddings run locally. The deployed support model is
-set for each run by the `SUPPORT_MODEL` parameter (a LiteLLM model id, default
-`openai/gpt-6-luna`); `framework/deployment_manifest.json` names it exactly, and
+set for each run by the `SUPPORT_MODEL` parameter (a LiteLLM model id);
+`framework/deployment_manifest.json` names it exactly, and
 it is the only model the agent may call. It is
 reachable only through practice conversations (see Practice conversations). The support process has a 4 GiB address-space limit, a
 128 MiB per-file write limit, and no direct external network access. Runtime

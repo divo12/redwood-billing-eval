@@ -1,0 +1,285 @@
+{
+ "id": "a1-03-T",
+ "grade": {
+  "id": "a1-03-T",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": false,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "insert:cases",
+      "at": 12,
+      "ok": false
+     },
+     {
+      "op": "insert:cases",
+      "at": 14,
+      "ok": false
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": false,
+    "problem": "never said any of ['2027-04-12', 'April 12', '12 April', 'Apr 12', '12 Apr']",
+    "observed": []
+   },
+   {
+    "kind": "never_say",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "escalate_case",
+   "find_account",
+   "list_invoices",
+   "load_skill",
+   "search_policy"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 33.84583175800003,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hi, our card was declined when you tried to collect our March invoice, with error processor_unavailable. Do we need to do anything, and when will the payment actually go through? Org dunmore-systems."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_uUB76ZHkXvG7jDMzuKqO0E7q",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    },
+    {
+     "id": "call_jlBpAfGOrercnCYz4GlfFbSG",
+     "name": "find_account",
+     "arguments": {
+      "org": "dunmore-systems"
+     }
+    },
+    {
+     "id": "call_V1sAk9LJfL5YSe2wpDbZOiyA",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "invoice_id",
+       "time_of_issue"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. A confirmed duplicate accepted by the console may be credited; report the amount only after the tool confirms it. For a confirmed duplicate over the console limit, submit the `duplicate_charge` dispute and escalate to `billing_ops` with its dispute ID. Promise no outcome or timeline.\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, UTC window, and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for Support's credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"dunmore-systems\", \"org\": \"dunmore-systems\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2026-10-05\", \"billing_timezone\": \"UTC\"}, \"contracts\": [], \"credit_grants\": [{\"grant_id\": \"GRANT-dunmore-systems-1\", \"account_id\": \"dunmore-systems\", \"kind\": \"service\", \"amount\": {\"value\": \"2000.00\", \"currency\": \"USD\"}, \"remaining\": {\"value\": \"2000.00\", \"currency\": \"USD\"}, \"granted_on\": \"2026-11-02\", \"expires_on\": \"2027-11-02\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"invoice_id\": \"INV-2027-0331-122\", \"time_of_issue\": \"2027-04-07 02:15 UTC.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_iXQGO4OcReojbMl27Au2hn3s",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current published policy card payment declined processor_unavailable retry schedule failed invoice payment collection customer action self-serve"
+     }
+    },
+    {
+     "id": "call_W5Ibe98hJrDW0YgIJ3IlENbY",
+     "name": "list_invoices",
+     "arguments": {
+      "account_id": "dunmore-systems"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-08-17.json\", \"status\": \"published\", \"date\": \"2026-08-18\", \"text\": \"source: sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-08-17.json\\ntitle: INC: Card payments failing (processor_unavailable)\\nstatus/authority: published; unspecified\\ndate: 2026-08-18\\n[section: content 1]\\nh1. INC: Card payments failing (processor_unavailable)\\n\\nStatus: resolved.\\n\\nh1. Window\\n2026-08-17 22:00 UTC to 2026-08-18 06:00 UTC.\\n\\nh1. Impact\\nCard payments attempted in the window failed with `processor_unavailable`. Other billing operations were unaffected.\\n\\nh1. Resolution\\nThe payment processor restored availability. Payments that failed in the window were retried automatically; the last retries completed on 2026-08-21. No late fees were applied.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\", \"status\": \"published\", \"date\": \"2026-04-20\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\\ntitle: Billing Support: Failed Card Payments and Card Updates\\nstatus/authority: published; unspecified\\ndate: 2026-04-20\\n[section: body 2]\\n## Purpose\\nHow Support handles a card payment that failed and a request to change the card used for autopay. Invoice disputes and usage questions are covered on the billing case routing page.\\n\\n[section: body 3]\\n## Failed card payments\\nWhen a customer's card payment fails, open a Billing Ops case with the invoice number, the decline code and the time the payment failed. Billing Ops retries the payment or contacts the customer. Tell the customer Billing Ops has it; don't promise a date.\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-05-10.json\", \"status\": \"published\", \"date\": \"2026-05-11\", \"text\": \"source: sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-05-10.json\\ntitle: INC: Card payments failing (processor_timeout)\\nstatus/authority: published; unspecified\\ndate: 2026-05-11\\n[section: content 1]\\nh1. INC: Card payments failing (processor_timeout)\\n\\nStatus: resolved.\\n\\nh1. Window\\n2026-05-10 14:00 UTC to 2026-05-11 16:00 UTC.\\n\\nh1. Impact\\nCard payments attempted in the window failed with `processor_timeout`. Other billing operations were unaffected.\\n\\nh1. Resolution\\nThe payment processor restored availability. Payments that failed in the window were retried automatically; the last retries completed on 2026-05-14. No late fees were applied.\"}, {\"source\": \"sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\\ntitle: Failed autopay \\u2014 request for split-billing plan and acquirer evidence\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nTentative retry window: Thu 2025-09-18 08:00\\u201312:00 UTC (we'll coordinate with you before the attempt).\\\\n\\\\nBen / Priya \\u2014 can you prepare the VAT breakout (use the attached template) and the evidence bundle? Priya, please own the upload to Stripe and ping me when done so I can confirm with Sima and schedule the retry.\\\\n\\\\nNeha\\\\nHead of Revenue Operations\\\\nRedwood Inference\\\\n\\\\nOn Sun, 14 Sep 2025 at 15:12, Sima Patel <sima@orbitanalytics.com> wrote:\\\\n> Our finance team ran the scheduled autopay for invoice #3378 this morning but the payment failed at the acquirer layer. Stripe shows a generic decline (code: acq_decline) and they have placed the settlement on hold until we provide additional evidence.\\\\n>\\\\n> Attached: invoice_3378.pdf and a brief \"}, {\"source\": \"sources/gmail/jasmine_liu/20260728-bank-block-wire-authorization-and-invoice-settlement.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20260728-bank-block-wire-authorization-and-invoice-settlement.json\\ntitle: Invoice 2026-177 \\u2014 bank block on card; request wire/ACH authorization\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 1]\\nFrom: Jasmine Liu <jasmine.liu@redwoodinference.com>\\\\nTo: Elena Ruiz <elena.ruiz@meridianhealthtech.com>\\\\nCc: Neha Kapoor <neha.kapoor@redwoodinference.com>, Ben Carter <ben.carter@redwoodinference.com>\\\\nDate: Tue, 28 Jul 2026 09:12:00 -0700\\\\nSubject: Invoice 2026-177 \\u2014 bank block on card; request wire/ACH authorization\\\\n\\\\nHi Elena \\u2014\\\\n\\\\nQuick follow on invoice 2026-177 (net30, due today). Our billing noticed the card attempt failed at the processor with a response that looks like a bank-level fraud block. I know you mentioned AP was trying card first \\u2014 can you confirm whether you want to retry the card or switch to wire/ACH so we can close the ledger today?\\\\n\\\\nIf you opt for wire/ACH, I attached our wire instructions and a \"}, {\"source\": \"sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/alex_martinez/20250914-stalled-autopay-orbit-split-billing.json\\ntitle: Failed autopay \\u2014 request for split-billing plan and acquirer evidence\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 1]\\nFrom: Sima Patel <sima@orbitanalytics.com>\\\\nTo: Neha Kapoor <neha_kapoor@redwood.com>\\\\nCc: Priya Natarajan <priya_natarajan@redwood.com>, Ben Carter <ben_carter@redwood.com>\\\\nDate: Sun, 14 Sep 2025 15:12:34 -0700\\\\nSubject: Failed autopay for Invoice #3378 \\u2014 need VAT breakout & next steps\\\\n\\\\nHi Neha,\\\\n\\\\nOur finance team ran the scheduled autopay for invoice #3378 this morning but the payment failed at the acquirer layer. Stripe shows a generic decline (code: acq_decline) and they have placed the settlement on hold until we provide additional evidence.\\\\n\\\\nWe're trying to avoid a manual refund/chargeback cycle \\u2014 our accounts payable asked whether Redwood can:\\\\n- split the invoice into two line items (service vs. VAT) so VAT can be settled \"}, {\"source\": \"sources/jira/customer-support/SUP-659321-stuck-prorated-burst-credit-after-dedicated-downgrade.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-659321-stuck-prorated-burst-credit-after-dedicated-downgrade.json\\ntitle: Prorated burst credits remain in pending state after Dedicated -> Hosted downgrade; credits not applied to current invoice\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: description 1]\\n\\\"pending\\\" and no action/settlement record.\\n\\nRelevant logs / pointers:\\n- Billing ledger excerpt (billing service trace ID: trace-bill-20260309-2230).\\n- Console shows credit entry id: credit-PBR-20260308-9981 (status: pending).\\n- Billing job logs: https://logs.internal.redwood.ai/billing/job-20260309-0003 (access restricted).\\n\\nCustomer expectation and business ask:\\n- Provide immediate reconciliation and apply the prorated burst credit to current invoice or issue a credit memo.\\n- Confirm root cause and whether this will affect other customers who self-serve downgrade near invoice cutover.\\n- ETA for fix and any manual remediation steps for the customer.\"}, {\"source\": \"sources/gmail/jasmine_liu/20260728-bank-block-wire-authorization-and-invoice-settlement.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20260728-bank-block-wire-authorization-and-invoice-settlement.json\\ntitle: Invoice 2026-177 \\u2014 bank block on card; request wire/ACH authorization\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nFrom: Elena Ruiz <elena.ruiz@meridianhealthtech.com>\\\\nTo: Jasmine Liu <jasmine.liu@redwoodinference.com>\\\\nCc: accounts@meridianhealthtech.com\\\\nDate: Tue, 28 Jul 2026 10:03:12 -0700\\\\nSubject: Re: Invoice 2026-177 \\u2014 bank block on card; request wire/ACH authorization\\\\n\\\\nHi Jasmine \\u2014\\\\n\\\\nThanks for the heads-up. Our processor returned a charge decline with a message indicating \\\\\\\"possible fraud \\u2014 issuer blocked transaction\\\\\\\" (attached screenshot from AP). We can't retry the card without engaging treasury and potentially whitelisting Redwood \\u2014 that takes at least one business day.\\\\n\\\\nWe can do a same-day wire but treasury requires: 1) formal wire instructions on company letterhead, 2) the invoice with our VAT ID shown, and 3) a \"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoices\": [{\"invoice_id\": \"INV-2027-0331-122\", \"account_id\": \"dunmore-systems\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"issued_on\": \"2027-04-01\", \"status\": \"open\", \"total\": {\"value\": \"4147.20\", \"currency\": \"USD\"}, \"total_dollars\": \"$4147.20\"}, {\"invoice_id\": \"INV-BG-202610-041\", \"account_id\": \"dunmore-systems\", \"period_start\": \"2026-10-05\", \"period_end\": \"2026-10-31\", \"issued_on\": \"2026-11-01\", \"status\": \"paid\", \"total\": {\"value\": \"2186.72\", \"currency\": \"USD\"}, \"total_dollars\": \"$2186.72\"}, {\"invoice_id\": \"INV-BG-202611-041\", \"account_id\": \"dunmore-systems\", \"period_start\": \"2026-11-01\", \"period_end\": \"2026-11-30\", \"issued_on\": \"2026-12-01\", \"status\": \"paid\", \"total\": {\"value\": \"1807.56\", \"currency\": \"USD\"}, \"total_dollars\": \"$1807.56\"}, {\"invoice_id\": \"INV-BG-202612-041\", \"account_id\": \"dunmore-systems\", \"period_start\": \"2026-12-01\", \"period_end\": \"2026-12-31\", \"issued_on\": \"2027-01-01\", \"status\": \"paid\", \"total\": {\"value\": \"2441.26\", \"currency\": \"USD\"}, \"total_dollars\": \"$2441.26\"}, {\"invoice_id\": \"INV-BG-202701-041\", \"account_id\": \"dunmore-systems\", \"period_start\": \"2027-01-01\", \"period_end\": \"2027-01-31\", \"issued_on\": \"2027-02-01\", \"status\": \"paid\", \"total\": {\"value\": \"2919.77\", \"currency\": \"USD\"}, \"total_dollars\": \"$2919.77\"}, {\"invoice_id\": \"INV-BG-202702-041\", \"account_id\": \"dunmore-systems\", \"period_start\": \"2027-02-01\", \"period_end\": \"2027-02-28\", \"issued_on\": \"2027-03-01\", \"status\": \"paid\", \"total\": {\"value\": \"1139.53\", \"currency\": \"USD\"}, \"total_dollars\": \"$1139.53\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_BrTLDrdUjl5BvjS9KgJzFXsd",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current billing case routing failed card payment processor decline Billing Ops trigger invoice number decline code time; payment failures"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\", \"status\": \"published\", \"date\": \"2026-04-20\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\\ntitle: Billing Support: Failed Card Payments and Card Updates\\nstatus/authority: published; unspecified\\ndate: 2026-04-20\\n[section: body 2]\\n## Purpose\\nHow Support handles a card payment that failed and a request to change the card used for autopay. Invoice disputes and usage questions are covered on the billing case routing page.\\n\\n[section: body 3]\\n## Failed card payments\\nWhen a customer's card payment fails, open a Billing Ops case with the invoice number, the decline code and the time the payment failed. Billing Ops retries the payment or contacts the customer. Tell the customer Billing Ops has it; don't promise a date.\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-05-10.json\", \"status\": \"published\", \"date\": \"2026-05-11\", \"text\": \"source: sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-05-10.json\\ntitle: INC: Card payments failing (processor_timeout)\\nstatus/authority: published; unspecified\\ndate: 2026-05-11\\n[section: content 1]\\nh1. INC: Card payments failing (processor_timeout)\\n\\nStatus: resolved.\\n\\nh1. Window\\n2026-05-10 14:00 UTC to 2026-05-11 16:00 UTC.\\n\\nh1. Impact\\nCard payments attempted in the window failed with `processor_timeout`. Other billing operations were unaffected.\\n\\nh1. Resolution\\nThe payment processor restored availability. Payments that failed in the window were retried automatically; the last retries completed on 2026-05-14. No late fees were applied.\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-08-17.json\", \"status\": \"published\", \"date\": \"2026-08-18\", \"text\": \"source: sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-08-17.json\\ntitle: INC: Card payments failing (processor_unavailable)\\nstatus/authority: published; unspecified\\ndate: 2026-08-18\\n[section: content 1]\\nh1. INC: Card payments failing (processor_unavailable)\\n\\nStatus: resolved.\\n\\nh1. Window\\n2026-08-17 22:00 UTC to 2026-08-18 06:00 UTC.\\n\\nh1. Impact\\nCard payments attempted in the window failed with `processor_unavailable`. Other billing operations were unaffected.\\n\\nh1. Resolution\\nThe payment processor restored availability. Payments that failed in the window were retried automatically; the last retries completed on 2026-08-21. No late fees were applied.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\n## Routing table\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Disputed or duplicated line on a direct Redwood invoice | Billing Ops | Invoice number, the line(s), UTC window, request IDs |\\n| Refund request on a direct invoice line the customer says was billed in error | Billing Ops | Billing Ops confirms the charge and requests approval where needed |\\n| Invoice total doesn't match the customer's usage export | Billing Ops | Note the export's timezone and filters |\\n| Payment failures, holds, receipts | Billing Ops | |\\n| Meter discrepancy the related pages don't explain: request IDs whose billed tokens still don't match after the tokenizer, payload and retry rules are applied | Billing Engineering | Billing Eng checks meter correctness and hands any \"}, {\"source\": \"sources/gmail/jasmine_liu/20260728-bank-block-wire-authorization-and-invoice-settlement.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20260728-bank-block-wire-authorization-and-invoice-settlement.json\\ntitle: Invoice 2026-177 \\u2014 bank block on card; request wire/ACH authorization\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 1]\\nFrom: Jasmine Liu <jasmine.liu@redwoodinference.com>\\\\nTo: Elena Ruiz <elena.ruiz@meridianhealthtech.com>\\\\nCc: Neha Kapoor <neha.kapoor@redwoodinference.com>, Ben Carter <ben.carter@redwoodinference.com>\\\\nDate: Tue, 28 Jul 2026 09:12:00 -0700\\\\nSubject: Invoice 2026-177 \\u2014 bank block on card; request wire/ACH authorization\\\\n\\\\nHi Elena \\u2014\\\\n\\\\nQuick follow on invoice 2026-177 (net30, due today). Our billing noticed the card attempt failed at the processor with a response that looks like a bank-level fraud block. I know you mentioned AP was trying card first \\u2014 can you confirm whether you want to retry the card or switch to wire/ACH so we can close the ledger today?\\\\n\\\\nIf you opt for wire/ACH, I attached our wire instructions and a \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\", \"status\": \"published\", \"date\": \"2026-04-20\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\\ntitle: Billing Support: Failed Card Payments and Card Updates\\nstatus/authority: published; unspecified\\ndate: 2026-04-20\\n[section: body 4]\\n## Changing the autopay card\\nSupport can change the autopay card for a customer. Take the new card number and expiry date and put them in a Billing Ops case; Billing Ops updates the payment method and confirms to the customer.\\n\\n_Last reviewed 2026-04-20._\"}, {\"source\": \"sources/jira/customer-support/SUP-659321-stuck-prorated-burst-credit-after-dedicated-downgrade.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-659321-stuck-prorated-burst-credit-after-dedicated-downgrade.json\\ntitle: Prorated burst credits remain in pending state after Dedicated -> Hosted downgrade; credits not applied to current invoice\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: resolution 1]\\nManual remediation completed: created credit memo CM-20260311-559 and applied to INV-20260309-772. Customer invoice balance updated and customer confirmed.\\nPlanned fix: Engineering to update billing pipeline to enforce settlement-before-invoice ordering and implement idempotent retry on settlement job. INT tickets opened for implementation (INT-8430, INT-8431).\\nFollow-up: Monitor next two billing cycles for other affected customers; add dashboard showing pending credits older than 12 hours. Targeted deployment date for pipeline fix: 2026-03-25.\"}, {\"source\": \"sources/gmail/jasmine_liu/20250612-velociti-checkout-transaction-loss-sla-escalation.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20250612-velociti-checkout-transaction-loss-sla-escalation.json\\ntitle: Velociti checkout gap \\u2014 transaction loss and credit request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 1]\\nFrom: Samira Khan <samira.khan@velociti.com>\\nTo: diego_fernandez@redwood.com\\nDate: Tue, 10 Jun 2025 09:22:00 -0700\\nSubject: Checkout transaction loss - Jun 9 02:10-02:37 UTC\\n\\nDiego,\\n\\nWe're seeing a failure window overnight (Jun 9) where a subset of checkout requests returned 502/503s and we observed a number of lost transactions \\u2014 customers report card declines and duplicate payment attempts. Velocity metrics: ~120 failed checkouts, payment provider saw 96% of them fail to complete. The spike starts ~02:10 UTC and appears to taper by ~02:37 UTC.\\n\\nI've attached a small excerpt of our transaction logs (transaction_log_excerpt.csv) showing order ids, timestamps and failure codes. Can you confirm whether this maps to a Redwood service \"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_BJjohNALfEyysAPtCxmqTv8i",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "dunmore-systems",
+      "team": "billing_ops",
+      "summary": "Failed card payment on March invoice \u2014 processor_unavailable",
+      "details": {
+       "invoice_id": "INV-2027-0331-122",
+       "invoice_period": "2027-03-01 to 2027-03-31",
+       "invoice_status": "open",
+       "invoice_total": "$4,147.20 USD",
+       "decline_code": "processor_unavailable",
+       "failed_at_utc": "2027-04-07 02:15 UTC",
+       "billing_channel": "direct",
+       "plan": "Hosted Self-Serve"
+      },
+      "unresolved": "Payment retry/collection status and timing; Billing Ops will retry the payment or contact the customer. No confirmed retry date is available.",
+      "routing_rule": "When a customer's card payment fails, open a Billing Ops case with the invoice number, the decline code and the time the payment failed. Billing Ops retries the payment or contacts the customer. Tell the customer Billing Ops has it; don't promise a date."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for cases"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_qW8b5qgPoB47K4oUF3WxoCCD",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "dunmore-systems",
+      "team": "billing_ops",
+      "summary": "Failed card payment on March invoice \u2014 processor_unavailable",
+      "details": {
+       "invoice_id": "INV-2027-0331-122",
+       "invoice_period": "2027-03-01 to 2027-03-31",
+       "invoice_status": "open",
+       "invoice_total": "$4,147.20 USD",
+       "decline_code": "processor_unavailable",
+       "failed_at_utc": "2027-04-07 02:15 UTC",
+       "billing_channel": "direct",
+       "plan": "Hosted Self-Serve"
+      },
+      "unresolved": "Payment retry/collection status and timing; Billing Ops will retry the payment or contact the customer. No confirmed retry date is available.",
+      "routing_rule": "When a customer's card payment fails, open a Billing Ops case with the invoice number, the decline code and the time the payment failed. Billing Ops retries the payment or contacts the customer. Tell the customer Billing Ops has it; don't promise a date."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for cases"
+  },
+  {
+   "role": "assistant",
+   "content": "I found your March invoice, **INV-2027-0331-122**, for **$4,147.20**; it\u2019s still marked open. The published procedure says Billing Ops handles failed card payments by retrying or contacting the customer, but it doesn\u2019t give a retry date\u2014so I can\u2019t confirm when payment will go through.\n\nI tried to route this to Billing Ops with the invoice, error code, and failure time, but the case submission failed. I can\u2019t say they have it or that a retry is scheduled. The procedure doesn\u2019t say you need to change your card for `processor_unavailable`; please reply here if you want help following up."
+  },
+  {
+   "role": "user",
+   "content": "Will we be charged a late fee?"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_p73w58eTXaHZH8fHck3frV4Y",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current published late fee late payment open invoice Hosted Self-Serve direct invoice failed card payment due date processor_unavailable late charges"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\", \"status\": \"published\", \"date\": \"2026-04-20\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\\ntitle: Billing Support: Failed Card Payments and Card Updates\\nstatus/authority: published; unspecified\\ndate: 2026-04-20\\n[section: body 2]\\n## Purpose\\nHow Support handles a card payment that failed and a request to change the card used for autopay. Invoice disputes and usage questions are covered on the billing case routing page.\\n\\n[section: body 3]\\n## Failed card payments\\nWhen a customer's card payment fails, open a Billing Ops case with the invoice number, the decline code and the time the payment failed. Billing Ops retries the payment or contacts the customer. Tell the customer Billing Ops has it; don't promise a date.\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-05-10.json\", \"status\": \"published\", \"date\": \"2026-05-11\", \"text\": \"source: sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-05-10.json\\ntitle: INC: Card payments failing (processor_timeout)\\nstatus/authority: published; unspecified\\ndate: 2026-05-11\\n[section: content 1]\\nh1. INC: Card payments failing (processor_timeout)\\n\\nStatus: resolved.\\n\\nh1. Window\\n2026-05-10 14:00 UTC to 2026-05-11 16:00 UTC.\\n\\nh1. Impact\\nCard payments attempted in the window failed with `processor_timeout`. Other billing operations were unaffected.\\n\\nh1. Resolution\\nThe payment processor restored availability. Payments that failed in the window were retried automatically; the last retries completed on 2026-05-14. No late fees were applied.\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-08-17.json\", \"status\": \"published\", \"date\": \"2026-08-18\", \"text\": \"source: sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-08-17.json\\ntitle: INC: Card payments failing (processor_unavailable)\\nstatus/authority: published; unspecified\\ndate: 2026-08-18\\n[section: content 1]\\nh1. INC: Card payments failing (processor_unavailable)\\n\\nStatus: resolved.\\n\\nh1. Window\\n2026-08-17 22:00 UTC to 2026-08-18 06:00 UTC.\\n\\nh1. Impact\\nCard payments attempted in the window failed with `processor_unavailable`. Other billing operations were unaffected.\\n\\nh1. Resolution\\nThe payment processor restored availability. Payments that failed in the window were retried automatically; the last retries completed on 2026-08-21. No late fees were applied.\"}, {\"source\": \"sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\\ntitle: Promotional waiver applied to next billing cycle instead of current after dedicated fallback\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: description 1]\\nshows the overage charge applied; the promo waiver did not offset the current invoice but shows a provisional credit pending for the next billing cycle.\\n\\nObserved behavior:\\n- Waiver appears in billing ledger as a provisional credit with effective_period starting 2026-04-01.\\n- Postback logs show waiver acceptance event processed at 2026-03-04T18:23:47Z but linked to a future period idempotency key.\\n- Autopay attempted on 2026-03-06 and failed due to mismatch between expected balance and posted charges.\\n\\nExpected behavior:\\n- Waiver requested and accepted before invoice finalization should be applied to the current open invoice and reduce the total due immediately.\\n\\nAttachments / Logs:\\n- Customer \"}, {\"source\": \"sources/jira/customer-support/SUP-772222-unexpected-composite-rate-apportionment-on-dedicated-fallback-invoice.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-772222-unexpected-composite-rate-apportionment-on-dedicated-fallback-invoice.json\\ntitle: Unexpected composite rate apportionment on invoice after Dedicated->Hosted fallback window\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: comments 5]\\n2026-03-11 11:00 - Markus Chen (Billing Eng): Noted potential race between fallback-router tagging and postback-processor apportionment job. Requested billing team to run replay for 03:00-03:40 UTC with strict ordering to see effect.\\n\\n[section: comments 6]\\n2026-03-12 08:45 - Billing QA (Rajat Singh): Replay completed. Preliminary result: ~9.8k tokens served by hosted fallback were included under reserved-hour apportionment due to out-of-order postback re-ingestion. Shared query results and proposed credit amount estimate to CS.\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/duplicate-charges-and-refunds-help-2025.json\", \"status\": \"published\", \"date\": \"2026-01-21\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/duplicate-charges-and-refunds-help-2025.json\\ntitle: Help Center: Duplicate Charges and Refunds (archived)\\nstatus/authority: published; unspecified\\ndate: 2026-01-21\\n[section: body 1]\\n> Archived 2026-01-21. This help-center article is no longer current. Support handles duplicate charges as described on \\\"Support Console: Duplicate-Charge Credits and Billing Disputes\\\".\\n\\n[section: body 2]\\n## Duplicate charges\\nIf your invoice bills the same usage twice, contact Support with the invoice number. Support refunds a duplicated line in full on request.\\n\\n[section: body 3]\\n## Refund timing\\nRefunds reach your card within 5-10 business days.\"}, {\"source\": \"sources/jira/customer-support/SUP-777650-unexpected-retroactive-price-floor-applied-to-embed-batch-invoice.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-777650-unexpected-retroactive-price-floor-applied-to-embed-batch-invoice.json\\ntitle: Unexpected retroactive price-floor applied to a large batch-embedding invoice\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: description 1]\\nIssue summary: Customer BrightVoice AI reports an unexpected increase on a finalized invoice for a multi-hour batch embedding job run on 2026-03-05. The invoice line shows a higher per-embedding unit price (price floor applied retroactively) for hours in which the job was initially billed at the self-serve reserved rate.\\n\\nImpact: Billing overcharge for one finalized invoice (invoice #BV-20260305) affecting a single dedicated tenant. Customer is requesting an explanation and a credit if the charge is incorrect. Customer reports the delta is ~USD 3,420.\\n\\nEnvironment: Dedicated pool (dedicated-nyc-gpu-pool-3) with fallback to hosted when reserved nodes temporarily saturated. Batch embedding controller: \"}, {\"source\": \"sources/gmail/jasmine_liu/20260822-payflow-choice-and-contract-ops-for-hosted-api.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20260822-payflow-choice-and-contract-ops-for-hosted-api.json\\ntitle: Billing & payment paths for Hosted API \\u2014 monthly invoicing vs card and net terms\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 1]\\nsimple but may need an invoice path for internal chargeback. Can you send the rate card and a short summary of steps for procurement?\\n\\n\\u2014Jane\\nJane Howell\\nVP, Platform Strategy | FintechCo\\nprocurement@fintechco.com\\n\\n[Attachment: internal-questionnaire.pdf (PDF, 40KB)]\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_BTuYx014YZB1PK7VbQabugKb",
+     "name": "search_policy",
+     "arguments": {
+      "query": "published Redwood Hosted Self-Serve direct card payment late fee delinquent invoice payment due date grace period late charge policy"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/gmail/jasmine_liu/20260822-payflow-choice-and-contract-ops-for-hosted-api.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20260822-payflow-choice-and-contract-ops-for-hosted-api.json\\ntitle: Billing & payment paths for Hosted API \\u2014 monthly invoicing vs card and net terms\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nfinance team. Highlights:\\n- Baseline hosted costs: $0.012 / 1k tokens for generation (baseline medium model); embedding pricing and large-model tiers are listed on page 2.\\n- Volume tiers: automated discounts at 10M+ tokens and 100M+ tokens; committed discounts handled via deal terms.\\n- Card payments are enabled immediately after signup; invoices require billing setup and credit review (2\\u20135 business days).\\n\\nIf you want pricing locked for the pilot period we can add a 90\\u2011day price commitment via a simple order form. If procurement prefers invoice + Net 30 we can route this through our billing ops team (I\\u2019ll need the PO and billing contact).\\n\\nAttaching: Redwood_hosted_ratecard_2026.pdf, \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/reseller-billed-invoice-disputes-2026.json\", \"status\": \"published\", \"date\": \"2026-04-02\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/reseller-billed-invoice-disputes-2026.json\\ntitle: Reseller-Billed Invoices: Disputes and Credits\\nstatus/authority: published; unspecified\\ndate: 2026-04-02\\n[section: body 2]\\n## Scope\\nCustomers who buy Redwood through a reseller receive the reseller's invoice, not Redwood's. This page covers disputes and credits on those invoices only. It is not the procedure for duplicate charges on a direct Redwood invoice; for those, use the support console credits and disputes page.\\n\\n[section: body 3]\\n## What Support does\\n- Confirm in the console that the account is reseller-billed. A direct Redwood invoice in the console means this page does not apply.\\n- Point the customer to their reseller, who raises the dispute with Partnerships.\\n- Support issues no credit note and opens no dispute for a reseller-billed account: the reseller's invoice isn't in the console.\"}, {\"source\": \"sources/gmail/alex_martinez/20260615-gridline-ap-terms-exec-escalation.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/alex_martinez/20260615-gridline-ap-terms-exec-escalation.json\\ntitle: Request: Quarterly invoicing + net-60 payment cadence (Gridline Health)\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 7]\\ndelinquency).\\n3) Accounts Receivable to flag the account for 30/60/90 collection cadence and report any materially late payments to Revenue Ops immediately.\\n\\nMarissa, please prepare the amendment and the DocuSign envelope; Alex, coordinate for the PO. Once I see the PO and signed amendment, Finance will adjust the billing schedule.\\n\\nBen Carter\\nHead of Revenue Operations (acting)\\nRedwood Inference\\nattachments: approval-note-gridline-terms.txt\"}, {\"source\": \"sources/gmail/jasmine_liu/20260822-payflow-choice-and-contract-ops-for-hosted-api.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20260822-payflow-choice-and-contract-ops-for-hosted-api.json\\ntitle: Billing & payment paths for Hosted API \\u2014 monthly invoicing vs card and net terms\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 6]\\nJasmine Liu\\nAccount Executive | Redwood Inference\\njasmine.liu@redwoodinference.com\\n+1 (415) 555-0196\\n\\n[Attachments: Redwood_hosted_ratecard_2026.pdf; Redwood_term_sheet_v1.docx; Signed-MSA-stub.pdf]\"}, {\"source\": \"sources/gmail/jasmine_liu/20260809-invoicing-aggregation-and-tax-entity-routing-discuss.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20260809-invoicing-aggregation-and-tax-entity-routing-discuss.json\\ntitle: Invoicing aggregation & tax entity routing for ACME order form\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\ncommit: we propose showing the committed quantity and the month-to-date consumption on the consolidated invoice; any shortfall true-up would be invoiced monthly until the commit period ends. If you need separate legal invoices per entity, we can do that but it will increase operational overhead and may change the billing entity on the invoice (requires legal review).\\\\n- Net terms: standard Redwood hosted terms are Net 45; for Net 30 we can explore a small prepayment or a volume-based credit that offsets the earlier payment requirement. I'll loop in Ben (Finance) and Steph (Legal) to confirm.\\\\n- VAT/evidence: we can provide VAT registration evidence and a short playbook for when VAT is charged vs reverse-charged. Legal will include language \"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-08-17.json\", \"status\": \"published\", \"date\": \"2026-08-18\", \"text\": \"source: sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-08-17.json\\ntitle: INC: Card payments failing (processor_unavailable)\\nstatus/authority: published; unspecified\\ndate: 2026-08-18\\n[section: content 1]\\nh1. INC: Card payments failing (processor_unavailable)\\n\\nStatus: resolved.\\n\\nh1. Window\\n2026-08-17 22:00 UTC to 2026-08-18 06:00 UTC.\\n\\nh1. Impact\\nCard payments attempted in the window failed with `processor_unavailable`. Other billing operations were unaffected.\\n\\nh1. Resolution\\nThe payment processor restored availability. Payments that failed in the window were retried automatically; the last retries completed on 2026-08-21. No late fees were applied.\"}, {\"source\": \"sources/gmail/rachel_kim/20260630-payment-fallback-and-vat-evidence-request.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/rachel_kim/20260630-payment-fallback-and-vat-evidence-request.json\\ntitle: Final payment path & VAT residency docs required \\u2014 invoice INV-2026-3311\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 1]\\nrelease (per SOW section 4.2).\\n\\nThanks \\u2014 appreciate the quick turnaround.\\n\\nBest,\\nRachel Kim\\nSenior Accounts Receivable Manager\\nRedwood Inference\\nrachel.kim@redwoodinference.com\\n+1 (415) 555-0198\\n\\n---\\nNote: If your team prefers to pay by virtual card we can accept that (we'll need remittance confirmation and VAT certificate as well).\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-05-10.json\", \"status\": \"published\", \"date\": \"2026-05-11\", \"text\": \"source: sources/confluence/oncall-and-incident-response/status-page-and-comms/status-card-payment-failures-2026-05-10.json\\ntitle: INC: Card payments failing (processor_timeout)\\nstatus/authority: published; unspecified\\ndate: 2026-05-11\\n[section: content 1]\\nh1. INC: Card payments failing (processor_timeout)\\n\\nStatus: resolved.\\n\\nh1. Window\\n2026-05-10 14:00 UTC to 2026-05-11 16:00 UTC.\\n\\nh1. Impact\\nCard payments attempted in the window failed with `processor_timeout`. Other billing operations were unaffected.\\n\\nh1. Resolution\\nThe payment processor restored availability. Payments that failed in the window were retried automatically; the last retries completed on 2026-05-14. No late fees were applied.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "I can\u2019t confirm whether a late fee will apply. The March invoice is still open, and the current guidance I found doesn\u2019t specify late-fee treatment for this situation. A past `processor_unavailable` incident had no late fees, but it was a different incident window, so that doesn\u2019t confirm what will happen to your invoice.\n\nI also wasn\u2019t able to submit the Billing Ops case, so I can\u2019t confirm they\u2019re reviewing the failed payment."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

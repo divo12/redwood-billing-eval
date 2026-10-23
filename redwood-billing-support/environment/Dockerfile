@@ -2,7 +2,8 @@ FROM python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/opt
+    PYTHONPATH=/opt \
+    LITELLM_LOCAL_MODEL_COST_MAP=True
 
 COPY environment/requirements.lock /tmp/requirements.lock
 # libfaketime sets the support agent's clock to the conversation's date (redwood_kit.conversation.clock_env).

@@ -185,3 +185,9 @@ def test_invariants_catch_overdrawn_grant():
     entry = state["credit_ledger"]["LEDGER-birchline-apps-2"]
     entry["amount_cents"] = -1_000_000
     assert any("below zero" in problem for problem in problems(state))
+
+
+def test_the_image_pins_what_litellm_needs_to_retry():
+    """litellm imports tenacity only when a call is retried (a 429): without it the support agent crashes mid-case."""
+    pinned = {line.split("==")[0].lower() for line in (TASK / "environment" / "requirements.lock").read_text().split()}
+    assert {"litellm", "tenacity"} <= pinned

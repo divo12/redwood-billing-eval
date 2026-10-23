@@ -7,7 +7,18 @@
     q00  A0 on R0 cases    q01  A0 on R1 cases
     q10  A1 on R0 cases    q11  A1 on R1 cases
 
-reward.json is the gate below; scores.json holds the pass rates and the diagnostics, never the reward.
+reward.json holds numbers only (Harbor reads it as dict[str, float]), each higher-is-better:
+
+    reward                 the gate below over Q00, Q10, Q11
+    q00, q11               the build's and the maintained agent's pass rates (all four rates: scores.json)
+    drift                  of the R1 cases A0 fails (Q01), the share A1 passes (Q11): the change absorbed
+    regression             of the R0 cases A0 passes (Q00), the share A1 still passes (Q10): 1.0 = nothing broken
+    behaviour_robustness   over Q00, Q10, Q11, of the behaviour variants whose base case passed, the share that
+                           passed too (missing_info, ambiguous, conflict; per behaviour in scores.json)
+
+A score with nothing to measure is 0.0, no evidence: drift when A0 already passes every R1 case, regression
+when A0 passes no R0 case, behaviour_robustness when no base case passed. drift needs Q01 and is left out
+without it. scores.json holds the pass rates and the diagnostics.
 """
 from __future__ import annotations
 
@@ -15,7 +26,7 @@ import json
 import sys
 from pathlib import Path
 
-from evolve.diagnostics import Outcomes, report
+from evolve.diagnostics import CaseChange, EvolutionReport, Outcomes, report
 from grade.scenarios import Scenario, Step, load_scenarios
 from pydantic import BaseModel
 
@@ -130,6 +141,33 @@ def rate(run: Outcomes) -> float:
     return round(sum(run.values()) / len(run), 4)
 
 
+def _share(results: list[bool]) -> float:
+    return round(sum(results) / len(results), 4) if results else 0.0  # nothing to measure: no evidence
+
+
+def _variants_with_passing_base(run: Outcomes, cases: dict[str, Scenario], kept: dict[str, list[bool]]) -> None:
+    for case_id, passed in run.items():
+        case = cases.get(case_id)
+        if case is not None and case.behavior and run.get(case.variant_of):
+            kept.setdefault(case.behavior, []).append(passed)
+
+
+def behaviour_robustness(runs: dict[str, Outcomes | None]) -> dict[str, float]:
+    """Per behaviour and overall: variants that passed, of those whose base passed in the same Q run. A base that
+    failed already fails for the rule, so only these variants measure the developer's behaviour alone."""
+    cases = {s.id: s for step in Step for s in load_scenarios(step)}
+    kept: dict[str, list[bool]] = {}
+    for q in ("q00", "q10", "q11"):
+        _variants_with_passing_base(runs.get(q) or {}, cases, kept)
+    return {"overall": _share([p for row in kept.values() for p in row]),
+            **{behavior: _share(row) for behavior, row in sorted(kept.items())}}
+
+
+def _kept(changes: list[CaseChange], before: bool) -> float:
+    """drift (before=False): failing cases now passing; regression (before=True): passing cases still passing."""
+    return _share([change.after for change in changes if change.before is before])
+
+
 def gate(q00: float, q10: float, q11: float) -> float:
     """1.0: a good build that was maintained without regressing. 0.5: a good build that did not regress."""
     kept = q10 >= q00 - 0.1  # ponytail: one case of slack at 10 cases; widen with more cases or attempts
@@ -140,6 +178,12 @@ def gate(q00: float, q10: float, q11: float) -> float:
     return 0.0
 
 
+def _maintenance(diagnostics: EvolutionReport) -> dict[str, float]:
+    drift, regression = diagnostics.drift, diagnostics.regression
+    return {**({"drift": _kept(drift.cases, before=False)} if drift else {}),
+            **({"regression": _kept(regression.cases, before=True)} if regression else {})}
+
+
 def score(out: Path, a0: Path, a1: Path) -> tuple[dict[str, float], dict[str, object]]:
     runs = {q: outcomes(out / q) for q in QS}
     rates = {q: rate(r) for q, r in runs.items() if r is not None}
@@ -147,9 +191,12 @@ def score(out: Path, a0: Path, a1: Path) -> tuple[dict[str, float], dict[str, ob
         raise SystemExit(f"cannot score: {', '.join(missing)} not graded under {out}")
     rules = {s.id: s.rules for s in load_scenarios(Step.MAINTAIN_R1)}
     diagnostics = report(a0, a1, runs, {q: out / q for q in QS}, rules)
-    reward = {"reward": gate(rates["q00"], rates["q10"], rates["q11"]), **{q: rates[q] for q in ("q00", "q10", "q11")}}
+    behaviour = behaviour_robustness(runs)
+    reward = {"reward": gate(rates["q00"], rates["q10"], rates["q11"]), "q00": rates["q00"], "q11": rates["q11"],
+              **_maintenance(diagnostics),
+              "behaviour_robustness": behaviour["overall"]}  # flat: Harbor reads reward.json as dict[str, float]
     return reward, {"q": rates, "invalid": invalid_by_q(out), "info": info(runs), "behavior": robustness(runs),
-                    **diagnostics.model_dump()}
+                    "behaviour_robustness": behaviour, **diagnostics.model_dump()}
 
 
 def main(argv: list[str]) -> int:

@@ -1,0 +1,288 @@
+{
+ "id": "a1-06-T",
+ "grade": {
+  "id": "a1-06-T",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": false,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": false,
+    "problem": "cases: extra [], missing [{'account_id': 'birchline-apps', 'team': 'telemetry', 'status': 'escalated', 'dispute_id': None}]",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": false,
+    "problem": "no successful write:cases(status=escalated, 'req_bl1')",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "insert:cases",
+      "at": 17,
+      "ok": false
+     },
+     {
+      "op": "insert:cases",
+      "at": 19,
+      "ok": false
+     }
+    ]
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "escalate_case",
+   "find_account",
+   "load_skill",
+   "search_policy",
+   "usage_summary"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 38.3789378460001,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Our calls req_bl1 and req_bl2 succeeded this morning, 8 April 2027, but they\u2019re still missing from the usage page. Is something broken? Org birchline-apps."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_ijNLmMtxulMzelw2sWnfNElv",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    },
+    {
+     "id": "call_eS8nLbWuoGXFfbdNlkXxQ5hi",
+     "name": "find_account",
+     "arguments": {
+      "org": "birchline-apps"
+     }
+    },
+    {
+     "id": "call_rF5zt8SPTsiPM4w6QvCJnTbG",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "timezone"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. A confirmed duplicate accepted by the console may be credited; report the amount only after the tool confirms it. For a confirmed duplicate over the console limit, submit the `duplicate_charge` dispute and escalate to `billing_ops` with its dispute ID. Promise no outcome or timeline.\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, UTC window, and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for Support's credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"birchline-apps\", \"org\": \"birchline-apps\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2026-10-05\", \"billing_timezone\": \"UTC\"}, \"contracts\": [], \"credit_grants\": [{\"grant_id\": \"GRANT-birchline-apps-1\", \"account_id\": \"birchline-apps\", \"kind\": \"promotional\", \"amount\": {\"value\": \"150.00\", \"currency\": \"USD\"}, \"remaining\": {\"value\": \"150.00\", \"currency\": \"USD\"}, \"granted_on\": \"2027-02-20\", \"expires_on\": \"2027-05-21\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"timezone\": \"I don't have that.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_UwdpbzmFbsFe5VtWrEjx2BHi",
+     "name": "usage_summary",
+     "arguments": {
+      "account_id": "birchline-apps",
+      "start_utc": "2027-04-08T00:00:00Z",
+      "end_utc": "2027-04-08T23:59:59Z",
+      "request_ids": [
+       "req_bl1",
+       "req_bl2"
+      ]
+     }
+    },
+    {
+     "id": "call_IcT6bpiS9jR0hubiFFXJ8AAy",
+     "name": "search_policy",
+     "arguments": {
+      "query": "Current published missing usage telemetry policy successful 2xx request still missing usage page freshness threshold minutes, required follow-up request IDs, filters workspace time range"
+     }
+    },
+    {
+     "id": "call_6z7pqkZdyCK42gcuOCtyOv6I",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "time_of_issue"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"count\": 0, \"billed_tokens\": 0, \"cached_tokens\": 0, \"http_status_counts\": {}, \"billed_tokens_by_day\": {}, \"start_utc\": \"2027-04-08T00:00:00Z\", \"end_utc\": \"2027-04-08T23:59:59Z\", \"requests\": {\"req_bl1\": \"not recorded for this account\", \"req_bl2\": \"not recorded for this account\"}}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\", \"status\": \"published\", \"date\": \"2025-04-08\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\\ntitle: Onboarding Checklist: Support Escalation and Triage Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-04-08\\n[section: body 30]\\n### Macro: Request minimal debugging info\\n\\u201cCan you share (1) workspace/org name as shown in Console, (2) which SDK/language + version, (3) the endpoint you\\u2019re calling, and (4) the status code + error message text? If you can include the timestamp (UTC) of your last attempt, we can check our side quickly.\\u201d\\n\\n[section: body 31]\\n### Macro: Usage dashboard freshness\\n\\u201cUsage can take a short time to appear in the dashboard depending on ingestion. Please confirm you\\u2019re viewing the correct workspace and time range. If it\\u2019s been >30 minutes since your last successful requests and usage still shows 0, we\\u2019ll investigate telemetry freshness.\\u201d\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\", \"status\": \"published\", \"date\": \"2025-04-08\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\\ntitle: Onboarding Checklist: Support Escalation and Triage Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-04-08\\n[section: body 16]\\n### 2) First successful API call (TTFS)\\n**What completion means:** We observed the first eligible 2xx response from the Hosted gateway for the tenant.\\n\\nTroubleshooting:\\n1. Ask for a timestamp of their last attempt.\\n2. Check internal request metadata for 2xx vs 4xx/5xx.\\n3. If they are using a local proxy, confirm requests actually reach Hosted.\\n4. If they are using a different org in CI vs local, reconcile workspace IDs.\\n\\nIf checklist is not updating:\\n- Confirm the request hit an instrumented gateway path.\\n- Allow for telemetry lag (up to 10 minutes is typical).\\n\\nEscalation criteria:\\n- Verified 2xx requests with no checklist update after 30 minutes.\\n\\nEscalate to: **Telemetry** (Logan Wright / Nadia Rahman).\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/incident-process/incident-bot-triage-playbook.json\", \"status\": \"published\", \"date\": \"2025-05-06\", \"text\": \"source: sources/confluence/oncall-and-incident-response/incident-process/incident-bot-triage-playbook.json\\ntitle: Incident Bot v2 Triage Playbook (First 5 Minutes)\\nstatus/authority: published; unspecified\\ndate: 2025-05-06\\n[section: content 1]\\nmetadata, config diff, telemetry) are unhealthy or query budgets are exceeded.\\nDo:\\n1) Use the provided deep links (dashboards/traces/config history) instead of retrying.\\n2) Post a short summary in the incident thread: \\u201cBot degraded; using links-only mode.\\u201d\\n3) If needed, ask the telemetry/platform on-call to assist with direct queries.\\n\\n### B) \\u201cConfig diff unavailable\\u201d or \\u201cInsufficient scope\\u201d\\nMost common causes:\\n- Bot service identity missing the required scope in the current environment\\n- You are trying to view a restricted diff scope (e.g., tenant override) without break-glass\\n\\nDo:\\n1) Confirm incident severity (Sev0/Sev1 required for break-glass).\\n2) Request help in #eng-platform and tag the control plane on-call.\\n3) If approved, use \"}, {\"source\": \"sources/confluence/oncall-and-incident-response/incident-process/incident-bot-triage-playbook.json\", \"status\": \"published\", \"date\": \"2025-05-06\", \"text\": \"source: sources/confluence/oncall-and-incident-response/incident-process/incident-bot-triage-playbook.json\\ntitle: Incident Bot v2 Triage Playbook (First 5 Minutes)\\nstatus/authority: published; unspecified\\ndate: 2025-05-06\\n[section: content 1]\\nbreak-glass per policy:\\n   - Ensure the incident ID is included in the request.\\n   - Expect audit logging of access events.\\n   - Do not paste raw outputs into Slack; summarize only.\\n\\nEscalation targets:\\n- Platform/control plane: Ethan Park, Kaitlyn Nguyen (authz), Benji Okafor (config/rollouts)\\n- Security/audit questions: Marcus Lin, Kevin Osei\\n\\n### C) \\u201cDeploy context unavailable\\u201d\\nMost common causes:\\n- Service mapping missing for a deploy event\\n- Deploy metadata exporter lag\\n\\nDo:\\n1) Check the deploy timeline dashboard link if provided.\\n2) Ask #eng-releases to confirm latest deploys for the suspected service/region.\\n\\nEscalation targets:\\n- Release engineering: Connor O\\u2019Brien, Sahana Iyer\\n\\n### D) \\u201cTelemetry query timed out\\u201d\\nMost common \"}, {\"source\": \"sources/jira/customer-support/SUP-1842-nimblehealth-zero-retention-content.json\", \"status\": \"Resolved\", \"date\": \"2025-02-10\", \"text\": \"source: sources/jira/customer-support/SUP-1842-nimblehealth-zero-retention-content.json\\ntitle: NimbleHealth asking for zero retention of prompt/response content (no logging/tracing bodies)\\nstatus/authority: Resolved; unspecified\\ndate: 2025-02-10\\n[section: key 1]\\nSUP-1842\\n\\n[section: project 1]\\ncustomer-support\\n\\n[section: issue_type 1]\\nQuestion\\n\\n[section: summary 1]\\nNimbleHealth asking for zero retention of prompt/response content (no logging/tracing bodies)\\n\\n[section: priority 1]\\nP2\\n\\n[section: reporter 1]\\nlauren_bishop\\n\\n[section: assignee 1]\\ndev_patel\\n\\n[section: customer_company 1]\\nNimbleHealth\\n\\n[section: customer_tier 1]\\nenterprise\\n\\n[section: components 1]\\nobservability\\n\\n[section: components 2]\\napi-gateway\\n\\n[section: components 3]\\nsupport-tooling\\n\\n[section: environment 1]\\nprod us-east\\n\\n[section: related_confluence_pages 1]\\nsecurity-and-compliance/data-residency-and-retention/retention-controls\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\nconfirms the contract and owns any request that depends on it, including an SLA credit. Treat the account as the console shows it until then |\\n| Usage for successful (2xx) requests still missing from the Console after about 30 minutes | Telemetry | A pipeline issue, not a billing one; see the onboarding triage playbook |\"}, {\"source\": \"sources/slack/support/1750001234-go-sdk-keepalive-timeouts-triage.json\", \"status\": \"unspecified\", \"date\": \"1750001302\", \"text\": \"source: sources/slack/support/1750001234-go-sdk-keepalive-timeouts-triage.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1750001302\\n[section: text 24]\\nmia_support: Great \\u2014 thanks for the update. If you see anything, please paste tcpdump or netstat output and we can escalate to infra.\\n\\n[section: text 25]\\nci-bot: Deployed SDK patch v0.9.3-beta that includes a note in the README about reuse of http.Client and an opt-in which disables the internal retry wrapper via ClientOptions.DisableInternalRetries.\\n\\n[section: text 26]\\nsam_sdk: We'll follow up with a small patch to make retry timing more conservative so it respects caller ctx deadlines earlier. Filed issue: #1248.\\n\\n[section: text 27]\\njon_customer: Confirmed stable after the changes. Appreciate the quick triage! :thumbsup:\"}, {\"source\": \"sources/gmail/karthik_iyer/20260124-marketplace-security-packet-review.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/karthik_iyer/20260124-marketplace-security-packet-review.json\\ntitle: Marketplace security packet \\u2014 wording + evidence references review (redlines needed by EOD Fri)\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: body 1]\\nPetrov <olga_petrov@redwoodinference.com>, Naomi Feldman <naomi_feldman@redwoodinference.com>, Marcus Lin <marcus_lin@redwoodinference.com>\\nDate: Fri, Jan 24, 2026 at 1:08 PM PST\\nSubject: Re: Marketplace security packet \\u2014 wording + evidence references review (redlines needed by EOD Fri)\\n\\nGot it. For the docs PR (PR-3422) I\\u2019ll update the public pages to:\\n- Remove/replace absolute claims (per Aisha)\\n- Add a short \\u201cEvidence available on request\\u201d section with NDA note\\n\\nQuestion: do we want to publish retention defaults numerically (e.g., \\u201c30 days\\u201d) on the public page, or keep it as \\u201cX days\\u201d and link to the internal retention page?\\n\\nThe marketplace reviewers tend to want a number, but we don\\u2019t want drift if \"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"time_of_issue\": \"2027-04-08 08:00 UTC, about 75 minutes ago.\"}}"
+  },
+  {
+   "role": "assistant",
+   "content": "I checked the account and usage records for **birchline-apps**. Neither `req_bl1` nor `req_bl2` is recorded for this account, so I can\u2019t verify their status from the usage data. That alone doesn\u2019t tell me whether something is broken.\n\nRedwood\u2019s current guidance says usage can take a short time to appear, and to check that you\u2019re viewing the correct workspace and time range. If confirmed successful **2xx** requests are still missing after about **30 minutes**, the issue should go to Telemetry. Since you said these calls succeeded about 75 minutes ago, please confirm the workspace and date range, and share their UTC timestamps and 2xx status codes if you have them. The request IDs are already noted."
+  },
+  {
+   "role": "user",
+   "content": "Could you look into this?"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_3nn8GOPnzvbYjgVoLbrNORnv",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "response_status"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"response_status\": \"Both returned 200.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_SoV6Ad4AAsO6Hw3eF5vNuXip",
+     "name": "search_policy",
+     "arguments": {
+      "query": "Current published billing routing handoff exact Telemetry rule successful 2xx requests missing Console after about 30 minutes route required details request IDs"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\nconfirms the contract and owns any request that depends on it, including an SLA credit. Treat the account as the console shows it until then |\\n| Usage for successful (2xx) requests still missing from the Console after about 30 minutes | Telemetry | A pipeline issue, not a billing one; see the onboarding triage playbook |\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\", \"status\": \"published\", \"date\": \"2025-04-08\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\\ntitle: Onboarding Checklist: Support Escalation and Triage Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-04-08\\n[section: body 16]\\n### 2) First successful API call (TTFS)\\n**What completion means:** We observed the first eligible 2xx response from the Hosted gateway for the tenant.\\n\\nTroubleshooting:\\n1. Ask for a timestamp of their last attempt.\\n2. Check internal request metadata for 2xx vs 4xx/5xx.\\n3. If they are using a local proxy, confirm requests actually reach Hosted.\\n4. If they are using a different org in CI vs local, reconcile workspace IDs.\\n\\nIf checklist is not updating:\\n- Confirm the request hit an instrumented gateway path.\\n- Allow for telemetry lag (up to 10 minutes is typical).\\n\\nEscalation criteria:\\n- Verified 2xx requests with no checklist update after 30 minutes.\\n\\nEscalate to: **Telemetry** (Logan Wright / Nadia Rahman).\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\n## Routing table\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Disputed or duplicated line on a direct Redwood invoice | Billing Ops | Invoice number, the line(s), UTC window, request IDs |\\n| Refund request on a direct invoice line the customer says was billed in error | Billing Ops | Billing Ops confirms the charge and requests approval where needed |\\n| Invoice total doesn't match the customer's usage export | Billing Ops | Note the export's timezone and filters |\\n| Payment failures, holds, receipts | Billing Ops | |\\n| Meter discrepancy the related pages don't explain: request IDs whose billed tokens still don't match after the tokenizer, payload and retry rules are applied | Billing Engineering | Billing Eng checks meter correctness and hands any \"}, {\"source\": \"sources/jira/customer-support/SUP-58340-orionhealth-eu-west-routing-anomaly-post-incident-followup.json\", \"status\": \"Resolved\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-58340-orionhealth-eu-west-routing-anomaly-post-incident-followup.json\\ntitle: OrionHealth - EU-WEST production: sustained 5xx + routing anomaly causing inconsistent fallback outputs and unexpected billing spike\\nstatus/authority: Resolved; unspecified\\ndate: 2026-03-12\\n[section: investigation_notes 4]\\nA retry loop in the routing layer used an exponential backoff that inadvertently amplified concurrent requests to kernel-selection, producing a short-lived cascade\\n\\n[section: investigation_notes 5]\\nBilling anomaly root: rw-7b-quantized produced more short-prompt tokens for medical templates due to different EOS handling; combined with retries this increased billed tokens per user session\\n\\n[section: mitigation_and_workaround 1]\\nApplied emergency routing override to pin customer to rw-13b-v2 for OrionHealth (policy change) at 13:05 UTC\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\", \"status\": \"published\", \"date\": \"2025-04-08\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json\\ntitle: Onboarding Checklist: Support Escalation and Triage Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-04-08\\n[section: body 13]\\nsuccessful request\\u201d not complete | Telemetry delay, request routed via non-instrumented path, tenant mismatch | Wait 5\\u201310 minutes; confirm request hit Hosted gateway; verify correct org | If >30 minutes delay with verified 2xx requests (Telemetry) |\\n| Streaming disconnect confusion / partial output | \\u201cStreaming response\\u201d incomplete or flagged | Client not reading stream properly, idle timeout, missing reconnect logic | Use SDK streaming helper; ensure keep-alive; implement reconnect/backoff | If consistent disconnect at same server timestamp across customers/regions (SRE/Platform) |\\n| Immediate 429 after launch | \\u201cQuotas & rate limits\\u201d incomplete or flagged | Concurrency too high, burst traffic, missing backoff | \"}, {\"source\": \"sources/google_drive/shared_drives/customer-success/spend-sentinel-diagnostic-notebook.json\", \"status\": \"draft\", \"date\": \"2024-12-03\", \"text\": \"source: sources/google_drive/shared_drives/customer-success/spend-sentinel-diagnostic-notebook.json\\ntitle: Spend Sentinel \\u2014 Usage & Billing Diagnostic Notebook\\nstatus/authority: draft; unspecified\\ndate: 2024-12-03\\n[section: body 1]\\nTIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)\\n  GROUP BY route, day ORDER BY day DESC;\\n\\n- Rate-limit failures aggregate (7d):\\n  SELECT route, error_code, COUNT(1) as failures\\n  FROM telemetry.errors\\n  WHERE customer_id = '<<CUSTOMER_ID>>' AND error_code = 'RateLimitExceeded' AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)\\n  GROUP BY route, error_code ORDER BY failures DESC;\\n\\n- 95th token-per-minute (burst) estimate (14d):\\n  SELECT DATE_TRUNC(timestamp, MINUTE) as minute_bucket, SUM(tokens) as tokens_min\\n  FROM telemetry.requests\\n  WHERE customer_id = '<<CUSTOMER_ID>>' AND timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 14 DAY)\\n  GROUP BY minute_bucket ORDER BY tokens_min DESC LIMIT 100;\\n\\nInterpreting diagnostics (how to \"}, {\"source\": \"sources/jira/customer-support/SUP-58340-orionhealth-eu-west-routing-anomaly-post-incident-followup.json\", \"status\": \"Resolved\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-58340-orionhealth-eu-west-routing-anomaly-post-incident-followup.json\\ntitle: OrionHealth - EU-WEST production: sustained 5xx + routing anomaly causing inconsistent fallback outputs and unexpected billing spike\\nstatus/authority: Resolved; unspecified\\ndate: 2026-03-12\\n[section: comments 4]\\nOrionHealth CSM (Jules Park) 2026-03-09 14:05 UTC: Confirmed UX recovery for majority of users. Requesting formal postmortem and billing reconciliation.\\n\\n[section: comments 5]\\nMaya Chen (Support) 2026-03-12 09:30 UTC: Post-incident follow-up completed; action items created and assigned. Billing credit approved by Finance. Closing ticket after customer sign-off.\"}, {\"source\": \"sources/fireflies/customer-success/2025-11-07-lattice-pilot-technical-handoff-and-sla-onboarding.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/fireflies/customer-success/2025-11-07-lattice-pilot-technical-handoff-and-sla-onboarding.json\\ntitle: Lattice Pilot: technical handoff and SLA onboarding\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: transcript 1]\\nand we have options to disable prefix caching if you want strict isolation. We'll call out the config in the runbook. Also for 4k tokens you may want to adjust kernel selection; we'll recommend a batch/seq configuration.\\n[03:28] Sana Kapoor: Regarding metrics, can Redwood surface per-route token cost and per-request latency in the Console? We want to feed that into our cost allocation.\\n[03:39] Noah Patel: Yes, Console has token-level billing breakdown and you can tag routes; we'll demo the cost views during the pilot onboarding session.\\n[03:50] Tom Brewer: About SLA \\u2014 HorizonLedger requires a 99.9% uptime target and a 15 minute incident initial response for P1s. How does Redwood's Dedicated / Private offerings map to that?\\n[04:05] Jordan \"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_pOh1H3LGsbXdN7JDuimgUz2i",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "birchline-apps",
+      "team": "telemetry",
+      "summary": "Two successful requests missing from usage page beyond 30-minute threshold",
+      "details": {
+       "organization": "birchline-apps",
+       "account_id": "birchline-apps",
+       "request_ids": "req_bl1, req_bl2",
+       "request_date": "2027-04-08",
+       "request_time_utc": "Customer gave 08:00 UTC as approximate, about 75 minutes before initial report; exact per-request timestamps not supplied",
+       "response_status": "Customer confirmed both requests returned HTTP 200",
+       "usage_check": "Usage summary for 2027-04-08 UTC showed count 0; both request IDs reported not recorded for this account",
+       "plan": "Hosted Self-Serve",
+       "billing_channel": "direct"
+      },
+      "unresolved": "Why the two reported HTTP 200 requests are not recorded in usage for this account; whether they reached the instrumented Hosted gateway path and correct workspace; exact timestamps for each request.",
+      "routing_rule": "Usage for successful (2xx) requests still missing from the Console after about 30 minutes | Telemetry | A pipeline issue, not a billing one; see the onboarding triage playbook"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for cases"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_2JLi8afjKWZ6zPE0lESfny4K",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "birchline-apps",
+      "team": "telemetry",
+      "summary": "Two successful requests missing from usage page beyond 30-minute threshold",
+      "details": {
+       "organization": "birchline-apps",
+       "request_ids": "req_bl1, req_bl2",
+       "request_date": "2027-04-08",
+       "request_time_utc": "Customer gave 08:00 UTC as approximate, about 75 minutes before initial report; exact per-request timestamps not supplied",
+       "response_status": "Customer confirmed both requests returned HTTP 200",
+       "usage_check": "Usage summary for 2027-04-08 UTC showed count 0; both request IDs reported not recorded for this account",
+       "plan": "Hosted Self-Serve",
+       "billing_channel": "direct"
+      },
+      "unresolved": "Why the two reported HTTP 200 requests are not recorded in usage for this account; whether they reached the instrumented Hosted gateway path and correct workspace; exact timestamps for each request.",
+      "routing_rule": "Usage for successful (2xx) requests still missing from the Console after about 30 minutes | Telemetry | A pipeline issue, not a billing one; see the onboarding triage playbook"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for cases"
+  },
+  {
+   "role": "assistant",
+   "content": "I checked the usage records for **birchline-apps**: the 8 April UTC summary shows zero recorded requests, and `req_bl1` and `req_bl2` aren\u2019t recorded for this account. You confirmed both returned HTTP 200, and the report was more than 30 minutes after the calls. Redwood\u2019s current guidance routes successful 2xx requests still missing after about 30 minutes to **Telemetry**.\n\nI tried to open that case, but the support console rejected it with an account-field error, so **the case was not created**. The records don\u2019t tell me whether the requests reached the instrumented Hosted gateway or were associated with the right workspace. Please confirm the workspace shown in your usage page and, if possible, share the exact UTC timestamp for each request; those details will help with follow-up."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

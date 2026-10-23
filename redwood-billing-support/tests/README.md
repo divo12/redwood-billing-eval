@@ -7,12 +7,12 @@ frozen at the end of `build_r0`), because the reward needs both agents at once.
 |---|---|---|
 | `build_r0` | `verify.py build_r0`: gates, workspace report, `freeze` (A0 → `/run/redwood-agent-R0`), artifact checks | `evidence.json`, a placeholder `reward.json` (`graded: false`) |
 | `maintain_r1` | `verify.py maintain_r1` (same for A1), then `/tests` is made root-only and `grade.grade` runs Q00, Q10, Q11 (graded agents run as `nobody`), then `grade.final` | `reward.json` (the gate, the three rates, `artifact_quality`), `graded/scores.json`, `graded/q*/cases/` |
-| Optional, after the run | `scripts/grade_snapshots.sh <trial>`: Q01 (diagnostic) or a regrade of invalid cases, in the sealed `redwood-grader` image | `<trial>/graded/` |
+| Optional, after the run | `scripts/grade_snapshots.sh <trial>`: a regrade of invalid cases, in the sealed `redwood-grader` image | `<trial>/graded/` |
 
 | Run | Agent | Cases | Console |
 |---|---|---|---|
 | Q00 | A0 | R0 | R0 |
-| Q01 | A0 | R1 (base cases only: diagnostic) | R1 |
+| Q01 | A0 | R1 (the baseline for drift) | R1 |
 | Q10 | A1 | R0 | R1 |
 | Q11 | A1 | R1 | R1 |
 
@@ -146,7 +146,7 @@ They would only repeat another check: the escalation team (DB check), ordinary w
 ```sh
 # a full run: the builder, then grading in maintain_r1's verifier (provider keys for SUPPORT_MODEL, see README)
 harbor run -y -c redwood-billing-support/run-config.claude.json -o "$PWD/jobs"
-scripts/grade_snapshots.sh jobs/<job>/<trial>        # optional regrade outside Harbor; QS="q01" for the diagnostic
+scripts/grade_snapshots.sh jobs/<job>/<trial>        # optional regrade outside Harbor; QS="q01" for one Q
 
 # one Q run on any workspace, or a few cases
 cd redwood-billing-support/tests && python -m grade.grade build_r0 path/to/workspace --only a0-03

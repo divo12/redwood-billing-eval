@@ -43,7 +43,9 @@ def test_score_writes_the_gate_and_the_diagnostics(tmp_path):
     _run(out, "q10", {"a0-1": True, "a0-2": True})
     _run(out, "q11", {"a1-1": True})
     assert final.main([str(out), str(a0), str(a1)]) == 0
-    assert json.loads((out / "reward.json").read_text()) == {"reward": 1.0, "q00": 1.0, "q10": 1.0, "q11": 1.0}
+    assert json.loads((out / "reward.json").read_text()) == {
+        "reward": 1.0, "q00": 1.0, "q11": 1.0, "drift": 1.0, "regression": 1.0,
+        "behaviour_robustness": 0.0}  # no variants graded
     scores = json.loads((out / "scores.json").read_text())
     assert scores["q"] == {"q00": 1.0, "q01": 0.0, "q10": 1.0, "q11": 1.0}
     assert scores["drift"]["absorbed"] == ["a1-1"] and scores["regression"]["regressed"] == []
@@ -90,3 +92,22 @@ def test_robustness_compares_each_variant_with_its_base():
     assert summary["attribution"] == {"behaviour failure": ["a0-07-A"], "handled": ["a0-07-C", "a0-07-M"],
                                       "both failed": ["a0-10-C", "a0-10-M"], "variant only": ["a0-10-A"]}
     assert final.robustness({"q01": {"a1-04": True}}) == {}  # base cases only: nothing to report
+
+
+def test_drift_and_regression_count_only_the_cases_that_could_change(tmp_path):
+    out = tmp_path / "out"
+    _run(out, "q00", {"a0-1": True, "a0-2": True, "a0-3": False})
+    _run(out, "q10", {"a0-1": True, "a0-2": False, "a0-3": False})  # one of two passing R0 cases kept
+    _run(out, "q01", {"a1-1": False, "a1-2": False, "a1-3": True})
+    _run(out, "q11", {"a1-1": True, "a1-2": False, "a1-3": False})  # one of two failing R1 cases absorbed
+    reward, _ = final.score(out, tmp_path, tmp_path)
+    assert (reward["drift"], reward["regression"]) == (0.5, 0.5)
+
+
+def test_behaviour_robustness_counts_variants_whose_base_passed():
+    runs = {"q00": {"a0-02": True, "a0-02-M": False, "a0-02-A": True, "a0-06": False, "a0-06-C": True},
+            "q10": None, "q11": None}
+    score = final.behaviour_robustness(runs)
+    # a0-06 failed, so a0-06-C says nothing about behaviour; of a0-02's variants one of two passed
+    assert score == {"overall": 0.5, "ambiguous": 1.0, "missing_info": 0.0}
+    assert final.behaviour_robustness({"q00": None, "q10": None, "q11": None}) == {"overall": 0.0}  # no evidence

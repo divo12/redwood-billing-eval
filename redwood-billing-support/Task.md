@@ -243,7 +243,9 @@ The evaluator freezes the workspace and runs the support agent from that
 read-only copy. It cannot read `/app/R`, install dependencies, or access
 external services directly. Retain everything it needs in the workspace.
 Model and embedding calls use the gateway and the models in
-`framework/deployment_manifest.json`. The builder has 7200 seconds; the
+`framework/deployment_manifest.json`. The deployed support model is the run's
+`SUPPORT_MODEL` (a LiteLLM model id); the manifest names it exactly. The
+builder has 7200 seconds; the
 container has 2 CPUs, 8 GiB memory, and 20 GiB storage. Further runtime limits
 are in the agent contract.
 
@@ -296,7 +298,8 @@ retrieve, and maintain its knowledge is your choice.
 `/app/framework/agent_building.md` includes optional maintenance, component
 integration, and regression-testing guidance. It is the same reference as R0.
 
-The runtime interface, allowed models, and workspace-only deployment boundary
+The runtime interface, allowed models (the run's `SUPPORT_MODEL`, named in
+`framework/deployment_manifest.json`), and workspace-only deployment boundary
 are unchanged. Dense embeddings still run on this container's CPUs with no
 external embedding API: embed only the records you judge relevant to the
 billing-support domain, not all of `/app/R`. You have 3600 seconds in this step. The support agent still
@@ -468,7 +471,7 @@ defect, removed).
   failed, variant only); `drift` and `regression` per case; `health` per Q (time, model calls, tokens,
   embeddings, developer turns, over all and passing cases, and `ends`: terminations with agent errors split into
   crash or timeout, agent exception, bad message); `sizes` (lines per workspace layer, index bytes).
-  Q01 is diagnostic and grades base cases only (`--base-only`).
+  Q01 grades all 30 R1 cases on A0, the baseline for `drift` (until 2026-10-24 base cases only).
 - Calibration: one attempt per case; 30 cases per step, so one case moves a pass rate by about 0.033. The gate
   allows Q10 one-in-ten slack below Q00.
 - References, future overlays, baseline, verifier files, and score logs are

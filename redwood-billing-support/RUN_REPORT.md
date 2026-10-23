@@ -7,6 +7,16 @@
 | Oracle (`evidence/oracle`) | 30/30 | 30/30 | 30/30 | **1.0** |
 | Claude Opus 5.5, high, Claude Code (`evidence/opus-5-5-run5`) | 25/30 (0.833) | 26/30 (0.867) | 27/30 (0.90) | **0.0** |
 
+Full `reward.json` (recomputed with the current `tests/grade/final.py` from the saved grading):
+
+| Agent | reward | drift | regression | behaviour_robustness | artifact_quality |
+|---|---|---|---|---|---|
+| Oracle | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 |
+| Opus 5.5 run 5 | 0.0 | 0.80 (12 of 15; that run graded Q01 on base cases only) | 0.96 (lost a0-08) | 1.0 | 1.0 |
+
+`behaviour_robustness` 1.0 means no developer profile (missing info, ambiguous, conflict) broke a case its base
+handled: Opus's failures are about rules, not about difficult developers.
+
 Opus 5.5 built a working, well-structured agent (a retrieval index, three skills, a policy-researcher subagent,
 hooks, wiring tests) and ran practice conversations in both steps. It still fails the gate on the build itself (Q00 < 0.9). In every recurring
 failure, **the deciding record reached the support agent, but the builder never turned it into a decision rule

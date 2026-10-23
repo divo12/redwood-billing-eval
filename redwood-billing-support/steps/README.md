@@ -53,7 +53,7 @@ with `build_index.py`, and records a Pi session so session continuity checks pas
 - `tests/test.sh`: `verify.py maintain_r1` (the same checks and freeze for A1), then the grading of A0 and A1.
 - `solution/`: the R1 oracle. See below.
 
-`test.sh` runs `python /tests/verify.py maintain_r1`, seals `/tests`, grades Q00, Q10 and Q11 (90 conversations)
+`test.sh` runs `python /tests/verify.py maintain_r1`, seals `/tests`, grades Q00, Q01, Q10 and Q11 (120 conversations)
 on the frozen A0 and A1, writes the gate into `/logs/verifier/reward.json` and the diagnostics into
 `/logs/verifier/graded/scores.json`, and hands the logs back to the host user. See the task's `tests/README.md`.
 

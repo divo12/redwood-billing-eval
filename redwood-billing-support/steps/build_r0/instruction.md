@@ -70,8 +70,8 @@ read-only copy. It cannot read `/app/R`, install dependencies, or access
 external services directly. Retain everything it needs in the workspace.
 Model and embedding calls use the gateway and the models in
 `framework/deployment_manifest.json`. The deployed support model is the run's
-`SUPPORT_MODEL` (a LiteLLM model id, default `openai/gpt-6-luna`); the manifest
-names it exactly. The builder has 7200 seconds; the
+`SUPPORT_MODEL` (a LiteLLM model id); the manifest names it exactly. The
+builder has 7200 seconds; the
 container has 2 CPUs, 8 GiB memory, and 20 GiB storage. Further runtime limits
 are in the agent contract.
 

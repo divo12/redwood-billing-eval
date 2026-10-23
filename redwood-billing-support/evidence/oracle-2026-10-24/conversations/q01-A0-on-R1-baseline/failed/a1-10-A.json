@@ -1,0 +1,164 @@
+{
+ "id": "a1-10-A",
+ "grade": {
+  "id": "a1-10-A",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": false,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 6,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": false,
+    "problem": "never said any of ['402']",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "find_account",
+   "load_skill",
+   "search_policy",
+   "usage_summary"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 25.242592117999948,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hi, we got a warning about our usage. How much have we used so far this month, and which day was highest? Are we going to be cut off or charged more? Org pebble-ai."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_0jjOQMtk2H8dq6nlclzM0L0e",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    },
+    {
+     "id": "call_96NWixKmfboYn64UugFjaHD5",
+     "name": "find_account",
+     "arguments": {
+      "org": "pebble-ai"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. A confirmed duplicate accepted by the console may be credited; report the amount only after the tool confirms it. For a confirmed duplicate over the console limit, submit the `duplicate_charge` dispute and escalate to `billing_ops` with its dispute ID. Promise no outcome or timeline.\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, UTC window, and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for Support's credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"pebble-ai\", \"org\": \"pebble-ai\", \"plan\": \"free\", \"plan_name\": \"Free\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"none\", \"created_on\": \"2026-10-05\", \"billing_timezone\": \"UTC\"}, \"contracts\": [], \"credit_grants\": []}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_3MSlDMlOJ61hAWcCcbgLNQrF",
+     "name": "usage_summary",
+     "arguments": {
+      "account_id": "pebble-ai"
+     }
+    },
+    {
+     "id": "call_v5TvMvrXGxUiBYLOK7rX7Iyi",
+     "name": "search_policy",
+     "arguments": {
+      "query": "Current published Free plan monthly usage limits warnings, cutoff/suspension, overage charges or additional billing, monthly usage reset; usage reporting current month and daily peak"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"count\": 3, \"billed_tokens\": 231400, \"cached_tokens\": 0, \"http_status_counts\": {\"200\": 3}, \"billed_tokens_by_day\": {\"2027-04-02\": 80000, \"2027-04-05\": 95400, \"2027-04-07\": 56000}, \"start_utc\": null, \"end_utc\": null, \"requests\": {}}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/product-docs/pricing-and-packaging/free-tier-limits-2025.json\", \"status\": \"published\", \"date\": \"2025-11-10\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/free-tier-limits-2025.json\\ntitle: Free Tier Limits\\nstatus/authority: published; unspecified\\ndate: 2025-11-10\\n[section: body 2]\\n## Purpose\\nWhat happens when a Free workspace uses up its monthly included usage.\\n\\n[section: body 3]\\n## Limits\\n- Free includes a fixed monthly amount of billed tokens and requests.\\n- Free has no overage: nothing beyond the included usage is ever charged, and Free workspaces never get an invoice.\\n\\n[section: body 4]\\n## At the limit\\nOnce a Free workspace reaches its monthly limit, further requests are rate-limited: the API returns HTTP `429` with error code `quota_exceeded` and a `Retry-After` header. Requests work again when the next month starts. To keep sending requests sooner, the customer upgrades to a paid plan.\\n\\n_Last reviewed 2025-11-10._\"}, {\"source\": \"sources/google_drive/shared_drives/customer-success/warm-handoff-cs-embed-plan-first-3-months.json\", \"status\": \"draft\", \"date\": \"2025-02-03\", \"text\": \"source: sources/google_drive/shared_drives/customer-success/warm-handoff-cs-embed-plan-first-3-months.json\\ntitle: Warm Handoff & Embedded CS Plan \\u2014 First 3 Months (Sprint Template)\\nstatus/authority: draft; unspecified\\ndate: 2025-02-03\\n[section: content 1]\\nconfident to run incident playbook.\\n  - [ ] Regular usage report automated to exec stakeholders.\\n- Renewal prep:\\n  - [ ] Health scorecard (traffic, latency, cost, quality) ready for QBR.\\n  - [ ] Renewal risks flagged and mitigation plan drafted.\\n\\nRenewal signals & early warning triggers (watch for these):\\n- Negative signals:\\n  - Sudden drop in daily requests >25% without seasonality.\\n  - Persistent quality regressions tracked by eval set.\\n  - Unresolved billing/quotas disputes.\\n- Positive signals:\\n  - Sustained 20%+ weekly growth in core metric for 4+ weeks.\\n  - Internal RJ (reference job) created and shared by customer.\\n\\nQuick templates (copy-paste examples):\\n- 3-day kickoff agenda:\\n  1) Intros + success definitions (10m)\\n  2) \"}, {\"source\": \"sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\", \"status\": \"In Review\", \"date\": \"2025-03-05\", \"text\": \"source: sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\\ntitle: Tiered burst quotas, soft/hard rate limits and overage billing policy\\nstatus/authority: In Review; unspecified\\ndate: 2025-03-05\\n[section: requirements 5]\\nConsole: show real-time quota burn, projected date-to-exhaust at current rate, burst buffer usage, and one-click opt-in for overage billing\\n\\n[section: requirements 6]\\nAPI responses must include: X-Quota-Remaining, X-Burst-Remaining, X-RateLimit-Reset, and a machine-readable reason for throttling (soft_throttle | hard_limit | quota_exhausted)\\n\\n[section: requirements 7]\\nBilling: invoice line items for overage must list units consumed, unit price, and associated plan id; prorated mid-cycle plan upgrades should recompute remaining monthly quota and adjust overage thresholds\"}, {\"source\": \"sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\", \"status\": \"In Review\", \"date\": \"2025-03-05\", \"text\": \"source: sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\\ntitle: Tiered burst quotas, soft/hard rate limits and overage billing policy\\nstatus/authority: In Review; unspecified\\ndate: 2025-03-05\\n[section: requirements 1]\\nDefine three quota layers per plan: baseline steady-state quota (monthly window), burst buffer (short-term allowance measured in tokens and requests), and per-second soft rate limit\\n\\n[section: requirements 2]\\nSoft limits should throttle with controlled retries and informative headers, not immediate 429 hard failures until burst buffer exhausted or soft limit exceeded for >30s\\n\\n[section: requirements 3]\\nHard limits remain enforced for safety (abuse/fraud) and Dedicated customers can opt for hard-only behavior\\n\\n[section: requirements 4]\\nOverage-enabled plans will automatically bill at a defined overage rate after monthly quota exhaustion; opt-out plans will block traffic and show a grace window notification\"}, {\"source\": \"sources/confluence/customer-success-and-support/health-and-qbr/customer-health-audit-and-risk-mitigation-playbook-2025.json\", \"status\": \"published\", \"date\": \"2026-01-18\", \"text\": \"source: sources/confluence/customer-success-and-support/health-and-qbr/customer-health-audit-and-risk-mitigation-playbook-2025.json\\ntitle: Customer Health Audit & Risk Mitigation Playbook\\nstatus/authority: published; unspecified\\ndate: 2026-01-18\\n[section: content 1]\\n(critical).\\n  - Error rate: total 5xx > 0.5% (warning), > 2% (critical).\\n  - Throttling/rate-limit events: frequency and root cause (customer spikes vs infra).\\n\\n- Model Quality\\n  - Regression alerts: responses failing customer gold prompts increased by >10% vs baseline.\\n  - Hallucination signals: manual QA or automated semantic checks flagged >3% of sampled responses.\\n  - Token truncation/early-eos events: >1% of responses truncated unexpectedly.\\n\\n- Economics\\n  - Cost-per-1k tokens: compare current month vs prior 3-month average. Delta > +20% => warning; > +50% => critical.\\n  - Inefficient routes: top 5 routes by cost and token-per-call ratios.\\n  - Batching utilization: low utilization on high-throughput routes indicates \"}, {\"source\": \"sources/google_drive/shared_drives/customer-success/spend-sentinel-diagnostic-notebook.json\", \"status\": \"draft\", \"date\": \"2024-12-03\", \"text\": \"source: sources/google_drive/shared_drives/customer-success/spend-sentinel-diagnostic-notebook.json\\ntitle: Spend Sentinel \\u2014 Usage & Billing Diagnostic Notebook\\nstatus/authority: draft; unspecified\\ndate: 2024-12-03\\n[section: body 1]\\nplanned daily average for 3 consecutive days -> notify CSM and FinOps (email + slack)\\n- Alert B (Throttle Warning): p95 tokens/min exceeds reserved headroom by 20% for >10 minutes -> create incident in PagerDuty (severity P3) and notify solutions-eng\\n- Alert C (Commit Risk): projected end-of-month spend at current burn > committed + 10% -> escalate to renewals lead and AM\\n- Alert D (Unexpected model change): sudden change (>50%) in model mix within 24h -> CS + APPLIED ML review (possible release misconfiguration)\\n\\nPlaybook: triage steps for a billing spike or rapid token burn\\n1) Validate data (5 min): run the 30d tokens-by-route and 95th-minute queries. Confirm spike window and top routes.\\n2) Classify cause (10 min): code deploy? customer experiment? \"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/usage-credit-and-quota-guidelines-2026.json\", \"status\": \"in_review\", \"date\": \"2026-02-03\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/usage-credit-and-quota-guidelines-2026.json\\ntitle: Usage Credits and Quota Assignment Guidelines for Hosted Inference (2026)\\nstatus/authority: in_review; unspecified\\ndate: 2026-02-03\\n[section: body 1]\\ntemporary capacity increase:\\\\n   a) For scheduled events, follow Capacity Ramp procedure: create scheduled uplift in Gateway config, set provisional burst_pool percentage, and create Support ticket with capacity window.\\\\n   b) For emergency spikes, consider temporary auto-topup if account has payment method on file.\\\\n\\\\nMetrics and telemetry to surface:\\\\n- Daily consumed CR per account and per-route.\\\\n- Fraction of requests consuming burst_pool vs monthly_budget.\\\\n- Incidents where reconciliation delta > 2% (indicator of metering issues).\\\\n- Customer-visible latency change after quota throttling events.\\\\n\\\\nSLOs (product-facing):\\\\n- Billing accuracy: 99.5% of reconciled charges should be within 2% of estimated charges per \"}, {\"source\": \"sources/confluence/customer-success-and-support/health-and-qbr/customer-health-audit-and-risk-mitigation-playbook-2025.json\", \"status\": \"published\", \"date\": \"2026-01-18\", \"text\": \"source: sources/confluence/customer-success-and-support/health-and-qbr/customer-health-audit-and-risk-mitigation-playbook-2025.json\\ntitle: Customer Health Audit & Risk Mitigation Playbook\\nstatus/authority: published; unspecified\\ndate: 2026-01-18\\n[section: content 1]\\nre-run audit cadence, update QBR materials, and assess if SLA amendments are needed.\\n\\nInstrumentation & Dashboards\\n\\n- Required dashboards and saved queries (examples):\\n  - Per-route latency: p50/p90/p99 and traffic volume.\\n  - Model pass-rate on gold prompt set (rolling 7d/30d).\\n  - Cost rollup by route and model variant (daily).\\n  - Batching/caching utilization by service.\\n\\nExample SQL snippet (monthly cost by route)\\n\\nSELECT route, SUM(tokens_in + tokens_out) AS total_tokens, SUM(cost) AS total_cost\\nFROM billing.events\\nWHERE account_id = '<<ACCOUNT_ID>>' AND event_date >= DATE_SUB(CURRENT_DATE, INTERVAL 30 DAY)\\nGROUP BY route\\nORDER BY total_cost DESC\\nLIMIT 20;\\n\\nAppendix: Common Findings & Recommended Fixes\\n\\n- Large spikes \"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_NU48bM6EGk2qg7N6VLVuq6GY",
+     "name": "search_policy",
+     "arguments": {
+      "query": "Published current Free plan included monthly billed-token quota exact token limit, requests quota numeric limit and when warning occurs"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/product-docs/pricing-and-packaging/free-tier-limits-2025.json\", \"status\": \"published\", \"date\": \"2025-11-10\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/free-tier-limits-2025.json\\ntitle: Free Tier Limits\\nstatus/authority: published; unspecified\\ndate: 2025-11-10\\n[section: body 2]\\n## Purpose\\nWhat happens when a Free workspace uses up its monthly included usage.\\n\\n[section: body 3]\\n## Limits\\n- Free includes a fixed monthly amount of billed tokens and requests.\\n- Free has no overage: nothing beyond the included usage is ever charged, and Free workspaces never get an invoice.\\n\\n[section: body 4]\\n## At the limit\\nOnce a Free workspace reaches its monthly limit, further requests are rate-limited: the API returns HTTP `429` with error code `quota_exceeded` and a `Retry-After` header. Requests work again when the next month starts. To keep sending requests sooner, the customer upgrades to a paid plan.\\n\\n_Last reviewed 2025-11-10._\"}, {\"source\": \"sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\", \"status\": \"In Review\", \"date\": \"2025-03-05\", \"text\": \"source: sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\\ntitle: Tiered burst quotas, soft/hard rate limits and overage billing policy\\nstatus/authority: In Review; unspecified\\ndate: 2025-03-05\\n[section: requirements 1]\\nDefine three quota layers per plan: baseline steady-state quota (monthly window), burst buffer (short-term allowance measured in tokens and requests), and per-second soft rate limit\\n\\n[section: requirements 2]\\nSoft limits should throttle with controlled retries and informative headers, not immediate 429 hard failures until burst buffer exhausted or soft limit exceeded for >30s\\n\\n[section: requirements 3]\\nHard limits remain enforced for safety (abuse/fraud) and Dedicated customers can opt for hard-only behavior\\n\\n[section: requirements 4]\\nOverage-enabled plans will automatically bill at a defined overage rate after monthly quota exhaustion; opt-out plans will block traffic and show a grace window notification\"}, {\"source\": \"sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\", \"status\": \"In Review\", \"date\": \"2025-03-05\", \"text\": \"source: sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\\ntitle: Tiered burst quotas, soft/hard rate limits and overage billing policy\\nstatus/authority: In Review; unspecified\\ndate: 2025-03-05\\n[section: requirements 5]\\nConsole: show real-time quota burn, projected date-to-exhaust at current rate, burst buffer usage, and one-click opt-in for overage billing\\n\\n[section: requirements 6]\\nAPI responses must include: X-Quota-Remaining, X-Burst-Remaining, X-RateLimit-Reset, and a machine-readable reason for throttling (soft_throttle | hard_limit | quota_exhausted)\\n\\n[section: requirements 7]\\nBilling: invoice line items for overage must list units consumed, unit price, and associated plan id; prorated mid-cycle plan upgrades should recompute remaining monthly quota and adjust overage thresholds\"}, {\"source\": \"sources/linear/product-management/PM-6248-pricing-capacity-quotas-and-billing-comm.json\", \"status\": \"In Progress\", \"date\": \"2025-02-12\", \"text\": \"source: sources/linear/product-management/PM-6248-pricing-capacity-quotas-and-billing-comm.json\\ntitle: Pricing & quota rollout: SKU mapping, per-customer limits, and billing comms\\nstatus/authority: In Progress; unspecified\\ndate: 2025-02-12\\n[section: rollout_plan 4]\\nPhase 3 \\u2014 Full launch & migration start (2025-04-01): begin automated migration reminders and batch migrations per agreed schedule.\\n\\n[section: rollout_plan 5]\\nRollback criteria: critical billing reconciliation discrepancies > 0.5% of invoices or customer-reported charge incidents > 5% of pilot cohort -> pause and rollback to legacy metering for affected cohorts.\\n\\n[section: notes 1]\\nPricing calculator prototype is in the sales folder; needs currency conversion and tax rules added.\\n\\n[section: notes 2]\\nFinance recommends showing both estimated monthly spend and token-unit equivalence in sales collateral.\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/usage-credit-and-quota-guidelines-2026.json\", \"status\": \"in_review\", \"date\": \"2026-02-03\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/usage-credit-and-quota-guidelines-2026.json\\ntitle: Usage Credits and Quota Assignment Guidelines for Hosted Inference (2026)\\nstatus/authority: in_review; unspecified\\ndate: 2026-02-03\\n[section: body 1]\\npricing-change-notices.\\\\n\\\\nQuota types and enforcement semantics:\\\\n1) monthly_budget (hard): A monthly CR cap. When exhausted, requests receive HTTP 402 (Payment Required) with body code \\\\\\\"quota_exceeded.monthly_budget\\\\\\\" unless account configured for auto-topup.\\\\n2) concurrency (soft then hard): A per-account concurrent request cap measured over 1s windows. Soft limit issues 429 with header X-Quota-Action: slow-down and offers Retry-After. If soft limit persists for >10s, platform escalates to hard 429 with X-Quota-Blocked.\\\\n3) burst_pool (grace): Rolling 24h pool that replenishes linearly. When monthly_budget is near exhaustion, burst_pool provides allowance up to configured percentage of monthly_budget. Exhausting both \"}, {\"source\": \"sources/linear/product-management/PM-6248-pricing-capacity-quotas-and-billing-comm.json\", \"status\": \"In Progress\", \"date\": \"2025-02-12\", \"text\": \"source: sources/linear/product-management/PM-6248-pricing-capacity-quotas-and-billing-comm.json\\ntitle: Pricing & quota rollout: SKU mapping, per-customer limits, and billing comms\\nstatus/authority: In Progress; unspecified\\ndate: 2025-02-12\\n[section: description 1]\\nCoordination ticket for launching the new pricing SKUs, per-customer capacity limits, and related billing communications. Scope includes SKU mapping from legacy tiers, finalizing limits & grace periods, billing pipeline changes (invoicing and metering), public release notes, and sales enablement artifacts. Work spans Product, Eng, Billing/Finance, Console, Docs, and Sales. Goal: zero-billing-surprises migration for existing customers and clear purchase path for new customers.\\n\\n[section: acceptance_criteria 1]\\nSKU catalog published in Console and API with stable identifiers\\n\\n[section: acceptance_criteria 2]\\nBilling system emits new metering events and invoices align with SKU definitions\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/token-estimates-for-sales-quotes-2026.json\", \"status\": \"published\", \"date\": \"2026-02-09\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/token-estimates-for-sales-quotes-2026.json\\ntitle: Estimating Token Volumes for Sales Quotes\\nstatus/authority: published; unspecified\\ndate: 2026-02-09\\n[section: body 2]\\n## Purpose\\nHow solutions engineers estimate a prospect's monthly tokens before a quote. Estimates use an approximate tokenizer and round up 10% for safety. This page is about forecasting before purchase. It does not explain how billed tokens are counted on an invoice; for that, see the token accounting pages and the billing routing page.\\n\\n[section: body 3]\\n## Method\\n1. Sample 100 representative requests.\\n2. Count characters and divide by 4 for English text.\\n3. Multiply by expected monthly volume and add 10%.\\n\\n_Last reviewed 2026-02-09._\"}, {\"source\": \"sources/confluence/customer-success-and-support/health-and-qbr/customer-health-audit-and-risk-mitigation-playbook-2025.json\", \"status\": \"published\", \"date\": \"2026-01-18\", \"text\": \"source: sources/confluence/customer-success-and-support/health-and-qbr/customer-health-audit-and-risk-mitigation-playbook-2025.json\\ntitle: Customer Health Audit & Risk Mitigation Playbook\\nstatus/authority: published; unspecified\\ndate: 2026-01-18\\n[section: content 1]\\n(critical).\\n  - Error rate: total 5xx > 0.5% (warning), > 2% (critical).\\n  - Throttling/rate-limit events: frequency and root cause (customer spikes vs infra).\\n\\n- Model Quality\\n  - Regression alerts: responses failing customer gold prompts increased by >10% vs baseline.\\n  - Hallucination signals: manual QA or automated semantic checks flagged >3% of sampled responses.\\n  - Token truncation/early-eos events: >1% of responses truncated unexpectedly.\\n\\n- Economics\\n  - Cost-per-1k tokens: compare current month vs prior 3-month average. Delta > +20% => warning; > +50% => critical.\\n  - Inefficient routes: top 5 routes by cost and token-per-call ratios.\\n  - Batching utilization: low utilization on high-throughput routes indicates \"}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "For **pebble-ai**, the usage summary shows **231,400 billed tokens so far this month**, with activity recorded through **April 7 (UTC)**. The highest day was **April 5: 95,400 tokens**.\n\nYour account is on the **Free** plan. The current published Free-tier policy says that reaching the monthly included limit rate-limits further requests (`429 quota_exceeded`); requests work again when the next month starts. **Free has no overage charges and does not receive an invoice.**\n\nI can\u2019t tell whether you\u2019re close to the limit or predict if you\u2019ll reach it: the usage summary doesn\u2019t show your exact limit or remaining allowance, and the policy describes the included amount as fixed but doesn\u2019t publish its numeric value here. So the warning alone doesn\u2019t establish that you\u2019ll be cut off."
+  },
+  {
+   "role": "user",
+   "content": "What error will our requests get when we hit the limit?"
+  },
+  {
+   "role": "assistant",
+   "content": "On your **Free** plan, requests that hit the monthly limit will be rate-limited with **HTTP 429**, error code **`quota_exceeded`**, and a **`Retry-After`** header. The published Free-tier policy says requests work again when the next month starts."
+  },
+  {
+   "role": "user",
+   "content": "What should we do to keep requests running?"
+  },
+  {
+   "role": "assistant",
+   "content": "To keep requests running after the Free monthly limit is reached, the published policy says to **upgrade to a paid plan**. Otherwise, requests resume when the next month starts. I can\u2019t confirm from the usage data how close you are to the limit."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

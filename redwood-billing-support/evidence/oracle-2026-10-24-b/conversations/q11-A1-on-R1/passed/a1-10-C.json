@@ -1,0 +1,241 @@
+{
+ "id": "a1-10-C",
+ "grade": {
+  "id": "a1-10-C",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_ledger",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 12,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "delegate",
+   "find_account",
+   "load_skill",
+   "search_policy",
+   "usage_summary"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 49.97277758400014,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hi, since we're on the Pro plan, do requests just bill as overage when we hit this month's limit? How much have we used so far, which day did we use the most, and what error would we get if they stopped? Org pebble-ai."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_CZww4XDZCbMdwD9ZtqiWGCIa",
+     "name": "find_account",
+     "arguments": {
+      "org": "pebble-ai"
+     }
+    },
+    {
+     "id": "call_AMqJDQKpfsfgkgYafjGzvFuY",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    },
+    {
+     "id": "call_vrxe59KhnTRfkm3LhFRHrjAz",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current Pro plan monthly usage limit overage billing behavior and error response when limit reached; usage freshness thresholds missing usage follow-up; plan-specific SLA if relevant"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"pebble-ai\", \"org\": \"pebble-ai\", \"plan\": \"free\", \"plan_name\": \"Free\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"none\", \"created_on\": \"2026-10-05\", \"billing_timezone\": \"UTC\"}, \"contracts\": [], \"credits\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. For a marketplace-billed account, retrieve the current marketplace invoicing notes first and follow their Support section; a marketplace charge that Redwood usage doesn't explain is a metering mismatch. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation, or asking you to file a bug, does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. Retrieve the support charter and the current duplicate-credit page, then check the account's plan and contracts. Credit or dispute the line in `copy_line_ids` (the one no usage record points to). If the charter lets Support credit this account and the line is within the limit Finance's approvals matrix sets for that invoice's billing period ($250 from March 2027 usage, $500 before; `credit_duplicate` checks it), the console may credit it. Otherwise submit the `duplicate_charge` dispute and escalate to the team the page names, with its dispute ID. Before either write, state the line (and amount for a credit), ask the customer to confirm, and write only after an explicit yes; if they decline, write nothing. Report an amount only after the tool confirms it. Promise no outcome or timeline. Ask for the yes with `confirm_with_developer`, never in chat, then act in the same turn: within the limit, `credit_duplicate`; over it, `open_dispute` and then `escalate_case` to the team the page names (it links the dispute).\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, window (in the account's `billing_timezone`), and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions, including any confirmed credit or dispute, before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n\\n11. For a failed card payment, get when it failed (`ask_developer` if not given) and search the status page and payment-incident guidance for a published incident window. Inside the window, explain the incident and open no case. Give the date the retry completes: past payment-incident status cards show retries complete 3 business days after the window ends. Outside it, follow the payment-failure routing. Never ask for, repeat, or record card digits; if the customer shares them, write only that a card number was shared and removed.\\n12. For marketplace-billed accounts (see `billing_channel`), search marketplace billing and refund policy before answering invoices, refunds, or unfamiliar marketplace lines; the marketplace's own process applies, and Support routes only what the retrieved policy assigns to a Redwood team. If the customer asks for something the policy allows only with another team's approval, say it needs that team's approval rather than that it can't be done.\\n13. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n14. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n<!-- Source: R1/sources/confluence/eng-platform/systems-and-services/support-console-record-format-changes-2027.json. -->\\n15. For a month's billed tokens, call `usage_summary` with `billing_month`, which counts usage in the account's billing timezone; a UTC window gives the wrong month for accounts outside UTC.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and its change log, which sets a different threshold for requests made after a cut-over; the Telemetry ticket the page names (ENG-9120) dates the cut-over at 2027-03-01 00:00 UTC (compare the request's date with it to pick the threshold); the older onboarding triage playbook predates that change; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for the credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- Credit balance, expiry, or a missing credit: call `credit_balances` and search the credit-ledger and credits policy pages for expiry, reinstatement, and what credits can pay for. When a credit expired, state the expiry rule for its type that set the date.\\n- Invoice request on a marketplace-billed account: search the marketplace invoicing notes for what Support may provide on request and what is not permitted without approval, and tell the customer both, naming the approving team.\\n- Cached tokens: search the current Hosted API billing page for how cache hits are billed, and check the account's contract terms for any caching discount.\\n- Quota errors or overage: check the plan, then search the current package and quota page for what happens at the included limit, how the customer gets unblocked, and which requests are billed. For rejected or errored requests, report the billed tokens the usage summary records for their status.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\", \"status\": \"In Review\", \"date\": \"2025-03-05\", \"text\": \"source: sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\\ntitle: Tiered burst quotas, soft/hard rate limits and overage billing policy\\nstatus/authority: In Review; unspecified\\ndate: 2025-03-05\\n[section: requirements 5]\\nConsole: show real-time quota burn, projected date-to-exhaust at current rate, burst buffer usage, and one-click opt-in for overage billing\\n\\n[section: requirements 6]\\nAPI responses must include: X-Quota-Remaining, X-Burst-Remaining, X-RateLimit-Reset, and a machine-readable reason for throttling (soft_throttle | hard_limit | quota_exhausted)\\n\\n[section: requirements 7]\\nBilling: invoice line items for overage must list units consumed, unit price, and associated plan id; prorated mid-cycle plan upgrades should recompute remaining monthly quota and adjust overage thresholds\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json\", \"status\": \"published\", \"date\": \"2026-02-26\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json\\ntitle: Hosted API Packages: Free Tier, Included Usage, and Overage Policy\\nstatus/authority: published; unspecified\\ndate: 2026-02-26\\n[section: content 1]\\n**enabled** once a valid payment method is on file.\\n- Overage charges are calculated at the end of the billing period.\\n\\n### Soft limit and hard limit behavior\\nTo prevent surprise bills while avoiding unnecessary downtime:\\n- **Soft limit (100% of included):**\\n  - Send automated email and in-console banner to workspace admins.\\n  - Continue serving traffic.\\n- **Hard limit (120% of included) \\u2013 default:**\\n  - Continue serving traffic if the account has \\u201cOverage Allowed\\u201d enabled.\\n  - If overage is disabled (rare on paid tiers), return the same quota error (see the API Error Reference).\\n\\nEnterprise exceptions:\\n- Enterprise accounts may have a contractual hard cap (e.g., \\u201cdo not exceed $X/month\\u201d). If so, RevOps must \"}, {\"source\": \"sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\", \"status\": \"In Review\", \"date\": \"2025-03-05\", \"text\": \"source: sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\\ntitle: Tiered burst quotas, soft/hard rate limits and overage billing policy\\nstatus/authority: In Review; unspecified\\ndate: 2025-03-05\\n[section: billing_acceptance_criteria 3]\\nGrace period: accounts that newly enable overage mid-cycle receive a configurable 48h grace window where overage is tracked but not billed; billing shows a 'grace' flag in staging exports\\n\\n[section: billing_acceptance_criteria 4]\\nProration: when a customer upgrades mid-cycle to a higher plan, remaining quota is prorated and overage thresholds are recomputed; tests must show correct ledger adjustments\\n\\n[section: billing_acceptance_criteria 5]\\nBilling ledger and Console usage must reconcile within 2% for tokens and 3% for embeddings across a 7-day synthetic test\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/free-tier-limits-2025.json\", \"status\": \"published\", \"date\": \"2025-11-10\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/free-tier-limits-2025.json\\ntitle: Free Tier Limits\\nstatus/authority: published; unspecified\\ndate: 2025-11-10\\n[section: body 2]\\n## Purpose\\nWhat happens when a Free workspace uses up its monthly included usage.\\n\\n[section: body 3]\\n## Limits\\n- Free includes a fixed monthly amount of billed tokens and requests.\\n- Free has no overage: nothing beyond the included usage is ever charged, and Free workspaces never get an invoice.\\n\\n[section: body 4]\\n## At the limit\\nOnce a Free workspace reaches its monthly limit, further requests are rate-limited: the API returns HTTP `429` with error code `quota_exceeded` and a `Retry-After` header. Requests work again when the next month starts. To keep sending requests sooner, the customer upgrades to a paid plan.\\n\\n_Last reviewed 2025-11-10._\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json\", \"status\": \"published\", \"date\": \"2026-02-26\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json\\ntitle: Hosted API Packages: Free Tier, Included Usage, and Overage Policy\\nstatus/authority: published; unspecified\\ndate: 2026-02-26\\n[section: content 1]\\n  - Overage line item based on billed tokens (and requests if applicable)\\n\\n### Example 3: Streaming disconnect\\n- Customer starts a stream and receives 1,200 completion tokens before disconnect.\\n- Billed completion tokens = 1,200 (delivered tokens), not the model\\u2019s theoretical maximum.\\n\\n---\\n\\n## Operational checklist (for RevOps / Support)\\nWhen a customer asks about Free tier, limits, or overage:\\n1) Confirm current package and whether overage is enabled.\\n2) Pull billed token totals from the Usage API export used for invoicing.\\n3) Verify whether there was a metering incident during the period (meter sanity dashboard).\\n4) Use only the approved customer-facing phrasing above.\\n5) If requesting credits/refund: route per \"}, {\"source\": \"sources/confluence/eng-developer-experience/docs-site/api-error-reference-2027.json\", \"status\": \"published\", \"date\": \"2027-02-10\", \"text\": \"source: sources/confluence/eng-developer-experience/docs-site/api-error-reference-2027.json\\ntitle: API Error Reference (2027)\\nstatus/authority: published; unspecified\\ndate: 2027-02-10\\n[section: body 4]\\n## Errors\\n| HTTP status | `error.code` | Cause | What to do |\\n|---|---|---|---|\\n| 400 | `invalid_request` | Malformed JSON, unknown parameter, or a value out of range | Fix the request; don't retry unchanged |\\n| 401 | `invalid_api_key` | Missing, revoked or mistyped API key | Check the key in Console > API keys |\\n| 402 | `quota_exceeded` | A Free workspace used its monthly included amount, or a paid workspace with overage disabled reached its hard limit | Add a payment method or upgrade in Console billing settings; Free requests work again when the next month starts |\\n| 403 | `permission_denied` | The key's project can't use this model or region | Ask a workspace admin to grant access |\\n| 404 | `model_not_found` | Unknown or retired model name | Use a model from the models list |\\n| 409 \"}, {\"source\": \"sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json\", \"status\": \"published\", \"date\": \"2025-12-05\", \"text\": \"source: sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json\\ntitle: Hosted API SLO: Overload Exceptions and Error Budget Policy\\nstatus/authority: published; unspecified\\ndate: 2025-12-05\\n[section: body 3]\\n## Summary (what counts)\\n**Overload errors are user-visible failures and count against the Hosted API availability SLO for paid Hosted tiers.**\\n\\nWe additionally:\\n- Classify overload separately from generic 5xx to improve reporting and to ensure controlled degradation is preferred over timeouts.\\n- Track an internal \\u201coverload share\\u201d guardrail to prevent normalizing load shedding as steady-state behavior.\\n- Treat *customer-configured* rate limits and quota enforcement differently from platform overload.\\n\\n---\\n\\n[section: body 4]\\n## Definitions\"}, {\"source\": \"sources/linear/product-management/PM-6248-pricing-capacity-quotas-and-billing-comm.json\", \"status\": \"In Progress\", \"date\": \"2025-02-12\", \"text\": \"source: sources/linear/product-management/PM-6248-pricing-capacity-quotas-and-billing-comm.json\\ntitle: Pricing & quota rollout: SKU mapping, per-customer limits, and billing comms\\nstatus/authority: In Progress; unspecified\\ndate: 2025-02-12\\n[section: rollout_plan 4]\\nPhase 3 \\u2014 Full launch & migration start (2025-04-01): begin automated migration reminders and batch migrations per agreed schedule.\\n\\n[section: rollout_plan 5]\\nRollback criteria: critical billing reconciliation discrepancies > 0.5% of invoices or customer-reported charge incidents > 5% of pilot cohort -> pause and rollback to legacy metering for affected cohorts.\\n\\n[section: notes 1]\\nPricing calculator prototype is in the sales folder; needs currency conversion and tax rules added.\\n\\n[section: notes 2]\\nFinance recommends showing both estimated monthly spend and token-unit equivalence in sales collateral.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_yS1KfB4W4l5bGCAI60zrLzcS",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "invoice_month"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"invoice_month\": \"I don't have that.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_uAlGj3hjzdbFmnCUVvOSEvGz",
+     "name": "usage_summary",
+     "arguments": {
+      "account_id": "pebble-ai"
+     }
+    },
+    {
+     "id": "call_h4qE2AapnUVuJFJFf0TpJeIO",
+     "name": "search_policy",
+     "arguments": {
+      "query": "published current Hosted API Packages Free Tier Included Usage Overage Policy exact Free plan monthly included usage quota behavior overage enabled payment method paid tiers hard limit 120%; current 2027 package and quota page"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"count\": 3, \"billed_tokens\": 231400, \"cached_tokens\": 0, \"http_status_counts\": {\"200\": 3}, \"billed_tokens_by_http_status\": {\"200\": 231400}, \"billed_tokens_by_day\": {\"2027-04-02\": 80000, \"2027-04-05\": 95400, \"2027-04-07\": 56000}, \"start_utc\": null, \"end_utc\": null, \"billing_month\": null, \"requests\": {}}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json\", \"status\": \"published\", \"date\": \"2026-02-26\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json\\ntitle: Hosted API Packages: Free Tier, Included Usage, and Overage Policy\\nstatus/authority: published; unspecified\\ndate: 2026-02-26\\n[section: content 1]\\n**enabled** once a valid payment method is on file.\\n- Overage charges are calculated at the end of the billing period.\\n\\n### Soft limit and hard limit behavior\\nTo prevent surprise bills while avoiding unnecessary downtime:\\n- **Soft limit (100% of included):**\\n  - Send automated email and in-console banner to workspace admins.\\n  - Continue serving traffic.\\n- **Hard limit (120% of included) \\u2013 default:**\\n  - Continue serving traffic if the account has \\u201cOverage Allowed\\u201d enabled.\\n  - If overage is disabled (rare on paid tiers), return the same quota error (see the API Error Reference).\\n\\nEnterprise exceptions:\\n- Enterprise accounts may have a contractual hard cap (e.g., \\u201cdo not exceed $X/month\\u201d). If so, RevOps must \"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json\", \"status\": \"published\", \"date\": \"2026-02-26\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json\\ntitle: Hosted API Packages: Free Tier, Included Usage, and Overage Policy\\nstatus/authority: published; unspecified\\ndate: 2026-02-26\\n[section: content 1]\\npackage policy (standard self-serve)\\n> Note: List prices and exact rates are maintained in the pricing catalog. This page defines **policy and mechanics**; amounts below are the default 2026Q1 packages.\\n\\n### Package table (default self-serve)\\n| Package | Target customer | Included billed tokens / mo | Included requests / mo | Overage allowed? | Support | Notes |\\n|---|---|---:|---:|---|---|---|\\n| Free | Evaluation / prototypes | 250,000 | 5,000 | No (hard stop) | Community | No SLA; stricter rate limits |\\n| Builder | Early production | 20,000,000 | 250,000 | Yes | Standard | Requires payment method |\\n| Growth | Scaling teams | 100,000,000 | 1,500,000 | Yes | Standard+ | Higher default concurrency |\\n| Scale | High volume | \"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/free-tier-limits-2025.json\", \"status\": \"published\", \"date\": \"2025-11-10\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/free-tier-limits-2025.json\\ntitle: Free Tier Limits\\nstatus/authority: published; unspecified\\ndate: 2025-11-10\\n[section: body 2]\\n## Purpose\\nWhat happens when a Free workspace uses up its monthly included usage.\\n\\n[section: body 3]\\n## Limits\\n- Free includes a fixed monthly amount of billed tokens and requests.\\n- Free has no overage: nothing beyond the included usage is ever charged, and Free workspaces never get an invoice.\\n\\n[section: body 4]\\n## At the limit\\nOnce a Free workspace reaches its monthly limit, further requests are rate-limited: the API returns HTTP `429` with error code `quota_exceeded` and a `Retry-After` header. Requests work again when the next month starts. To keep sending requests sooner, the customer upgrades to a paid plan.\\n\\n_Last reviewed 2025-11-10._\"}, {\"source\": \"sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\", \"status\": \"In Review\", \"date\": \"2025-03-05\", \"text\": \"source: sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\\ntitle: Tiered burst quotas, soft/hard rate limits and overage billing policy\\nstatus/authority: In Review; unspecified\\ndate: 2025-03-05\\n[section: requirements 5]\\nConsole: show real-time quota burn, projected date-to-exhaust at current rate, burst buffer usage, and one-click opt-in for overage billing\\n\\n[section: requirements 6]\\nAPI responses must include: X-Quota-Remaining, X-Burst-Remaining, X-RateLimit-Reset, and a machine-readable reason for throttling (soft_throttle | hard_limit | quota_exhausted)\\n\\n[section: requirements 7]\\nBilling: invoice line items for overage must list units consumed, unit price, and associated plan id; prorated mid-cycle plan upgrades should recompute remaining monthly quota and adjust overage thresholds\"}, {\"source\": \"sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\", \"status\": \"In Review\", \"date\": \"2025-03-05\", \"text\": \"source: sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\\ntitle: Tiered burst quotas, soft/hard rate limits and overage billing policy\\nstatus/authority: In Review; unspecified\\ndate: 2025-03-05\\n[section: requirements 1]\\nDefine three quota layers per plan: baseline steady-state quota (monthly window), burst buffer (short-term allowance measured in tokens and requests), and per-second soft rate limit\\n\\n[section: requirements 2]\\nSoft limits should throttle with controlled retries and informative headers, not immediate 429 hard failures until burst buffer exhausted or soft limit exceeded for >30s\\n\\n[section: requirements 3]\\nHard limits remain enforced for safety (abuse/fraud) and Dedicated customers can opt for hard-only behavior\\n\\n[section: requirements 4]\\nOverage-enabled plans will automatically bill at a defined overage rate after monthly quota exhaustion; opt-out plans will block traffic and show a grace window notification\"}, {\"source\": \"sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json\", \"status\": \"published\", \"date\": \"2025-12-05\", \"text\": \"source: sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json\\ntitle: Hosted API SLO: Overload Exceptions and Error Budget Policy\\nstatus/authority: published; unspecified\\ndate: 2025-12-05\\n[section: body 3]\\n## Summary (what counts)\\n**Overload errors are user-visible failures and count against the Hosted API availability SLO for paid Hosted tiers.**\\n\\nWe additionally:\\n- Classify overload separately from generic 5xx to improve reporting and to ensure controlled degradation is preferred over timeouts.\\n- Track an internal \\u201coverload share\\u201d guardrail to prevent normalizing load shedding as steady-state behavior.\\n- Treat *customer-configured* rate limits and quota enforcement differently from platform overload.\\n\\n---\\n\\n[section: body 4]\\n## Definitions\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/usage-credit-and-quota-guidelines-2026.json\", \"status\": \"in_review\", \"date\": \"2026-02-03\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/usage-credit-and-quota-guidelines-2026.json\\ntitle: Usage Credits and Quota Assignment Guidelines for Hosted Inference (2026)\\nstatus/authority: in_review; unspecified\\ndate: 2026-02-03\\n[section: body 1]\\npricing-change-notices.\\\\n\\\\nQuota types and enforcement semantics:\\\\n1) monthly_budget (hard): A monthly CR cap. When exhausted, requests receive HTTP 402 (Payment Required) with body code \\\\\\\"quota_exceeded.monthly_budget\\\\\\\" unless account configured for auto-topup.\\\\n2) concurrency (soft then hard): A per-account concurrent request cap measured over 1s windows. Soft limit issues 429 with header X-Quota-Action: slow-down and offers Retry-After. If soft limit persists for >10s, platform escalates to hard 429 with X-Quota-Blocked.\\\\n3) burst_pool (grace): Rolling 24h pool that replenishes linearly. When monthly_budget is near exhaustion, burst_pool provides allowance up to configured percentage of monthly_budget. Exhausting both \"}, {\"source\": \"sources/confluence/eng-developer-experience/docs-site/api-error-reference-2027.json\", \"status\": \"published\", \"date\": \"2027-02-10\", \"text\": \"source: sources/confluence/eng-developer-experience/docs-site/api-error-reference-2027.json\\ntitle: API Error Reference (2027)\\nstatus/authority: published; unspecified\\ndate: 2027-02-10\\n[section: body 4]\\n## Errors\\n| HTTP status | `error.code` | Cause | What to do |\\n|---|---|---|---|\\n| 400 | `invalid_request` | Malformed JSON, unknown parameter, or a value out of range | Fix the request; don't retry unchanged |\\n| 401 | `invalid_api_key` | Missing, revoked or mistyped API key | Check the key in Console > API keys |\\n| 402 | `quota_exceeded` | A Free workspace used its monthly included amount, or a paid workspace with overage disabled reached its hard limit | Add a payment method or upgrade in Console billing settings; Free requests work again when the next month starts |\\n| 403 | `permission_denied` | The key's project can't use this model or region | Ask a workspace admin to grant access |\\n| 404 | `model_not_found` | Unknown or retired model name | Use a model from the models list |\\n| 409 \"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_d5euq6RlextZ0CPBhgBYHeBc",
+     "name": "usage_summary",
+     "arguments": {
+      "account_id": "pebble-ai",
+      "billing_month": "2027-04"
+     }
+    },
+    {
+     "id": "call_Q0io9czUU1jlgyvOUVseMHTa",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current published pricing packaging Pro plan included tokens requests overage allowance quota after monthly limit; Pro plan 2027 Hosted API"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"count\": 3, \"billed_tokens\": 231400, \"cached_tokens\": 0, \"http_status_counts\": {\"200\": 3}, \"billed_tokens_by_http_status\": {\"200\": 231400}, \"billed_tokens_by_day\": {\"2027-04-02\": 80000, \"2027-04-05\": 95400, \"2027-04-07\": 56000}, \"start_utc\": null, \"end_utc\": null, \"billing_month\": \"2027-04\", \"requests\": {}}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json\", \"status\": \"published\", \"date\": \"2026-02-26\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json\\ntitle: Hosted API Packages: Free Tier, Included Usage, and Overage Policy\\nstatus/authority: published; unspecified\\ndate: 2026-02-26\\n[section: content 1]\\n**enabled** once a valid payment method is on file.\\n- Overage charges are calculated at the end of the billing period.\\n\\n### Soft limit and hard limit behavior\\nTo prevent surprise bills while avoiding unnecessary downtime:\\n- **Soft limit (100% of included):**\\n  - Send automated email and in-console banner to workspace admins.\\n  - Continue serving traffic.\\n- **Hard limit (120% of included) \\u2013 default:**\\n  - Continue serving traffic if the account has \\u201cOverage Allowed\\u201d enabled.\\n  - If overage is disabled (rare on paid tiers), return the same quota error (see the API Error Reference).\\n\\nEnterprise exceptions:\\n- Enterprise accounts may have a contractual hard cap (e.g., \\u201cdo not exceed $X/month\\u201d). If so, RevOps must \"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json\", \"status\": \"published\", \"date\": \"2026-02-26\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json\\ntitle: Hosted API Packages: Free Tier, Included Usage, and Overage Policy\\nstatus/authority: published; unspecified\\ndate: 2026-02-26\\n[section: content 1]\\nimpacted\\n   - Clear \\u201ceffective date\\u201d and a customer comms plan if externally visible\\n3) Any experiment that changes packaging must tag cohorts in analytics and be reported with pre/post segmentation if meter fixes overlap.\\n\\n---\\n\\n## Examples (for internal training)\\n### Example 1: Free tier hits limit\\n- Workspace on Free uses 260,000 billed tokens in month.\\n- Result: requests past 250,000 return the Free-tier quota error.\\n- Resolution: user upgrades or adds payment method to move to Builder.\\n\\n### Example 2: Builder tier goes into overage\\n- Included billed tokens: 20,000,000\\n- Actual billed tokens: 24,500,000\\n- Overage billed tokens: 4,500,000\\n- Invoice shows:\\n  - Subscription fee (Builder)\\n  - Included usage (0 charge)\\n\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/free-tier-limits-2025.json\", \"status\": \"published\", \"date\": \"2025-11-10\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/free-tier-limits-2025.json\\ntitle: Free Tier Limits\\nstatus/authority: published; unspecified\\ndate: 2025-11-10\\n[section: body 2]\\n## Purpose\\nWhat happens when a Free workspace uses up its monthly included usage.\\n\\n[section: body 3]\\n## Limits\\n- Free includes a fixed monthly amount of billed tokens and requests.\\n- Free has no overage: nothing beyond the included usage is ever charged, and Free workspaces never get an invoice.\\n\\n[section: body 4]\\n## At the limit\\nOnce a Free workspace reaches its monthly limit, further requests are rate-limited: the API returns HTTP `429` with error code `quota_exceeded` and a `Retry-After` header. Requests work again when the next month starts. To keep sending requests sooner, the customer upgrades to a paid plan.\\n\\n_Last reviewed 2025-11-10._\"}, {\"source\": \"sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\", \"status\": \"In Review\", \"date\": \"2025-03-05\", \"text\": \"source: sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\\ntitle: Tiered burst quotas, soft/hard rate limits and overage billing policy\\nstatus/authority: In Review; unspecified\\ndate: 2025-03-05\\n[section: acceptance_criteria 5]\\nBilling exports include overage line items with plan id and unit pricing and reconcile to invoices in staging environment\\n\\n[section: billing_acceptance_criteria 1]\\nWhen a hosted account exhausts monthly baseline and has overage enabled, an overage invoice line is created automatically at the next billing run and shows items: units, unit price, and total\\n\\n[section: billing_acceptance_criteria 2]\\nIf overage is disabled, customer receives console notification and API calls are blocked with a clear error code: quota_exhausted_no_overage\"}, {\"source\": \"sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\", \"status\": \"In Review\", \"date\": \"2025-03-05\", \"text\": \"source: sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\\ntitle: Tiered burst quotas, soft/hard rate limits and overage billing policy\\nstatus/authority: In Review; unspecified\\ndate: 2025-03-05\\n[section: requirements 5]\\nConsole: show real-time quota burn, projected date-to-exhaust at current rate, burst buffer usage, and one-click opt-in for overage billing\\n\\n[section: requirements 6]\\nAPI responses must include: X-Quota-Remaining, X-Burst-Remaining, X-RateLimit-Reset, and a machine-readable reason for throttling (soft_throttle | hard_limit | quota_exhausted)\\n\\n[section: requirements 7]\\nBilling: invoice line items for overage must list units consumed, unit price, and associated plan id; prorated mid-cycle plan upgrades should recompute remaining monthly quota and adjust overage thresholds\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/discounting-and-credits-policy-for-usage-based-products.json\", \"status\": \"published\", \"date\": \"2026-02-22\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/discounting-and-credits-policy-for-usage-based-products.json\\ntitle: Discounting and Credits Policy for Usage-Based Products\\nstatus/authority: published; unspecified\\ndate: 2026-02-22\\n[section: body 35]\\n### Example 1: Promotional credit for a POC\\n- Grant: $2,000 promotional credit, expires in 90 days\\n- Eligible: Hosted API billed_tokens + embeddings units\\n- Unit pricing: standard list\\n- Expected outcome: offset first month\\u2019s overage during onboarding\\n\\n[section: body 36]\\n### Example 2: Service credit for metering bug impact\\n- Trigger: confirmed double-counting bug for streaming retries\\n- Remediation: credit equal to overbilled amount for the impacted invoice period\\n- Required: Support ticket, query evidence, RevRec sign-off, and customer communication stating the credit is specific to the identified issue\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/discounting-and-credits-policy-for-usage-based-products.json\", \"status\": \"published\", \"date\": \"2026-02-22\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/discounting-and-credits-policy-for-usage-based-products.json\\ntitle: Discounting and Credits Policy for Usage-Based Products\\nstatus/authority: published; unspecified\\ndate: 2026-02-22\\n[section: body 37]\\n## Exception log (policy-impacting only)\\n- 2026-02-22: Clarified that credits apply to **billed tokens** (post-dedupe/cache attribution) to align with meter hardening work and reduce invoice disputes. Owner: Finance/RevRec.\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/usage-credit-and-quota-guidelines-2026.json\", \"status\": \"in_review\", \"date\": \"2026-02-03\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/usage-credit-and-quota-guidelines-2026.json\\ntitle: Usage Credits and Quota Assignment Guidelines for Hosted Inference (2026)\\nstatus/authority: in_review; unspecified\\ndate: 2026-02-03\\n[section: body 1]\\npricing-change-notices.\\\\n\\\\nQuota types and enforcement semantics:\\\\n1) monthly_budget (hard): A monthly CR cap. When exhausted, requests receive HTTP 402 (Payment Required) with body code \\\\\\\"quota_exceeded.monthly_budget\\\\\\\" unless account configured for auto-topup.\\\\n2) concurrency (soft then hard): A per-account concurrent request cap measured over 1s windows. Soft limit issues 429 with header X-Quota-Action: slow-down and offers Retry-After. If soft limit persists for >10s, platform escalates to hard 429 with X-Quota-Blocked.\\\\n3) burst_pool (grace): Rolling 24h pool that replenishes linearly. When monthly_budget is near exhaustion, burst_pool provides allowance up to configured percentage of monthly_budget. Exhausting both \"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_NdnGsQ2TjSVQsTptLHChrzNX",
+     "name": "delegate",
+     "arguments": {
+      "subagent": "policy-researcher",
+      "task": "Compare current published policy evidence on the error returned when Free tier reaches monthly limit: Hosted API Packages Free Tier / Overage Policy (published 2026-02-26) including Free table/soft/hard and API Error Reference (2027, published 2027-02-10) versus Free Tier Limits (published 2025-11-10). What should Support tell this customer? Also note account record is Free (not Pro), no contracts; usage for April 2027 is 231,400 billed tokens in 3 requests; daily max Apr 5 95,400. Do not extrapolate a Pro answer if unsupported."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"subagent\": \"policy-researcher\", \"answer\": \"**Tell the customer:** For a **Free** workspace that reaches its monthly included limit, the current API reference specifies **HTTP 402, `error.code: quota_exceeded`**. They can add a payment method or upgrade; Free requests resume when the next month starts. Free has **no overage charges**. Don\\u2019t promise a `Retry-After` header.\\n\\nThe older **Free Tier Limits** page (published 2025-11-10) says HTTP 429 with `quota_exceeded` and `Retry-After`. The later **Hosted API Packages: Free Tier, Included Usage, and Overage Policy** (published 2026-02-26; applicable to every Free workspace from 2026-03-01) directs Free-limit errors to the **API Error Reference (2027)**. That reference (published 2027-02-10) specifies 402 and notes Free monthly limits are listed under their own status instead of 429. Follow the later guidance; the 2025 response description is superseded.\\n\\nThe policy\\u2019s **100% soft / 120% default hard-limit** behavior describes paid-tier overage handling; it does not change the Free rule. This account is Free, and there are no contracts, so don\\u2019t apply paid-tier or contractual-cap behavior.\\n\\nThe April figures\\u2014231,400 billed tokens across three requests, with a daily maximum of 95,400\\u2014do not by themselves establish whether the monthly Free allowance was reached; the evidence retrieved does not give the applicable allowance. Don\\u2019t claim the customer has crossed it based on those figures alone. **Sources:** `sources/confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json` (2026-02-26); `sources/confluence/eng-developer-experience/docs-site/api-error-reference-2027.json` (2027-02-10); older conflicting page: `sources/confluence/product-docs/pricing-and-packaging/free-tier-limits-2025.json` (2025-11-10).\"}"
+  },
+  {
+   "role": "assistant",
+   "content": "I checked **pebble-ai**\u2019s account record: it\u2019s listed as **Free**, not Pro, and has no payment method on file. So I can\u2019t confirm Pro-plan overage for this workspace.\n\nFor **April 2027** (UTC), the usage summary shows **231,400 billed tokens across 3 requests**. Your highest-use day was **April 5, with 95,400 tokens**. The published default package table lists Free as including 250,000 billed tokens and 5,000 requests per month; against those defaults, the reported usage is below both limits. The table notes these are default package amounts, so check with your workspace admin if you expect a different entitlement.\n\nFree has **no overage**. If a Free workspace reaches its monthly included limit, the current API Error Reference says it returns **HTTP 402, `quota_exceeded`**. For paid tiers, the published policy describes overage billing at period end when enabled; it also describes a 100% soft-limit notice and a 120% default hard limit. Overage enablement requires a valid payment method on file.\n\nSources: *Hosted API Packages: Free Tier, Included Usage, and Overage Policy* (published Feb 26, 2026) and *API Error Reference (2027)* (published Feb 10, 2027)."
+  },
+  {
+   "role": "user",
+   "content": "What should we do to keep requests running?"
+  },
+  {
+   "role": "assistant",
+   "content": "Because pebble-ai is listed as **Free**, upgrade the workspace to a paid plan in **Console \u2192 Billing** before it reaches its included limit. Free has no overage, so adding a payment method alone may not keep requests running; the workspace needs a paid plan. If it remains on Free and hits the limit, requests are blocked until the next month or an upgrade."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

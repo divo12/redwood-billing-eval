@@ -46,28 +46,32 @@ harbor view ./jobs
 ```
 
 Harbor 0.22.0 names the Claude Code agent `claude-code` (there is no agent called `claude`). A full run takes
-about 3 h of building plus 70-90 min of grading inside `maintain_r1`'s verifier. Grading makes about 90 × 7
+about 3 h of building plus 90-110 min of grading inside `maintain_r1`'s verifier. Grading makes about 120 × 7
 support-model calls; with gpt-6-luna that needs about 500K tokens per minute of rate limit at 2 workers.
 
 ## Reward
 
 `maintain_r1`'s verifier writes `/logs/verifier/reward.json`, and `multi_step_reward_strategy = "final"` makes it
-the trial's reward:
+the trial's reward. Every value is a number from 0 to 1, higher is better:
 
 ```json
-{"reward": 1.0, "q00": 1.0, "q10": 1.0, "q11": 1.0, "artifact_quality": 1.0, "graded": true}
+{"reward": 0.0, "q00": 0.833, "q11": 0.9, "drift": 0.8, "regression": 0.96, "behaviour_robustness": 1.0, "artifact_quality": 1.0}
 ```
+(Opus 5.5 run 5; the oracle scores 1.0 on every key.)
 
-| Key | Meaning |
+| Key | What it measures |
 |---|---|
-| `q00` | A0 (the R0 build) on 30 R0 conversations, R0 console: **functional correctness of the build** |
-| `q11` | A1 (the maintained agent) on 30 R1 conversations, R1 console: **correctness after the change** |
-| `q10` | A1 on the 30 R0 conversations, R1 console: **robustness, i.e. no regression** |
+| `reward` | the gate: 1.0 if Q00 ≥ 0.9, Q11 ≥ 0.9 and Q10 ≥ Q00 − 0.1; 0.5 if the build is good and kept but R1 fails; else 0 |
+| `q00`, `q11` | pass rates of the build on R0 and of the maintained agent on R1 (Q01 and Q10 feed `drift` and `regression`; all four rates are in `scores.json`) |
+| `drift` | of the 30 R1 cases the unmaintained A0 fails (Q01), the share the maintained A1 passes (Q11): how much of the change maintenance absorbed |
+| `regression` | of the R0 cases A0 passed (Q00), the share A1 still passes (Q10): 1.0 means maintenance broke nothing |
+| `behaviour_robustness` | over Q00, Q10 and Q11, of the developer-profile variants (missing info, ambiguous, conflict) whose base case passed, the share that passed too; per profile in `scores.json` |
 | `artifact_quality` | code checks on the deliverables: prompt size limits, a real skill, subagent and `@hook`, all reachable |
-| `reward` | the gate: 1.0 if q00 ≥ 0.9, q11 ≥ 0.9 and q10 ≥ q00 − 0.1; 0.5 if only the build is good and kept; else 0 |
 
-`graded/scores.json` beside it adds unscored diagnostics: invalid cases, pass rate by information type, twin
-pairs, behaviour-variant robustness, per-case drift and regression, run health and workspace sizes.
+The Q runs: Q00 = A0 (the R0 build) on 30 R0 conversations; Q01 = A0 on the 30 R1 conversations (the baseline for drift); Q10 = A1 (the
+maintained agent) on the 30 R0 conversations, R1 console; Q11 = A1 on 30 R1 conversations. A score with nothing to
+measure is 0.0 (no evidence). `graded/scores.json` beside it adds the pass rates and unscored diagnostics: invalid
+cases, pass rate by information type, twin pairs, per-case drift and regression, run health and workspace sizes.
 
 ## Verifier design
 
@@ -78,7 +82,7 @@ pairs, behaviour-variant robustness, per-case drift and regression, run health a
 - **Checks per case, all code.** `db`: the console's writable tables equal a gold insert/update trace or an
   accepted alternative. `action`: required lookups and writes happened. `communicate`: required values were said,
   in any listed form. `never_say`: the stale answer was not given. `consent`: credits only after a yes.
-- **60 cases per run, 90 conversations per grading.** Per release there are 10 rule cases, 5 twins (a similar ask
+- **60 cases per run, 120 conversations per grading** (each release's 30 cases on two agents). Per release there are 10 rule cases, 5 twins (a similar ask
   whose correct answer differs) and 15 behaviour variants (the developer omits facts, is ambiguous, or asserts
   something false). Every rule cites the builder-visible records that state it (`tests/data/provenance.json`,
   test-enforced).
@@ -92,6 +96,8 @@ pairs, behaviour-variant robustness, per-case drift and regression, run health a
 
 | Path | What it is |
 |---|---|
+| `DESIGN_DOC.md` | the reviewer's design doc: lineage, capability, designed traps, fairness audit, calibration, caveats, economics |
+| `Task.md` | the exhaustive spec: every rule, case, check and decision |
 | `task.toml`, `run-config*.json` | Harbor task and run configs |
 | `steps/<step>/` | `instruction.md`, `tests/test.sh` (the verifier entry) and `solution/solve.sh` (the oracle) per step |
 | `environment/` | pinned Dockerfile, compose file (main + practice-model service), `redwood_kit` runtime, builder docs, `corpus/` (R0, R1, NOTICE), the R1 reveal script |

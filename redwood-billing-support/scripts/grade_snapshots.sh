@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regrade a finished Harbor run outside Harbor (the run itself grades in maintain_r1's verifier): Q00, Q01, Q10, Q11
-# on the saved A0 and A1 workspaces, then reward.json (the gate) and scores.json. Use it for Q01 (a diagnostic the
-# run skips) or to regrade invalid cases (grade.py --only). Same models as the run: SUPPORT_MODEL / USER_MODEL.
+# on the saved A0 and A1 workspaces, then reward.json (the gate) and scores.json. Use it to regrade invalid cases
+# (grade.py --only) or a run graded before Q01 was in Harbor. Same models as the run: SUPPORT_MODEL / USER_MODEL.
 #   scripts/grade_snapshots.sh jobs/<job>/<trial> [out_dir]      (provider keys as for the run, e.g. OPENAI_API_KEY)
 #   QS="q00 q11" scripts/grade_snapshots.sh ...                  (run only some)
 #   WORKERS=1 scripts/grade_snapshots.sh ...                     (conversations in parallel; default 2)
@@ -31,7 +31,7 @@ grade() {  # name step workspace [extra grade.py args]
     "$step" /ws --out "/out/$name" --workers "${WORKERS:-2}" "$@" | tee "$out/$name.txt" | grep -E "PASS|fail" || true
 }
 grade q00 build_r0    "$a0"                  # A0 on R0 cases, R0 console
-grade q01 maintain_r1 "$a0" --base-only      # A0 on R1 base cases, R1 console (diagnostic: no variants)
+grade q01 maintain_r1 "$a0"                  # A0 on R1 cases, R1 console (the baseline for drift)
 grade q10 build_r0    "$a1" --release R1     # A1 on R0 cases, R1 console
 grade q11 maintain_r1 "$a1"                  # A1 on R1 cases, R1 console
 docker run --rm --entrypoint python \

@@ -91,7 +91,7 @@ Workspace roles, from `framework/README.md`: `system_prompt.md` is who the agent
 
 ## Verification
 
-Grading runs in `maintain_r1`'s verifier on the two frozen workspaces: Q00 (A0, R0 cases), Q10 (A1, R0 cases on the R1 console), Q11 (A1, R1); `scripts/grade_snapshots.sh <trial>` adds Q01 (A0, R1 base cases, diagnostic) or regrades after the job. Every check is code, no judge: the billing end state replayed against gold and alternatives, console actions, `communicate`/`never_say` on normalised text (case, commas, `$`, markdown, typographic quotes and dashes), and consent order. `reward.json` is a gate over Q00/Q10/Q11; `scores.json` adds invalid cases, info types and twins, behaviour robustness, drift, regression, health and sizes (`tests/README.md`).
+Grading runs in `maintain_r1`'s verifier on the two frozen workspaces: Q00 (A0, R0 cases), Q10 (A1, R0 cases on the R1 console), Q11 (A1, R1); `scripts/grade_snapshots.sh <trial>` regrades after the job. Every check is code, no judge: the billing end state replayed against gold and alternatives, console actions, `communicate`/`never_say` on normalised text (case, commas, `$`, markdown, typographic quotes and dashes), and consent order. `reward.json` is a gate over Q00/Q10/Q11; `scores.json` adds invalid cases, info types and twins, behaviour robustness, drift, regression, health and sizes (`tests/README.md`).
 
 Methods proved on redwood-devsupport (2026-10-23) that another Redwood task should reuse:
 - One conversation loop for grading and practice: `redwood_kit.conversation` (agent process, freeze, turn loop) and `redwood_kit.customer` (scripted developer, model-worded lines); a parity test runs the same turns through both and requires identical transcripts.
