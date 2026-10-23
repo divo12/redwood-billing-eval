@@ -26,6 +26,7 @@ Team = Literal[
 class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
     def __init__(self) -> None:
         self._description: dict | None = None
+        self._dispute_id: str | None = None  # the dispute this conversation opened, linked by escalate_case
 
     def _describe(self) -> dict:
         if self._description is None:
@@ -340,7 +341,7 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
                 "confirmed duplicates within the current console limit should use "
                 "credit_duplicate; route other requests under current billing guidance"
             )
-        return self.billing.insert(
+        dispute = self.billing.insert(
             "disputes",
             {
                 "account_id": account_id,
@@ -351,6 +352,8 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
                 "status": "submitted",
             },
         )
+        self._dispute_id = dispute["dispute_id"]
+        return dispute
 
     @is_tool(ToolType.WRITE)
     def escalate_case(
@@ -372,7 +375,7 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
             details: Case facts, including invoice and request context when available.
             unresolved: What Support cannot resolve in this conversation.
             routing_rule: Verbatim excerpt from a search_policy result naming team.
-            dispute_id: Submitted dispute associated with the case.
+            dispute_id: Submitted dispute associated with the case; defaults to the one opened in this conversation.
 
         Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json.
         """
@@ -388,7 +391,7 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
                 "team": team,
                 "summary": summary,
                 "details": case_details,
-                "dispute_id": dispute_id,
+                "dispute_id": dispute_id or self._dispute_id,
                 "status": "escalated",
             },
         )

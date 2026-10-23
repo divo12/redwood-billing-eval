@@ -55,6 +55,7 @@ class FieldSpec:
     default: Json | NoDefault = NO_DEFAULT
     server_assigned: bool = False
     release: Release = Release.R0
+    r1_name: str | None = None  # the field's name on the R1 console, when R1 renamed it
 
     def visible_in(self, release: Release) -> bool:
         return self.release is Release.R0 or release is Release.R1
@@ -72,6 +73,8 @@ class FieldSpec:
         return not self.server_assigned and not self.has_default
 
     def public_name(self, release: Release) -> str:
+        if release is Release.R1 and self.r1_name is not None:
+            return self.r1_name
         if release is Release.R1 and self.is_money:
             return self.name[:-6]
         return self.name
@@ -113,6 +116,7 @@ class _FieldOptions(TypedDict, total=False):
     default: Json | NoDefault
     server_assigned: bool
     release: Release
+    r1_name: str | None
 
 
 class _TableOptions(TypedDict):
@@ -140,6 +144,9 @@ def _table(
     return TableSpec(name, notes, writable, selectors, fields, **options)
 
 
+# R1 renames the account field on the writable tables (record-format-changes-2027); reads and writes use it.
+BILLING_ACCOUNT = "billing_account_id"
+
 SCHEMA: Mapping[Table, TableSpec] = {
     Table.ACCOUNTS: _table(Table.ACCOUNTS, "Account identity and billing configuration.", False,
         ("account_id", "org"), (
@@ -150,6 +157,7 @@ SCHEMA: Mapping[Table, TableSpec] = {
             _f("status", FieldType.STRING, enum=("active", "suspended")),
             _f("payment_method", FieldType.STRING, enum=("card", "invoice", "marketplace", "none")),
             _f("created_on", FieldType.DATE),
+            _f("billing_timezone", FieldType.STRING, release=Release.R1),
         ), id_field="account_id"),
     Table.CONTACTS: _table(Table.CONTACTS, "Account contact records.", False,
         ("contact_id", "account_id", "email"), (
@@ -207,7 +215,7 @@ SCHEMA: Mapping[Table, TableSpec] = {
     Table.CREDIT_NOTES: _table(Table.CREDIT_NOTES, "Issued credit note records.", True,
         ("credit_note_id", "account_id", "invoice_id"), (
             _f("credit_note_id", FieldType.STRING, server_assigned=True),
-            _f("account_id", FieldType.STRING, ref=Table.ACCOUNTS),
+            _f("account_id", FieldType.STRING, ref=Table.ACCOUNTS, r1_name=BILLING_ACCOUNT),
             _f("invoice_id", FieldType.STRING, ref=Table.INVOICES),
             _f("line_ids", FieldType.STRING, is_list=True, ref=Table.INVOICE_LINES),
             _f("amount_cents", FieldType.INTEGER),
@@ -219,7 +227,7 @@ SCHEMA: Mapping[Table, TableSpec] = {
     Table.DISPUTES: _table(Table.DISPUTES, "Billing dispute records.", True,
         ("dispute_id", "account_id"), (
             _f("dispute_id", FieldType.STRING, server_assigned=True),
-            _f("account_id", FieldType.STRING, ref=Table.ACCOUNTS),
+            _f("account_id", FieldType.STRING, ref=Table.ACCOUNTS, r1_name=BILLING_ACCOUNT),
             _f("invoice_id", FieldType.STRING, ref=Table.INVOICES, nullable=True, default=None),
             _f("line_ids", FieldType.STRING, is_list=True, ref=Table.INVOICE_LINES, default=[]),
             _f("reason", FieldType.STRING, enum=("duplicate_charge", "incorrect_amount", "unrecognized_usage"),
@@ -232,7 +240,7 @@ SCHEMA: Mapping[Table, TableSpec] = {
     Table.CASES: _table(Table.CASES, "Support case records.", True,
         ("case_id", "account_id"), (
             _f("case_id", FieldType.STRING, server_assigned=True),
-            _f("account_id", FieldType.STRING, ref=Table.ACCOUNTS),
+            _f("account_id", FieldType.STRING, ref=Table.ACCOUNTS, r1_name=BILLING_ACCOUNT),
             _f("team", FieldType.STRING, enum=("billing_ops", "billing_engineering", "finance", "legal",
                 "account_team", "partnerships", "telemetry", "sre", "platform"), nullable=True, default=None),
             _f("summary", FieldType.STRING), _f("details", FieldType.STRING_MAP, default={}),

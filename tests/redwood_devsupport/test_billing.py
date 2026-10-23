@@ -9,7 +9,9 @@ import stat
 import sys
 import threading
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from types import SimpleNamespace
 
 import pytest
@@ -322,7 +324,8 @@ def test_query_equality_contains_paging_and_unknown_fields():
     billing = billing_store.Billing(run_agent.load_db())
     account = billing.state["accounts"][COPPERLEAF]
     result = billing.handle(query("accounts", {"account_id": COPPERLEAF}), 1)
-    assert result["rows"] == [account]
+    r0_account = {name: value for name, value in account.items() if name != "billing_timezone"}  # an R1 field
+    assert result["rows"] == [r0_account]
     line = next(row for row in billing.state["invoice_lines"].values() if row["request_ids"])
     request_id = line["request_ids"][0]
     assert billing.handle(
@@ -521,7 +524,7 @@ def test_submitted_dispute_requires_request_ids_and_r1_case_requires_priority():
     r1 = billing_store.Billing(run_agent.load_db("R1"), release="R1")
     with pytest.raises(BillingError, match="priority is required: one of normal, urgent"):
         r1.handle(insert("cases", {
-            "account_id": COPPERLEAF,
+            "billing_account_id": COPPERLEAF,
             "team": "billing_ops",
             "summary": "Escalate",
             "status": "escalated",
@@ -604,7 +607,7 @@ def test_r0_seed_lacks_2027_invoice_that_r1_adds():
         }), 2)
     assert r0.log[-1].ok is False
     future_credit = {
-        "account_id": "bluefin-labs",
+        "billing_account_id": "bluefin-labs",
         "invoice_id": invoice_id,
         "line_ids": [f"{invoice_id}/L1"],
         "amount": {"value": "0.01", "currency": "USD"},
@@ -627,11 +630,14 @@ def test_r1_money_reads_writes_and_escalation_priority():
     if grants:
         assert all("amount" in grant and "remaining" in grant for grant in grants)
 
-    row = credit(line_id=LINE_COPPERLEAF_L3, amount_cents=34000)["row"]
-    row.pop("amount_cents")
-    row["amount"] = {"value": "340.00", "currency": "USD"}
+    with pytest.raises(BillingError, match="unknown field 'account_id'"):
+        billing.handle(r1_credit(COPPERLEAF, INV_COPPERLEAF, LINE_COPPERLEAF_L3, "340.00")
+                       | {"row": credit(line_id=LINE_COPPERLEAF_L3)["row"]}, 4)
+    row = r1_credit(COPPERLEAF, INV_COPPERLEAF, LINE_COPPERLEAF_L3, "340.00")["row"]
     note = billing.handle(insert("credit_notes", row), 4)
     assert note["amount"] == {"value": "340.00", "currency": "USD"}
+    assert note["billing_account_id"] == COPPERLEAF and "account_id" not in note
+    assert billing.state["credit_notes"][note["credit_note_id"]]["account_id"] == COPPERLEAF
     assert billing.state["credit_notes"][note["credit_note_id"]]["amount_cents"] == 34000
     state = copy.deepcopy(billing.state)
     with pytest.raises(BillingError, match="credit_notes are insert-only"):
@@ -641,14 +647,17 @@ def test_r1_money_reads_writes_and_escalation_priority():
         query("credit_notes", {"credit_note_id": note["credit_note_id"]}), 6
     )["rows"][0]["amount"] == note["amount"]
 
+    cents_row = {**row, "amount_cents": 100}
+    cents_row.pop("amount")
     with pytest.raises(BillingError, match="unknown field 'amount_cents'"):
-        billing.handle(credit(line_id=LINE_COPPERLEAF_L3, amount_cents=100), 7)
+        billing.handle(insert("credit_notes", cents_row), 7)
     invalid_money = copy.deepcopy(row)
     invalid_money["amount"] = {"value": "340.0", "currency": "USD"}
     with pytest.raises(BillingError, match="two-decimal USD value"):
         billing.handle(insert("credit_notes", invalid_money), 8)
 
     case = case_row(priority=None)
+    case["billing_account_id"] = case.pop("account_id")
     with pytest.raises(BillingError, match="priority is required: one of normal, urgent"):
         billing.handle(insert("cases", case), 9)
     case["priority"] = "normal"
@@ -785,7 +794,7 @@ def test_r0_traces_also_replay_on_the_r1_console_for_q10():
         for actions in (case["db"]["gold"], *(case["db"].get("alternatives") or [])):
             billing_store.replay(baseline, actions, release=RELEASES["maintain_r1"])
 
-@pytest.mark.parametrize("case_id", ["a0-12", "a0-24", "a0-25"])
+@pytest.mark.parametrize("case_id", ["a0-03", "a0-05", "a0-09"])
 def test_added_case_facts_pass_action_and_billing_checks(case_id):
     case = CASES[case_id]
     release = RELEASES[case["step"]]
@@ -1023,19 +1032,17 @@ def _plan(state, account_id):
 
 
 def _derived(state):
-    """Each `communicate` value recomputed from the console rows it names."""
+    """Each `communicate` value recomputed from the console rows it names (or the policy value it states)."""
     usage = state["usage"].values()
+    invoices, lines = state["invoices"], state["invoice_lines"]
     return {
-        "a0-02": [_dollars(state["invoices"]["INV-BG-202608-002"]["total_cents"]),
-                  _dollars(sum(_lines(state, "INV-BG-202608-002", "hosted_api"))),
-                  _dollars(sum(_lines(state, "INV-BG-202608-002", "plan_fee")))],
-        "a0-04": [str(sum(u["billed_tokens"] for u in usage
+        "a0-01": [str(sum(u["billed_tokens"] for u in usage
                           if u["account_id"] == "lumenfield-ai" and u["at"].startswith("2026-08")))],
-        "a0-05": [_dollars(state["invoices"]["INV-2026-0831-150"]["total_cents"])],
-        "a0-10": [_dollars(state["invoice_lines"]["INV-BG-202608-009/L1"]["amount_cents"])],
-        "a0-24": [_dollars(state["invoices"]["INV-2026-0831-301"]["total_cents"])],
-        "a0-25": [_dollars(state["invoice_lines"]["INV-2026-0831-114/L3"]["amount_cents"])],
-        "a0-31": [_dollars(state["invoices"]["INV-2026-0831-455"]["total_cents"])],
+        "a0-02": [_dollars(lines["INV-BG-202608-009/L1"]["amount_cents"])],
+        "a0-06": [_dollars(invoices["INV-2026-0831-455"]["total_cents"])],
+        "a0-08": [_dollars(lines["INV-2026-0831-114/L3"]["amount_cents"]), "500"],  # the limit is R0 policy
+        "a0-10": [_dollars(invoices["INV-2026-0831-177"]["total_cents"]),
+                  *(_dollars(cents) for cents in _lines(state, "INV-2026-0831-177"))],
     }
 
 
@@ -1057,19 +1064,36 @@ def _ledger_balance(state, account_id):
                if entry["account_id"] == account_id)
 
 
+def _billed_tokens(state, account_id, month):
+    return sum(u["billed_tokens"] for u in state["usage"].values()
+               if u["account_id"] == account_id and _billing_day(state, u).startswith(month))
+
+
 def _derived_r1(state):
-    """Each R1 `communicate` value recomputed from the R1 console rows it names."""
-    lines = state["invoice_lines"]
+    """Each R1 `communicate` value recomputed from the R1 console rows it names (or the policy value it states)."""
+    lines, invoices = state["invoice_lines"], state["invoices"]
     expiry = {entry["grant_id"]: entry["expires_on"] for entry in state["credit_ledger"].values() if entry["expires_on"]}
     return {
-        "a1-05": [_dollars(lines["INV-2027-0331-118/L3"]["amount_cents"])],
-        "a1-07": [_dollars(lines["INV-2027-0331-310/L3"]["amount_cents"]), lines["INV-2027-0331-310/L3"]["invoice_id"]],
-        "a1-08": [_dollars(lines["INV-2027-0331-350/L3"]["amount_cents"])],
-        "a1-09": [_dollars(_ledger_balance(state, "echo-valley")),
+        "a1-02": [_dollars(lines["INV-2027-0331-118/L3"]["amount_cents"]), "250"],  # the limit is R1 policy
+        "a1-03": ["2027-04-12"],  # 3 business days after the window ends on Wed 2027-04-07
+        "a1-05": [_dollars(invoices["INV-2027-0331-266"]["total_cents"]),
+                  str(_billed_tokens(state, "rosehip-data", "2027-03"))],
+        "a1-06": ["60 minutes"],  # the R1 amendment's threshold
+        "a1-07": [_dollars(invoices["INV-BG-202703-037"]["total_cents"])],
+        "a1-08": [_dollars(_ledger_balance(state, "echo-valley")),
                   expiry["GRANT-echo-valley-1"], expiry["GRANT-echo-valley-2"]],
-        "a1-10": [expiry["GRANT-cinder-analytics-1"], "90 days"],  # the expiry rule is R1 policy, not console data
-        "a1-15": [{"aws_marketplace": "AWS Marketplace"}[state["accounts"]["ironbark-cloud"]["billing_channel"]]],
+        "a1-09": ["billing settings"],  # where the PCI page sends the customer
+        "a1-10": ["402"],  # the free-tier policy's status code
     }
+
+
+def test_a1_05_billing_month_differs_from_the_utc_month():
+    """The never-said value is exactly the UTC-month total, so a frozen UTC helper is caught."""
+    state = run_agent.load_db("R1")
+    utc = sum(u["billed_tokens"] for u in state["usage"].values()
+              if u["account_id"] == "rosehip-data" and u["at"].startswith("2027-03"))
+    assert utc != _billed_tokens(state, "rosehip-data", "2027-03")
+    assert CASES["a1-05"]["never_say"][0][0] == str(utc)
 
 
 def test_r1_communicate_values_match_the_r1_console_and_are_not_in_the_brief():
@@ -1095,16 +1119,27 @@ def test_echo_valley_frozen_grants_disagree_with_the_ledger():
 def r1_credit(account_id: str, invoice_id: str, line_id: str, dollars: str) -> dict:
     request = credit(account_id, invoice_id, line_id)
     request["row"].pop("amount_cents")
+    request["row"]["billing_account_id"] = request["row"].pop("account_id")
     request["row"]["amount"] = {"value": dollars, "currency": "USD"}
     return request
 
 
+def as_r1(request: dict) -> dict:
+    """The R1 spelling of an insert: writable tables name the account `billing_account_id`."""
+    row = {("billing_account_id" if name == "account_id" else name): value for name, value in request["row"].items()}
+    return {**request, "row": row}
+
+
+def r1_case(account_id: str, team: str) -> dict:
+    return insert("cases", {"billing_account_id": account_id, "team": team, "summary": "handoff",
+                            "status": "escalated", "priority": "normal"})
+
+
 @pytest.mark.parametrize("case_id, r0_gold", [
-    ("a1-05", [r1_credit("marrowline-analytics", "INV-2027-0331-118", "INV-2027-0331-118/L3", "300.00")]),
-    ("a1-07", [r1_credit("cobaltbay", "INV-2027-0331-310", "INV-2027-0331-310/L3", "250.00")]),
-    ("a1-08", [r1_credit("northwind-ai", "INV-2027-0331-350", "INV-2027-0331-350/L3", "120.00")]),
-    ("a1-18", [insert("cases", {"account_id": "tidewell-labs", "team": "billing_ops", "summary": "handoff",
-                                "status": "escalated", "priority": "normal"})]),
+    ("a1-01", [r1_credit("ridgeback-ai", "INV-2027-0228-212", "INV-2027-0228-212/L3", "300.00")]),  # the original
+    ("a1-02", [r1_credit("marrowline-analytics", "INV-2027-0331-118", "INV-2027-0331-118/L3", "300.00")]),
+    ("a1-03", [r1_case("tidewell-labs", "billing_ops")]),
+    ("a1-06", [r1_case("halcyon-data", "telemetry")]),
 ])
 def test_r1_gold_differs_from_what_the_r0_rule_would_write(case_id, r0_gold):
     """Changed-value witness: the write the R0 rule prescribes fails the R1 case's DB check."""
@@ -1204,6 +1239,12 @@ def test_oracle_prompt_files_stay_within_size_limits():
     assert len((workspace / "AGENTS.md").read_text()) < 4000
 
 
+def _billing_day(state: dict, usage: dict) -> str:
+    """The usage day in the account's billing timezone, which decides its invoice line."""
+    zone = ZoneInfo(state["accounts"][usage["account_id"]]["billing_timezone"])
+    return datetime.fromisoformat(usage["at"]).astimezone(zone).date().isoformat()
+
+
 def test_background_data_has_expected_size_and_no_accidental_lookalikes():
     state = run_agent.load_db("R1")
     assert 55 <= len(state["accounts"]) <= 60
@@ -1224,6 +1265,7 @@ def test_background_data_has_expected_size_and_no_accidental_lookalikes():
         "kestrel-apps",
         "northwind-ai",
         "saffron-labs",
+        "ridgeback-ai",
     }
     duplicates = set()
     for invoice_id, invoice in state["invoices"].items():
@@ -1247,7 +1289,7 @@ def test_background_data_has_expected_size_and_no_accidental_lookalikes():
                 for request_id in line["request_ids"]:
                     usage = state["usage"][request_id]
                     assert usage["line_id"] == line["line_id"]
-                    assert line["period_start"] <= usage["at"][:10] <= line["period_end"]
+                    assert line["period_start"] <= _billing_day(state, usage) <= line["period_end"]
     assert duplicates == allowed
     saltmarsh = next(
         invoice for invoice in state["invoices"].values()
@@ -1272,7 +1314,7 @@ def test_billed_usage_points_to_listed_metered_invoice_line():
             continue
         line = state["invoice_lines"][usage["line_id"]]
         assert line["product"] in metered_products
-        assert line["period_start"] <= usage["at"][:10] <= line["period_end"]
+        assert line["period_start"] <= _billing_day(state, usage) <= line["period_end"]
         assert request_id in line["request_ids"]
 
 
@@ -1421,7 +1463,7 @@ def test_development_billing_r1_uses_money_objects_and_requires_priority():
     assert line["amount"] == {"value": "180.00", "currency": "USD"}
     with pytest.raises(ClientBillingError, match="priority is required: one of normal, urgent"):
         billing.insert("cases", {
-            "account_id": "practice-brackenvale",
+            "billing_account_id": "practice-brackenvale",
             "team": "billing_ops",
             "summary": "Review a support request",
             "status": "escalated",
@@ -1639,7 +1681,7 @@ def test_query_on_another_table_does_not_count_as_an_account_lookup():
     assert result["log"][0].account_ids is None
 
 
-def test_starter_and_r0_oracle_escalations_drift_on_r1_priority(
+def test_starter_and_r0_oracle_escalations_drift_on_the_r1_record_format(
     monkeypatch,
 ):
     seed = run_agent.load_db("R1")
@@ -1668,7 +1710,7 @@ def test_starter_and_r0_oracle_escalations_drift_on_r1_priority(
     r1_store = billing_store.Billing(seed, release="R1")
     starter = tools(starter_path, "starter_priority_tools")
     starter.billing = client_for(r1_store)
-    with pytest.raises(ClientBillingError, match="priority is required: one of normal, urgent"):
+    with pytest.raises(ClientBillingError, match="unknown field 'account_id'"):
         starter.escalate(account_id, "billing_ops", "Review the duplicate charge")
 
     escalation = {
@@ -1692,7 +1734,7 @@ def test_starter_and_r0_oracle_escalations_drift_on_r1_priority(
 
     oracle = tools(oracle_path, "r0_oracle_priority_tools_R1")
     oracle.billing = client_for(billing_store.Billing(seed, release="R1"))
-    with pytest.raises(ClientBillingError, match="priority is required: one of normal, urgent"):
+    with pytest.raises(ClientBillingError, match="unknown field 'account_id'"):
         oracle.escalate_case(**escalation)
 
 
@@ -1736,18 +1778,18 @@ def test_r1_dispute_is_valid_but_credit_of_three_hundred_is_not():
     )
     actual = record(
         query("accounts", {"account_id": "marrowline-analytics"}),
-        dispute(
+        as_r1(dispute(
             "marrowline-analytics",
             "INV-2027-0331-118",
             "INV-2027-0331-118/L3",
             ["req_b71", "req_b72"],
-        ),
-        insert("cases", case_row(
+        )),
+        as_r1(insert("cases", case_row(
             account_id="marrowline-analytics",
             team="billing_ops",
             priority="normal",
             dispute_id="DSP-1",
-        )),
+        ))),
         release="R1",
     )
     assert all(row.passed for row in billing_rows(case, actual, "R1").values())
@@ -1782,7 +1824,7 @@ def test_console_errors_carry_a_stable_code_through_the_client():
     r1 = billing_store.Billing(run_agent.load_db("R1"), release="R1")
     with pytest.raises(BillingError) as caught:
         r1.handle(insert("cases", {
-            "account_id": COPPERLEAF,
+            "billing_account_id": COPPERLEAF,
             "team": "billing_ops",
             "summary": "needs review",
             "status": "escalated",

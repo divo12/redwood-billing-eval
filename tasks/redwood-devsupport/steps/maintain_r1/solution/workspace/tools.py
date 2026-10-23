@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import datetime
 from decimal import Decimal
 from typing import Literal
+from zoneinfo import ZoneInfo
 
-from billing_rules import DUPLICATE_CREDIT_LIMIT_CENTS
+from billing_rules import duplicate_credit_limit_cents
 from redwood_kit.developer import DeveloperTools
 from redwood_kit.skills import SkillTools
 from redwood_kit.subagents import SubagentTools
@@ -26,6 +28,7 @@ Team = Literal[
 class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
     def __init__(self) -> None:
         self._description: dict | None = None
+        self._dispute_id: str | None = None  # the dispute this conversation opened, linked by escalate_case
 
     def _describe(self) -> dict:
         if self._description is None:
@@ -73,6 +76,15 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
         if name.endswith("_cents"):
             return name, cents
         return name, {"value": f"{cents // 100}.{cents % 100:02d}", "currency": "USD"}
+
+    def _account_field(self, table: str) -> str:
+        # Source: R1/sources/confluence/customer-success-and-support/support-process/support-console-record-format-changes-2027.json.
+        fields = self._describe()[table]["fields"]
+        return "billing_account_id" if "billing_account_id" in fields else "account_id"
+
+    def _billing_timezone(self, account_id: str) -> ZoneInfo:
+        account = self._account_id(self._query_all("accounts", {"account_id": account_id}), f"account {account_id!r}")
+        return ZoneInfo(account.get("billing_timezone") or "UTC")
 
     @staticmethod
     def _account_id(rows: list[dict], selector: str) -> dict:
@@ -250,14 +262,18 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
         start_utc: str = "",
         end_utc: str = "",
         request_ids: list[str] | None = None,
+        billing_month: str = "",
     ) -> dict:
-        """Summarize usage requests and token totals in an optional inclusive UTC window.
+        """Summarize usage requests and token totals in an optional inclusive UTC window or billing month.
 
         Args:
             account_id: Account identifier returned by find_account.
             start_utc: Inclusive UTC start timestamp.
             end_utc: Inclusive UTC end timestamp.
             request_ids: Request IDs to look up exactly; each is reported as recorded or not.
+            billing_month: YYYY-MM; counts usage by its time in the account's billing timezone.
+
+        Source: R1/sources/confluence/customer-success-and-support/support-process/support-console-record-format-changes-2027.json.
         """
         lookups = {
             request_id: [
@@ -272,6 +288,10 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
             if (not start_utc or row["at"] >= start_utc)
             and (not end_utc or row["at"] <= end_utc)
         ]
+        if billing_month:
+            zone = self._billing_timezone(account_id)
+            rows = [row for row in rows
+                    if datetime.fromisoformat(row["at"]).astimezone(zone).strftime("%Y-%m") == billing_month]
         status_counts: dict[str, int] = defaultdict(int)
         status_tokens: dict[str, int] = defaultdict(int)
         for row in rows:
@@ -285,6 +305,7 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
             "billed_tokens_by_http_status": dict(sorted(status_tokens.items())),
             "start_utc": start_utc or None,
             "end_utc": end_utc or None,
+            "billing_month": billing_month or None,
             "requests": {
                 request_id: rows[0] if rows else "not recorded for this account"
                 for request_id, rows in lookups.items()
@@ -293,7 +314,7 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
 
     def _confirmed_duplicate_line(
         self, account_id: str, invoice_id: str, line_id: str
-    ) -> tuple[dict, dict]:
+    ) -> tuple[dict, dict, int]:
         # Source: R1/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes-v2.json.
         inspected = self.invoice_lines(invoice_id)
         if inspected["invoice"]["account_id"] != account_id:
@@ -331,7 +352,7 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
                 "line is not part of a confirmed duplicate; follow current "
                 "billing-routing guidance instead"
             )
-        return line, duplicate
+        return line, duplicate, duplicate_credit_limit_cents(inspected["invoice"]["period_start"])
 
     @is_tool(ToolType.WRITE)
     def credit_duplicate(
@@ -344,16 +365,17 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
             invoice_id: Invoice containing the confirmed duplicate.
             line_id: Duplicate line to credit.
         """
-        line, _ = self._confirmed_duplicate_line(account_id, invoice_id, line_id)
+        line, _, limit_cents = self._confirmed_duplicate_line(account_id, invoice_id, line_id)
         if self._is_contract_account(account_id):
             raise ValueError(
                 "Support may not credit an account with a signed contract; open a "
                 "duplicate-charge dispute and escalate it to billing_ops"
             )
         amount_cents = self._money_cents("invoice_lines", "amount", line)
-        if amount_cents > DUPLICATE_CREDIT_LIMIT_CENTS:
+        if amount_cents > limit_cents:
             raise ValueError(
-                f"{self._dollars(amount_cents)} exceeds the console credit limit; "
+                f"{self._dollars(amount_cents)} exceeds the {self._dollars(limit_cents)} credit limit for this "
+                "invoice's billing period; "
                 "open a duplicate-charge dispute and escalate it to billing_ops"
             )
         existing = self._query_all("credit_notes", {"invoice_id": invoice_id})
@@ -365,7 +387,7 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
         note = self.billing.insert(
             "credit_notes",
             {
-                "account_id": account_id,
+                self._account_field("credit_notes"): account_id,
                 "invoice_id": invoice_id,
                 "line_ids": [line_id],
                 amount_field: amount,
@@ -393,19 +415,19 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
 
         Source: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json.
         """
-        line, duplicate = self._confirmed_duplicate_line(
+        line, duplicate, limit_cents = self._confirmed_duplicate_line(
             account_id, invoice_id, line_id
         )
         amount_cents = self._money_cents("invoice_lines", "amount", line)
-        if amount_cents <= DUPLICATE_CREDIT_LIMIT_CENTS and not self._is_contract_account(account_id):
+        if amount_cents <= limit_cents and not self._is_contract_account(account_id):
             raise ValueError(
                 "confirmed duplicates within the current console limit should use "
                 "credit_duplicate; route other requests under current billing guidance"
             )
-        return self.billing.insert(
+        dispute = self.billing.insert(
             "disputes",
             {
-                "account_id": account_id,
+                self._account_field("disputes"): account_id,
                 "invoice_id": invoice_id,
                 "line_ids": [line_id],
                 "reason": "duplicate_charge",
@@ -413,6 +435,8 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
                 "status": "submitted",
             },
         )
+        self._dispute_id = dispute["dispute_id"]
+        return dispute
 
     @is_tool(ToolType.WRITE)
     def escalate_case(
@@ -435,7 +459,7 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
             details: Case facts, including invoice and request context when available.
             unresolved: What Support cannot resolve in this conversation.
             routing_rule: Verbatim excerpt from a search_policy result naming team.
-            dispute_id: Submitted dispute associated with the case.
+            dispute_id: Submitted dispute associated with the case; defaults to the one opened in this conversation.
             priority: Case priority required by the current console.
 
         Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json.
@@ -448,11 +472,11 @@ class Tools(DeveloperTools, SkillTools, SubagentTools, ToolKitBase):
         case = self.billing.insert(
             "cases",
             {
-                "account_id": account_id,
+                self._account_field("cases"): account_id,
                 "team": team,
                 "summary": summary,
                 "details": case_details,
-                "dispute_id": dispute_id,
+                "dispute_id": dispute_id or self._dispute_id,
                 "priority": priority,
                 "status": "escalated",
             },

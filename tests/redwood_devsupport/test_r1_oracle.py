@@ -24,8 +24,7 @@ def _load(workspace: Path, name: str):
     return module
 
 
-@pytest.fixture
-def oracle(tmp_path):
+def _workspace_modules(tmp_path):
     workspace = tmp_path / "workspace"
     shutil.copytree(TASK / "steps" / "build_r0" / "solution" / "workspace", workspace,
                     ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
@@ -39,6 +38,12 @@ def oracle(tmp_path):
         sys.modules.pop("billing_rules", None)
         if previous is not None:
             sys.modules["billing_rules"] = previous
+    return tools_module, hooks_module
+
+
+@pytest.fixture
+def oracle(tmp_path):
+    tools_module, hooks_module = _workspace_modules(tmp_path)
     tools = tools_module.Tools()
     tools.billing = local_console("R1", TASK / "environment/r1/development_seed.json")
     answers = iter(["no", "yes", "yes", "yes"])  # the developer's answers to successive confirmations
@@ -124,3 +129,26 @@ def test_duplicate_lines_name_the_copy(oracle):
     result = json.loads(call("invoice_lines", {"invoice_id": "PRACTICE-R1-DUP-60"}).content)
     [group] = result["confirmed_duplicates"]
     assert group["copy_line_ids"] == ["PRACTICE-R1-DUP-60/L2"]
+
+
+def test_duplicate_limit_follows_the_invoice_billing_period(tmp_path):
+    rules = _load(TASK / "steps" / "maintain_r1" / "solution" / "workspace", "billing_rules")
+    assert rules.duplicate_credit_limit_cents("2027-02-01") == 50_000
+    assert rules.duplicate_credit_limit_cents("2027-03-01") == 25_000
+
+
+def test_usage_summary_counts_a_billing_month_in_the_account_timezone(tmp_path):
+    from redwood_kit.billing.store import Billing
+    sys.path.insert(0, str(TASK / "tests"))
+    from run.run_agent import load_db
+    tools = _workspace_modules(tmp_path)[0].Tools()
+    tools.billing = _store_client(Billing(load_db("R1"), release="R1"))
+    local = tools.usage_summary("rosehip-data", billing_month="2027-03")
+    utc = tools.usage_summary("rosehip-data", "2027-03-01T00:00:00Z", "2027-03-31T23:59:59Z")
+    assert (local["billed_tokens"], utc["billed_tokens"]) == (21_000_000, 20_500_000)
+
+
+def _store_client(store):
+    from redwood_kit.billing.client import Billing as Client
+    position = iter(range(1, 10_000))
+    return Client(lambda request: {"ok": True, **store.handle(request, next(position))})

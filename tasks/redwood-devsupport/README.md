@@ -27,8 +27,11 @@ harbor view ./jobs
 
 Harbor 0.22.0 has no agent named `claude`: Claude Code is `claude-code`.
 
-`REDWOOD_DIAGNOSTICS=0` in your shell skips the 20 unscored `maintain_r1` diagnostic conversations
-(Q01, Q10; see `tests/README.md`). The reward is the same either way.
+Then grade both saved workspaces (the run's reward is `<trial>/graded/reward.json`):
+
+```sh
+scripts/grade_snapshots.sh jobs/<job>/<trial>
+```
 
 ## Shape
 
@@ -40,11 +43,8 @@ Harbor 0.22.0 has no agent named `claude`: Claude Code is `claude-code`.
 Every conversation is with a **scripted developer** (no model): an opening, a fixed agenda, facts the
 agent can get only through the `ask_developer` tool, and a fixed answer to `confirm_with_developer`.
 Every check is code: billing end state, required console actions, required and forbidden values, and
-consent order. `reward.json` holds `reward` (= `overall`, the scenario pass rate) plus
-`functional_correctness`, `constraint_satisfaction`, `robustness` and `artifact_quality`.
-
-`maintain_r1` also reports, without scoring, where each change landed (axis 1),
-what A1 costs to run (axis 2), and drift / regression (axis 3). See `tests/README.md`.
+consent order. The reward is a gate over Q00 (A0 on R0), Q10 (A1 on R0) and Q11 (A1 on R1);
+`scores.json` adds drift, regression, health and sizes, unscored. See `tests/README.md`.
 
 ## Folders
 
@@ -55,7 +55,7 @@ what A1 costs to run (axis 2), and drift / regression (axis 3). See `tests/READM
 | `data/` | The billing console's seed data: R0 and the R1 delta. |
 | `environment/` | The container: pinned Dockerfile and `requirements.lock`, the `redwood_kit` runtime, the builder-visible workspace and docs, the R1 reveal script, and `corpus/` (R0, R1, NOTICE). |
 | `steps/` | Per-step instructions, the step's test entry script, and the oracle solution. |
-| `tests/` | The hidden verifier: runs conversations, grades them, writes reward + evidence. |
+| `tests/` | The hidden verifier (per step) and the grader (after the run). |
 
 ## data/ — billing console seed data
 
@@ -79,11 +79,10 @@ The DB check in `tests/` replays expected actions on this same seed, so a change
 ## Flow
 
 ```
-build_r0:    builder edits /app/workspace ──> tests/verify.py build_r0 ──> reward
-                                              └─ keeps A0 + Q00 results
+build_r0:    builder edits /app/workspace ──> tests/verify.py build_r0 (gates, freeze; A0 kept)
              environment/advance.py reveals R1 in /app/R, seals /tests
-maintain_r1: builder resumes, edits A0 -> A1 ──> tests/verify.py maintain_r1 ──> reward
-                                                  └─ Q01, Q10 + evolution report (diagnostic)
+maintain_r1: builder resumes, edits A0 -> A1 ──> tests/verify.py maintain_r1 (gates, freeze; A1 kept)
+after:       scripts/grade_snapshots.sh ──> Q00, Q01, Q10, Q11 ──> grade.final ──> reward.json, scores.json
 ```
 
 ## Checks

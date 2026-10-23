@@ -18,13 +18,15 @@ description: Investigate billing, usage, credit, contract, SLA, and invoice ques
 9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.
 
 10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.
-11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for `cloud_provider`, `subscription_id`, `line_item_dimension` and `billing_period`, compare them with the account's billing channel, and put them on any case you open.
+11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.
+<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->
+12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.
 
 ## What to retrieve for common questions
 
 Each item names what to search; the answer is in the retrieved record, not here.
 - Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.
-- Missing usage: search the usage-reporting freshness threshold and the missing-usage routing trigger. Before the threshold, open no case; tell the customer when and with what to follow up.
+- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.
 - Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.
 - Over-limit confirmed duplicate: search the console credits and disputes page for the credit limit and the dispute procedure.
 - Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.

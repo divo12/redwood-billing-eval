@@ -17,8 +17,7 @@ whatever that reply was. They do not answer questions asked in chat text. To
 learn a fact they have not written, the agent calls `ask_developer` with the
 fields it needs (`org_id`, `invoice_id`, `invoice_month`, `line_items`,
 `amounts`, `request_ids`, `response_status`, `time_of_issue`, `checks_done`,
-`plan`, `contract`, `error_code`, `cloud_provider`, `subscription_id`,
-`line_item_dimension`, `billing_period`, `timezone`); each answer is the
+`plan`, `contract`, `error_code`, `billing_period`, `timezone`); each answer is the
 developer's own words, or that they don't have it. To get the developer's
 approval for an action, the agent calls `confirm_with_developer` with exactly
 what it will do; the answer is `yes` or `no`, with the developer's words. Both
@@ -169,18 +168,6 @@ wait for output from the candidate process has a 180-second timeout; gateway
 requests have separate provider timeouts and retries. Skills and subagents
 share the allowed models. Model inference goes through the runtime gateway.
 The complete verifier step has a 3600-second timeout.
-
-### Credit budget
-
-The verifier meters the credits your agent spends: for each conversation, the
-prompt and completion tokens of every model-gateway call (reasoning counts as
-completion), priced at the `credit_rates` of each model in
-`deployment_manifest.json`, per million tokens. Embedding calls and the
-simulated developer are not metered. `performance_requirements` sets the
-budget for the mean credits per conversation over every graded conversation,
-failed ones included. Going over is a soft penalty: the reward is the scenario
-score minus `mean / budget - 1`, floored at zero. A `null` budget means no
-budget is set for this release and nothing is deducted.
 
 ## Hooks
 

@@ -3,29 +3,24 @@
     verify.py build_r0 | maintain_r1
 
 Each step checks that the builder ran one agent session (Claude Code or Pi,
-continued across steps), records what it changed in the workspace, freezes the
-workspace, and runs the step's hidden billing scenarios against it as a user
-that cannot read /app/R (see grade/grade.py). The reward is the step's scenario
-score less any credit overage; reward.json also breaks it down into functional
-correctness, constraint satisfaction, robustness and artifact quality.
-Afterwards everything that user left behind is killed and deleted, so the
-builder's next session cannot read the conversations. Environment problems are
-an invalid run (exit 2), not a score.
+continued across steps), records what it changed in the workspace, freezes it
+(Harbor keeps the workspace as the step's artifact) and runs the artifact checks.
+No conversation runs here: the reward needs Q00, Q10 and Q11 together, so
+scripts/grade_snapshots.sh grades both saved workspaces after the run and writes
+the real reward.json. This step's reward.json says `graded: false`.
+Environment problems are an invalid run (exit 2), not a score.
 """
 from __future__ import annotations
 
 import hashlib
 import json
 import os
-import shutil
 import sys
 from pathlib import Path
 
-from evolve.diagnostics import EvolutionReport, Outcomes, attempt, report
-from grade.grade import ScenarioGrade, Selection, StepSummary, run_step
-from grade.scenarios import Release, Step, load_scenarios
+from grade.scenarios import Release, Step
 from pydantic import BaseModel
-from run.run_agent import Termination, freeze, scrub
+from run.run_agent import freeze
 
 APP = Path("/app")
 BASELINE = Path("/opt/redwood-baseline/workspace")
@@ -38,8 +33,6 @@ TRACKED = ("system_prompt.md", "AGENTS.md")
 SIZE_LIMITS = {"system_prompt.md": 1500, "AGENTS.md": 4000}  # promised in steps/build_r0/instruction.md
 STUB_SKILL = "skills/example/SKILL.md"
 STUB_SUBAGENT = "subagents/example.md"
-A0 = STATE / "a0"  # the frozen build_r0 workspace, kept for the maintain_r1 diagnostics
-Q00 = STATE / "q00.json"
 
 
 class Session(BaseModel):
@@ -66,12 +59,6 @@ class WorkspaceReport(BaseModel):
     sizes: dict[str, FileSize | None]
 
 
-class CaseOutcome(BaseModel):
-    id: str
-    passed: bool
-    termination: Termination
-
-
 class Evidence(BaseModel):
     step: Step
     release: Release
@@ -79,11 +66,6 @@ class Evidence(BaseModel):
     workspace: WorkspaceReport
     artifact_error: str | None = None
     artifacts: list[ArtifactCheck] = []
-    score: StepSummary | None = None
-    cases: list[CaseOutcome] = []
-    scrubbed: int | None = None
-    evolution: EvolutionReport | None = None
-    evolution_error: str | None = None
 
 
 class ArtifactCheck(BaseModel):
@@ -93,13 +75,10 @@ class ArtifactCheck(BaseModel):
 
 
 class Reward(BaseModel):
-    """`reward` is what Harbor scores; the rest break it down (the brief's multi-criterion form)."""
+    """A placeholder for Harbor: the run is scored afterwards by grade.final."""
 
-    reward: float
-    overall: float
-    functional_correctness: float
-    constraint_satisfaction: float
-    robustness: float
+    reward: float = 0.0
+    graded: bool = False
     artifact_quality: float
 
 
@@ -203,53 +182,6 @@ def check_environment(step: Step) -> None:
         raise RuntimeError(f"{len(exposed)} entries under /app/R are readable by the agent user, e.g. {exposed[0]}")
 
 
-def passed(graded: list[ScenarioGrade]) -> Outcomes:
-    return {g.id: g.passed for g in graded}
-
-
-def keep_a0(frozen: Path, graded: list[ScenarioGrade]) -> None:
-    if A0.exists():
-        shutil.rmtree(A0)
-    shutil.copytree(frozen, A0)
-    write_text(Q00, json.dumps(passed(graded), indent=2) + "\n")
-
-
-def evolution_report(a1: Path, q11: list[ScenarioGrade]) -> EvolutionReport:
-    """Run Q01 (A0 on R1 cases) and Q10 (A1 on R0 cases, R1 console), then the diagnostics.
-
-    A failed run loses only the diagnostics that need it; a case the simulator
-    could not finish is left out of the comparison instead of failing the whole run.
-    """
-    a0 = Path("/run/redwood-agent-A0")
-    freeze(A0, a0)
-    logs = {"q11": LOGS, "q01": LOGS / "q01", "q10": LOGS / "q10"}
-    errors: dict[str, str] = {}
-    q01 = attempt(errors, "q01", lambda: passed(run_step(Step.MAINTAIN_R1, a0, logs["q01"],
-                                                         select=Selection())[1]))
-    q10 = attempt(errors, "q10", lambda: passed(run_step(Step.BUILD_R0, a1, logs["q10"],
-                                                         select=Selection(release=Release.R1))[1]))
-    q00: Outcomes = json.loads(Q00.read_text())
-    runs = {"q00": q00, "q01": q01, "q10": q10, "q11": passed(q11)}
-    rules = {s.id: s.rules for s in load_scenarios(Step.MAINTAIN_R1)}
-    evolution = report(a0, a1, runs, logs, rules)
-    evolution.errors = {**errors, **evolution.errors}
-    return evolution
-
-
-def diagnose(step: Step, frozen: Path, graded: list[ScenarioGrade], evidence: Evidence) -> None:
-    """Keep A0 after build_r0; after maintain_r1 add the evolution report. Never changes the reward."""
-    if step is Step.BUILD_R0:
-        keep_a0(frozen, graded)
-        return
-    if os.environ.get("REDWOOD_DIAGNOSTICS", "1") == "0":  # skip Q01/Q10: 20 unscored conversations
-        evidence.evolution_error = "skipped: REDWOOD_DIAGNOSTICS=0"
-        return
-    try:
-        evidence.evolution = evolution_report(frozen, graded)
-    except Exception as error:  # a diagnostic failure is reported, not scored
-        evidence.evolution_error = f"{type(error).__name__}: {error}"
-
-
 def _differs(workspace: Path, relative: str) -> bool:
     baseline = BASELINE / relative
     return not baseline.is_file() or (workspace / relative).read_bytes() != baseline.read_bytes()
@@ -280,10 +212,9 @@ def _hook_check(workspace: Path) -> ArtifactCheck:
                          passed=hooks.is_file() and "@hook" in hooks.read_text() and _differs(workspace, "hooks.py"))
 
 
-def artifact_checks(workspace: Path, graded: list[ScenarioGrade]) -> list[ArtifactCheck]:
+def artifact_checks(workspace: Path) -> list[ArtifactCheck]:
     """The deliverables the instruction promises, checked by code: sizes, components, and that the agent can
-    reach them. Whether a conversation used them is reported (`detail`), not required: "when appropriate"."""
-    called = {name for g in graded for name in g.tools_called}
+    reach them."""
     skills = _real(workspace, "skills/*/SKILL.md", STUB_SKILL)
     subagents = _real(workspace, "subagents/*.md", STUB_SUBAGENT)
     return [
@@ -292,28 +223,17 @@ def artifact_checks(workspace: Path, graded: list[ScenarioGrade]) -> list[Artifa
         ArtifactCheck(name="a non-stub subagent", passed=bool(subagents), detail=", ".join(subagents)),
         _hook_check(workspace),
         ArtifactCheck(name="the agent can load the skill (load_skill)",
-                      passed=bool(skills) and _exposes(workspace, "SkillTools", "load_skill"),
-                      detail=f"loaded in a graded conversation: {'load_skill' in called}"),
+                      passed=bool(skills) and _exposes(workspace, "SkillTools", "load_skill")),
         ArtifactCheck(name="the agent can delegate to the subagent (delegate)",
-                      passed=bool(subagents) and _exposes(workspace, "SubagentTools", "delegate"),
-                      detail=f"delegated in a graded conversation: {'delegate' in called}"),
+                      passed=bool(subagents) and _exposes(workspace, "SubagentTools", "delegate")),
     ]
-
-
-def reward_of(summary: StepSummary | None, artifacts: list[ArtifactCheck]) -> Reward:
-    quality = round(sum(c.passed for c in artifacts) / len(artifacts), 4) if artifacts else 0.0
-    if summary is None:
-        return Reward(reward=0.0, overall=0.0, functional_correctness=0.0, constraint_satisfaction=0.0,
-                      robustness=0.0, artifact_quality=quality)
-    return Reward(reward=summary.reward, overall=summary.reward,
-                  functional_correctness=summary.functional_correctness,
-                  constraint_satisfaction=summary.constraint_satisfaction,
-                  robustness=summary.robustness, artifact_quality=quality)
 
 
 def finish(evidence: Evidence) -> None:
     write_model(LOGS / "evidence.json", evidence)
-    write_model(LOGS / "reward.json", reward_of(evidence.score, evidence.artifacts))
+    checks = evidence.artifacts
+    quality = round(sum(c.passed for c in checks) / len(checks), 4) if checks else 0.0
+    write_model(LOGS / "reward.json", Reward(artifact_quality=quality))
     publish(LOGS)
 
 
@@ -334,23 +254,9 @@ def run(step: Step) -> int:
         evidence.artifact_error = str(error)
         finish(evidence)
         return 0
-    if os.environ.get("REDWOOD_DEFER_GRADING") == "1":  # graded later: scripts/grade_snapshots.sh
-        evidence.artifacts = artifact_checks(APP / "workspace", [])
-        evidence.scrubbed = scrub()
-        finish(evidence)  # reward 0.0 here only means "not graded yet"
-        print(f"{step}: grading deferred; the workspace is kept in the step artifacts")
-        return 0
-    try:
-        summary, graded = run_step(step, frozen, LOGS)
-        diagnose(step, frozen, graded, evidence)
-    finally:
-        evidence.scrubbed = scrub()
-    evidence.score = summary
-    evidence.cases = [CaseOutcome(id=g.id, passed=g.passed, termination=g.termination) for g in graded]
-    evidence.artifacts = artifact_checks(APP / "workspace", graded)
+    evidence.artifacts = artifact_checks(APP / "workspace")
     finish(evidence)
-    print(f"{step}: {summary.passed}/{summary.scenarios} scenarios, reward {summary.reward}; "
-          f"sizes {evidence.workspace.sizes}")
+    print(f"{step}: workspace frozen and kept; sizes {evidence.workspace.sizes}")
     return 0
 
 

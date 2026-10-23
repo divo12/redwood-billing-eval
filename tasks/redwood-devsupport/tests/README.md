@@ -1,50 +1,55 @@
-# tests/ — the hidden verifier
+# tests/ — the hidden verifier and grader
 
-Harbor copies this folder to `/tests` after each step. The builder never sees it.
-It runs the builder's support agent (A) against simulated developers, grades each
-conversation, and writes `/logs/verifier/reward.json` plus `evidence.json`.
+The builder never sees this folder. Grading happens **after** the Harbor run, on the
+two workspaces Harbor saved, because the reward needs both agents at once.
 
-There are two kinds of output, and they never mix:
-
-| Output | Decides the reward? | Where it is computed |
+| Stage | What runs | Writes |
 |---|---|---|
-| **Scenario checks** — did A handle this conversation correctly? | **Yes** | `grade/grade.py` (code only, no judge) |
-| **Credit overage** — mean agent credits per conversation over the published budget | **Yes**, subtracted (0 while no budget is set) | `grade/grade.py` |
-| **Evolution diagnostics** — how did A change from A0 to A1? (axes 1–3) | **No**, reported only | `evolve/diagnostics.py` |
+| Each Harbor step | `verify.py build_r0 \| maintain_r1`: gates, workspace report, `freeze`, artifact checks. No conversations. | `evidence.json`, and a `reward.json` with `graded: false` |
+| After the run | `scripts/grade_snapshots.sh <trial>`: `grade.grade` runs Q00, Q01, Q10, Q11, then `grade.final` | `<trial>/graded/reward.json`, `scores.json` |
+
+| Run | Agent | Cases | Console |
+|---|---|---|---|
+| Q00 | A0 | R0 | R0 |
+| Q01 | A0 | R1 | R1 |
+| Q10 | A1 | R0 | R1 |
+| Q11 | A1 | R1 | R1 |
+
+**Reward** (`grade.final.gate`): 1.0 when Q00 ≥ 0.9, Q11 ≥ 0.9 and Q10 ≥ Q00 − 0.1;
+0.5 when only Q00 and the Q10 condition hold; otherwise 0.0.
+**`scores.json`**: the four pass rates, drift (R1 cases A1 absorbed), regression (R0 cases A1
+lost), health (per-case seconds, model calls, tokens, embedding calls, developer turns, over
+all and passing cases) and per-layer workspace sizes. None of it changes the reward.
 
 ## File map
 
 ```
-verify.py                entry point: verify.py build_r0 | maintain_r1   (orchestration only)
+verify.py                one Harbor step: gates, freeze, artifact checks (no grading)
 run/                     one conversation
 ├── run_agent.py         sandboxed agent + billing store + the conversation loop
 ├── customer.py          the scripted developer: opening, agenda, facts for ask_developer, the confirm answer
-└── gateway.py           the agent's model calls (Anthropic) and embeddings (local MiniLM); the allowed models
-grade/                   the reward
-├── grade.py             the code-decided checks (db, action), the credit overage
-│                        against the published budget; runs every scenario of a step and sums the reward
-└── scenarios.py         typed models of billing_scenarios.json (loaded and validated once)
-evolve/
-└── diagnostics.py       maintain_r1 only, never scored: axis 1 placement, axis 2 health,
-                         axis 3 drift + regression, and the one report object over all axes
+├── gateway.py           the agent's model calls (Anthropic) and embeddings (local MiniLM)
+└── openai_gateway.py    REDWOOD_SUPPORT_OVERRIDE=openai:<model>: serve the agent from an OpenAI/Azure model
+grade/
+├── grade.py             the code-decided checks; `python -m grade.grade` grades one Q run
+├── final.py             the reward gate and scores.json from the four Q runs
+└── scenarios.py         typed models of billing_scenarios.json
+evolve/diagnostics.py    drift, regression, health, layer sizes
 data/
-├── billing_scenarios.json  10 R0 cases (`build_r0`, ids `a0-*`) and 10 R1 cases (`maintain_r1`, ids `a1-*`);
-│                           every R1 case exercises an R1 change (ΔR)
-├── delta_r1.json        the R1 changes (axis 1): the rules that show A1 absorbed each, the builder-visible
-│                        quote that grounds where it belongs, and markdown scans
-└── provenance.json      which visible R record justifies each rule (`BILL-*`); used by tests, not at grading time
+├── billing_scenarios.json  10 R0 cases (`a0-*`) and 10 R1 cases (`a1-*`)
+├── delta_r1.json        the R1 changes and the builder-visible quotes that ground them
+└── provenance.json      which visible R record justifies each rule (`BILL-*`)
 ```
 
-## How one step runs (`verify.py`)
+## One Harbor step (`verify.py`)
 
-`run(step)` does, in order:
-
-1. `check_environment` / `check_session` — the release on the box matches the step, and the builder used one Pi session continued across steps. Failures here are an **invalid run** (exit 2), never a score.
-2. `manifest` + `workspace_report` — which workspace files changed since the last step, and their sizes.
-3. `freeze` — copy the workspace to a read-only location the agent runs from. A broken artifact (e.g. missing `agent.py`) gives reward 0 with `artifact_error`.
-4. `grade.run_step` — converse and grade every scenario of the step (below).
-5. `diagnose` — after `build_r0`, keep A0 and its per-case results (Q00). After `maintain_r1`, build the evolution report. Each part (the Q01 and Q10 runs, drift, regression, health, sizes, placement) is computed on its own; a part that fails is `None` with its reason in `evolution.errors`, and the others are kept. A Q01/Q10 case the simulator could not finish is listed as `unmeasured` instead of failing the run. The reward is untouched.
-6. `scrub` + `finish` — delete everything the agent left behind, write evidence and reward.
+1. `check_environment` / `check_session`: the release on the box matches the step, `/app/R` is
+   unreadable by the agent user, and the builder used one session continued across steps.
+   A failure is an **invalid run** (exit 2), never a score.
+2. `manifest` + `workspace_report`: which workspace files changed since the last step, and sizes.
+3. `freeze`: a read-only, link-free copy. A missing `agent.py`/`tools.py` is an `artifact_error`.
+4. `artifact_checks`: size limits, a non-stub skill, subagent and `@hook`, and that `load_skill`
+   and `delegate` are exposed. Reported as `artifact_quality`.
 
 ## One scenario (`grade.grade`)
 
@@ -56,15 +61,15 @@ Then:
 1. If the conversation **did not finish** (agent error, step limit, developer ran out of script),
    the scenario fails. Every billing check is marked failed with
    "the conversation did not finish".
-2. Otherwise every check below runs. The scenario **passes when every scored check passes**.
-3. The step score is the mean over *situations* (a scenario and its rewordings count once), `grade.summarize`. The reward is that score minus the credit overage, floored at 0 (`grade.credit_use`, published in `app/framework/agent_contract.md`).
+2. Otherwise every check below runs. The scenario **passes when every check passes**.
+3. A Q run's pass rate is the mean over *situations* (a scenario and its rewordings count once), `grade.summarize`.
 
 Simulator failures are retried (`CASE_ATTEMPTS`) and then
 raise: an invalid run, not a zero.
 
-## The scenario checks (these make the reward)
+## The scenario checks
 
-Each check returns one `CheckResult` (`grade.py`): `kind`, `passed`, `problem` (why it failed, in words), and `scored`.
+Each check returns one `CheckResult` (`grade.py`): `kind`, `passed`, and `problem` (why it failed, in words).
 
 ### 1. Never-say check — `grade.check_never_say`
 
@@ -72,9 +77,9 @@ Only when the scenario has `never_say`.
 
 - **Reads:** the agent's messages (never the developer's).
 - **Fails when:** any listed form of any value appears, with the same matching as `communicate` (case, commas and `$` ignored; no match inside a longer number).
-- **Example (a1-16):** `[["4111"], ["1111"]]`: the agent must not read back any group of the card number the developer pasted.
+- **Examples:** a1-09 `[["4111"], ["1111"]]`: the agent must not read back any group of the card number the developer pasted. a1-05 `[["20500000", "20.5 million"]]`: the UTC-month total a frozen R0 helper would quote.
 
-### 2. DB check — `checks.check_db`
+### 2. DB check — `grade.check_db`
 
 Only when the scenario has `db`.
 
@@ -82,7 +87,8 @@ Only when the scenario has `db`.
 - **Compares:** a *projection* of it (`billing.store.PROJECTION`: the fields that matter) against the projection of `db.gold` replayed on a fresh seed of the same release, and against each `db.alternatives` replay.
   - `credit_notes`: account, invoice, lines, amount, reason
   - `disputes`: account, invoice, lines, reason, request ids, status
-  - `cases`: account, team, status
+  - `cases`: account, team, status, the linked dispute
+  (stored rows keep `account_id` internally; on the R1 console the writable tables call it `billing_account_id`)
 - **Passes when:** the projection equals the gold **or** any alternative exactly.
 - **Fails with:** for the closest expectation, per table, `extra [...]` rows the agent wrote and `missing [...]` rows it did not.
 - **Example:** gold `[]` means "write nothing": any credit, dispute or case fails it.
@@ -104,54 +110,27 @@ writes the same records passes. Looks only at **successful** calls; order is not
 - **`excludes`:** scrubbed text (lowercase, ASCII letters and digits only) no matching write may
   store, so "4111-1111-1111-1111" and "4111 1111 1111 1111" both leak.
 - **Examples:**
-  - every write scenario: `{"op": "query:accounts", "equals": {"account_id": "saltmarsh-data"}}`
-  - a0-25: `{"op": "write:cases", "equals": {"status": "escalated"}, "contains": ["INV-2026-0831-131", "req_s31", "req_s32"]}`
-  - a1-16: `{"op": "write:cases", "excludes": ["4111 1111 1111 1111"]}`
+  - most scenarios: `{"op": "query:accounts", "equals": {"account_id": "windrose-analytics"}}`
+  - a0-05: `{"op": "write:cases", "equals": {"status": "escalated"}, "contains": ["INV-2026-0831-301"]}`
 - **Why it exists:** the DB projection ignores reads, `summary`/`details` and free text.
 
 ### Checks we deliberately do not have
 
 They would only repeat another check: the escalation team (DB check), ordinary write arguments (DB replay), required/forbidden writes (DB replay), the order of the lookup and the write (hyper-tau's ACTION does not grade order either).
 
-## The evolution diagnostics (maintain_r1 only, never the reward)
-
-`verify.evolution_report` runs two extra passes and hands everything to `evolution.report`:
-
-| Run | Agent | Cases | Console | Where from |
-|---|---|---|---|---|
-| Q00 | A0 | R0 | R0 | saved by `build_r0` (`keep_a0`) |
-| Q01 | A0 | R1 | R1 | extra run in `maintain_r1` |
-| Q10 | A1 | R0 | R1 | extra run in `maintain_r1` |
-| Q11 | A1 | R1 | R1 | the scored `maintain_r1` run itself |
-
-### Axis 1 — placement (`diagnostics.placement`)
-
-- **Reads:** the per-file diff from A0's workspace to A1's. An empty diff is `no_change`. Only changes with a scan are reported.
-- **Checks only what A1 absorbed:** a change is checked when A1 passes an R1 case of one of its `rules`; otherwise it is `not_absorbed`, so an A1 that changed nothing gets no credit for "should not happen" questions.
-- **Scans** are regexes over the lines A1 added to markdown files (e.g. `$250` as prose). There is no judge anywhere in the verifier.
-- **Counted:** `placed` covers changes with `grounds`, a quote from a builder-visible file (`app/framework/agent_building.md` or an R1 record) that says where it belongs; ungrounded changes compare with the reference agent only and are reported, not counted.
-
-### Axis 2 — health (`diagnostics.py`)
-
-- `run_health(log_dir)`: per-conversation means over one run's case records — seconds, model calls, prompt and completion tokens, credits, embedding calls, customer turns (`CaseCost`) — over all cases and over passing cases only (`passing`); compare runs on `passing`, since an agent that fails early looks cheap.
-- `layer_sizes(workspace)`: lines per layer (`LAYERS`: system prompt, AGENTS.md, skills, subagents, hooks, tools) and bytes of everything else (mostly the index).
-- `run_health` is reported for Q01 (A0) and Q10, Q11 (A1); `layer_sizes` for A0 and A1, so the cost of maintenance is visible.
-
-### Axis 3 — uptake (`diagnostics.py`)
-
-- `drift(q01, q11, rules)`: a case is **absorbed** when A0 failed it and A1 passes it. `absorbed_by_rule` gives "absorbed/covering" per R1 rule; `already_passed_by_a0` lists R1 cases the old agent passed anyway (C20's money-format read is expected there).
-- `regression(q00, q10)`: a case **regressed** when A0 passed it and A1 fails it; unchanged R0 behaviour must survive.
-
-## Running it locally
+## Running it
 
 ```sh
-# one step, one or two cases, your workspace (needs ANTHROPIC_API_KEY; embeddings need the model in /opt/redwood-models)
-cd tasks/redwood-devsupport/tests && python -m grade.grade build_r0 path/to/workspace --only a0-12,a0-03
+# a full run: the builder, then grading (needs ANTHROPIC_API_KEY, or REDWOOD_SUPPORT_OVERRIDE)
+harbor run -y -c tasks/redwood-devsupport/run-config.claude.json -o "$PWD/jobs"
+scripts/grade_snapshots.sh jobs/<job>/<trial>        # QS="q00 q11" for some, WORKERS=1 under a rate limit
 
-# the verifier's unit tests
-uv run --python 3.12 --no-project --with pytest --with 'pydantic>=2.9,<3' --with 'openai>=1.100,<3' --with 'anthropic>=0.60,<1' \
-  pytest -q tests/redwood_devsupport/test_grade.py tests/redwood_devsupport/test_evolution.py tests/redwood_devsupport/test_cost.py
+# one Q run on any workspace, or a few cases
+cd tasks/redwood-devsupport/tests && python -m grade.grade build_r0 path/to/workspace --only a0-03
 
-# lint, strict types, complexity, no getattr/setattr
+# unit tests, then lint, strict types, complexity
+uv run --python 3.12 --no-project --with pytest --with httpx --with 'pydantic>=2.9,<3' --with 'openai>=1.100,<3' \
+  --with 'anthropic>=0.60,<1' --with 'fastembed==0.9.0' --with 'lancedb>=0.22,<0.30' --with 'numpy>=2,<3' \
+  pytest -q tests/redwood_devsupport
 scripts/check_redwood.sh
 ```

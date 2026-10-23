@@ -104,6 +104,13 @@ def _send(request: JsonObject) -> Response:
         raise
 
 
+def complete(model: str, instructions: str, text: str, effort: str = "low") -> str | None:
+    """One plain-text Responses API answer, for helpers outside the agent (the written customer)."""
+    request: JsonObject = {"model": model, "store": False, "reasoning": {"effort": effort},
+                           "instructions": instructions, "input": [{"role": "user", "content": text}]}
+    return _text(_send(request))
+
+
 def generate(model: str, messages: list[Message], tools: list[JsonObject] | None,
              tool_choice: Json | None, kwargs: JsonObject) -> AssistantMessage:
     """One Responses API completion; reasoning-only answers are asked again up to three times."""

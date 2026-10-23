@@ -16,7 +16,7 @@ code-decided checks (hyper-tau's DB, ACTION and COMMUNICATE; no judge):
     consent  under BILL-CONFIRM, every credit note or dispute was written only after the
             developer said yes to `confirm_with_developer`.
 
-A scenario passes when every scored check passes; a conversation that never
+A scenario passes when every check passes; a conversation that never
 finished fails every check. The step reward averages the scenarios.
 The developer is a fixed script (run/customer.py), so a conversation's inputs are
 identical across runs; only the agent varies.
@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import sys
@@ -67,55 +68,15 @@ from redwood_kit.messages import (  # noqa: E402
     from_dict,
 )
 from run import run_agent  # noqa: E402
-from run.customer import Customer, DeveloperCall  # noqa: E402
+from run.customer import Customer, DeveloperCall, Speaker  # noqa: E402
 from run.run_agent import (  # noqa: E402
     BillingRecord,
-    ModelCall,
     Result,
     Termination,
     load_db,
     run_case,
 )
-
-# ---- credits: the agent's cost penalty, modelled on hyper-tau's credit performance requirement
-#
-#     credits  one conversation: the agent's model-gateway calls, prompt and completion tokens
-#              (reasoning counts as completion) priced at the frozen per-million rates
-#     overage  max(0, mean credits per conversation / budget - 1), over every graded conversation,
-#              failed ones included; 0 while no budget is set
-# The step reward is max(0, scenario score - overage). Customer-simulator and embedding
-# calls are not metered. Rates and budget mirror environment/app/framework/deployment_manifest.json.
-
-class Rate(BaseModel):
-    input_per_million: float
-    output_per_million: float
-
-
-CREDIT_RATES = {"claude-sonnet-5-5": Rate(input_per_million=2.0, output_per_million=10.0)}
-# Unset until an oracle run on R0 and R1 calibrates it; no penalty applies until then.
-CREDIT_BUDGET: float | None = None
-
-
-def credits(calls: list[ModelCall]) -> float:
-    total = 0.0
-    for call in calls:
-        rate = CREDIT_RATES[call.model]
-        total += call.prompt_tokens * rate.input_per_million + call.completion_tokens * rate.output_per_million
-    return total / 1_000_000
-
-
-class CreditUse(BaseModel):
-    mean_credits: float | None
-    budget: float | None
-    overage: float
-
-
-def credit_use(per_case: list[float], budget: float | None = CREDIT_BUDGET) -> CreditUse:
-    observed = sum(per_case) / len(per_case) if per_case else None
-    overage = max(0.0, observed / budget - 1.0) if observed is not None and budget else 0.0
-    return CreditUse(mean_credits=None if observed is None else round(observed, 6), budget=budget,
-                     overage=round(overage, 4))
-
+from run.written_customer import CUSTOMER_MODEL, WrittenCustomer  # noqa: E402
 
 # ---- code-decided checks
 
@@ -131,7 +92,6 @@ class CheckResult(BaseModel):
     """One graded row: what was checked, whether it passed, and why not."""
 
     kind: CheckKind
-    scored: bool = True
     passed: bool
     problem: str = ""
     observed: list[JsonObject] = []
@@ -194,7 +154,7 @@ def check_db(expected: DbExpectation, billing: BillingRecord, release: Release) 
              for actions in (expected.gold, *expected.alternatives)]
     closest = min(diffs, key=len)
     problem = "; ".join(f"{table}: {difference}" for table, difference in closest.items())
-    return CheckResult(kind=CheckKind.DB, scored=expected.scored, passed=not closest, problem=problem)
+    return CheckResult(kind=CheckKind.DB, passed=not closest, problem=problem)
 
 
 def _matches(action: Action, call: ConsoleCall, messages: list[Message]) -> bool:
@@ -291,30 +251,24 @@ class ScenarioGrade(BaseModel):
     error: str | None = None
     passed: bool
     checks: list[CheckResult]
-    credits: float = 0.0
     tools_called: list[str] = []  # distinct tool names the agent called, for the artifact checks
 
     def checks_pass(self, kinds: set[CheckKind]) -> bool:
-        """Every scored check of these kinds passed (true when there are none)."""
-        return all(row.passed for row in self.checks if row.scored and row.kind in kinds)
+        """Every check of these kinds passed (true when there are none)."""
+        return all(row.passed for row in self.checks if row.kind in kinds)
 
 
 class StepSummary(BaseModel):
     reward: float
-    quality: float
     functional_correctness: float  # share of scenarios whose billing end state matched
     constraint_satisfaction: float  # share whose actions, consent and never-say checks all passed
     robustness: float  # pass rate on adversarial, resistance, boundary and conflicting cases
-    credits: CreditUse
     situations: int
     scenarios: int
     passed: int
     terminations: dict[str, int]
     by_category: dict[str, str]
-    by_purpose: dict[str, str]
     by_rule: dict[str, str]
-    unscored_failed: list[str]
-    unscored_total: int
 
 
 class CaseRecord(BaseModel):
@@ -349,9 +303,9 @@ def grade(case: Scenario, result: Result, release: Release | None = None) -> Sce
     finished = result.termination.finished
     checks = billing_checks(case, result, messages, release or case.step.release)
     checks = checks if finished else [_unfinished(row) for row in checks]
-    passed = finished and all(row.passed for row in checks if row.scored)
+    passed = finished and all(row.passed for row in checks)
     return ScenarioGrade(id=case.id, category=case.category, termination=result.termination, error=result.error,
-                         passed=passed, checks=checks, credits=credits(result.model_calls),
+                         passed=passed, checks=checks,
                          tools_called=_tools_called(messages))
 
 
@@ -380,30 +334,21 @@ def _reward(situations: dict[str, list[bool]]) -> float:
 
 
 def summarize(scenarios: list[Scenario], graded: list[ScenarioGrade]) -> StepSummary:
-    """The score averages each situation (a scenario and its rewordings), then the situations.
-
-    The reward is that score less the credit overage (see credit_use), floored at 0.
-    """
+    """The score averages each situation (a scenario and its rewordings), then the situations."""
     passed = {g.id: g.passed for g in graded}
     situations = _situations(scenarios, passed)
-    unscored = [(g.id, row) for g in graded for row in g.checks if not row.scored]
     quality = _reward(situations)
-    use = credit_use([g.credits for g in graded])
     criteria = _criteria(graded)
     return StepSummary(
-        reward=round(max(0.0, quality - use.overage), 4),
-        quality=quality,
+        reward=quality,
         functional_correctness=criteria.functional_correctness,
         constraint_satisfaction=criteria.constraint_satisfaction,
         robustness=criteria.robustness,
-        credits=use,
         situations=len(situations),
         scenarios=len(graded),
         passed=sum(passed.values()),
         terminations=dict(Counter(str(g.termination) for g in graded)),
         **_breakdowns(scenarios, passed),
-        unscored_failed=[f"{case_id}: {row.label}" for case_id, row in unscored if not row.passed],
-        unscored_total=len(unscored),
     )
 
 
@@ -431,10 +376,9 @@ def _share(outcomes: Iterable[bool]) -> float:
 
 
 def _breakdowns(scenarios: list[Scenario], passed: dict[str, bool]) -> dict[str, dict[str, str]]:
-    """"passed/total" by category, by purpose, and by the rule each scenario tests."""
+    """"passed/total" by category and by the rule each scenario tests."""
     return {
         "by_category": _tally((s.category, passed[s.id]) for s in scenarios),
-        "by_purpose": _tally((str(s.purpose), passed[s.id]) for s in scenarios),
         "by_rule": _tally((rule, passed[s.id]) for s in scenarios for rule in s.rules),
     }
 
@@ -457,6 +401,12 @@ class Selection(BaseModel):
 ALL = Selection()
 
 
+def _customer(case: Scenario) -> Speaker:
+    """The scripted developer; with REDWOOD_CUSTOMER_MODEL set, a model words each scripted line."""
+    model = os.environ.get(CUSTOMER_MODEL)
+    return WrittenCustomer(case, model) if model else Customer(case.customer)
+
+
 def run_step(step: Step, workspace: Path, log_dir: Path, *, workers: int = WORKERS,
              select: Selection = ALL) -> tuple[StepSummary, list[ScenarioGrade]]:
     """Converse and grade the selected scenarios of `step`."""
@@ -465,7 +415,7 @@ def run_step(step: Step, workspace: Path, log_dir: Path, *, workers: int = WORKE
     (log_dir / "cases").mkdir(parents=True, exist_ok=True)
 
     def one(case: Scenario) -> ScenarioGrade:
-        result = run_case(case, workspace, log_dir, Customer(case.customer), release=console)
+        result = run_case(case, workspace, log_dir, _customer(case), release=console)
         return _grade_and_log(case, result, log_dir / "cases" / f"{case.id}.json", console)
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
@@ -497,7 +447,7 @@ def main(argv: list[str] | None = None) -> int:
                                    select=Selection(only=only, release=args.release))
     (args.out / "summary.json").write_text(summary.model_dump_json(indent=2) + "\n")
     for g in graded:
-        failed = [row.label for row in g.checks if row.scored and not row.passed]
+        failed = [row.label for row in g.checks if not row.passed]
         print(f"{g.id}  {'PASS' if g.passed else 'fail'}  {g.termination}  {'; '.join(failed)}")
     print(summary.model_dump_json(indent=2))
     print(f"logs: {args.out}")

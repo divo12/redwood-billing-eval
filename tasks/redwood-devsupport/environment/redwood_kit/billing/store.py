@@ -270,7 +270,7 @@ def _field_descriptor(field: FieldSpec, release: Release) -> JsonObject:
         if isinstance(default, NoDefault):
             raise RuntimeError("field default sentinel was marked as a default")
         descriptor["default"] = copy.deepcopy(default)
-    if field.public_name(release) != field.name:
+    if field.is_money and field.public_name(release) != field.name:
         descriptor["type"] = "money"
     descriptor["required"] = field.required
     return descriptor
@@ -436,7 +436,7 @@ def _present_row(table: TableSpec, row: JsonObject, release: Release) -> JsonObj
     for name, value in row.items():
         if name in table.field_names and not table.field(name).visible_in(release):
             continue
-        field_name = name[:-6] if release is Release.R1 and name.endswith("_cents") else name
+        field_name = table.field(name).public_name(release) if name in table.field_names else name
         if release is Release.R1 and name.endswith("_cents"):
             if type(value) is not int:
                 raise TypeError(f"{name} must be an integer")
@@ -619,9 +619,10 @@ class Billing:
     def _query(self, request: QueryRequest) -> tuple[JsonObject, list[str]]:
         table = _table(request.table, self.release)
         where_value = {} if request.where is None else request.where
-        if not _has_selector(where_value, table.selectors):
-            raise BillingError(f"query on {table.name.value} needs one of: {', '.join(table.selectors)}")
         where = _normalize_fields(table, where_value, self.release, partial=True)
+        if not _has_selector(where, table.selectors):
+            selectors = (table.field(name).public_name(self.release) for name in table.selectors)
+            raise BillingError(f"query on {table.name.value} needs one of: {', '.join(selectors)}")
         _check_where_values(table, where, self.state, self.release)
         offset = 0 if request.cursor is None else _read_cursor(request.cursor, table.name.value, where)
         matching = [

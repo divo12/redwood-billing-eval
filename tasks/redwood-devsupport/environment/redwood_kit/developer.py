@@ -25,9 +25,6 @@ Field = Literal[
     "plan",
     "contract",
     "error_code",
-    "cloud_provider",
-    "subscription_id",
-    "line_item_dimension",
     "billing_period",
     "timezone",
 ]

@@ -6,7 +6,9 @@ instead of on every console write.
 
 import sys
 from collections.abc import Callable, Iterator
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -67,9 +69,15 @@ def invoice_lines(state: State) -> Iterator[str]:
                 yield f"invoice_lines.{key}: request {request_id} belongs to another account"
 
 
+def _billing_day(state: State, row: dict) -> str:
+    """The usage day in the account's billing timezone, which decides its invoice line (R1 record format)."""
+    zone = ZoneInfo(state["accounts"][row["account_id"]]["billing_timezone"])
+    return datetime.fromisoformat(row["at"]).astimezone(zone).date().isoformat()
+
+
 def usage(state: State) -> Iterator[str]:
     for key, row in state["usage"].items():
-        day = row["at"][:10]
+        day = _billing_day(state, row)
         if min(row["billed_tokens"], row["cached_tokens"]) < 0 or not 100 <= row["http_status"] <= 599:
             yield f"usage.{key}: bad token counts or HTTP status"
         if day < _created(state, row["account_id"]):

@@ -158,7 +158,6 @@ class DbExpectation(BaseModel):
 
     gold: list[JsonObject] = []
     alternatives: list[list[JsonObject]] = []
-    scored: bool = True
 
 
 class Scenario(BaseModel):

@@ -14,20 +14,37 @@ agent when R grows. This tests useful developer judgment and implementation,
 not compliance with a prescribed hybrid recipe.
 
 The active corpus is `environments/redwood-mini`, not nano or full Redwood.
-R0 contains 3514 source records; R1 adds 3522 without replacing R0 paths.
+R0 contains 3520 source records; R1 adds 3536 without replacing R0 paths.
 The build begins with R0 at `/app/R`. After the first evaluation, the existing
 root-only transition reveals R1 in the same container. The builder continues
 its same builder session and updates its existing workspace. R2 remains absent.
 R1 is the enterprise evolution ΔR. It adds the R1-only `credit_ledger` table
-(`data/db_r1.json`, merged over `data/db.json` only in R1) and ten planted
-records: six rules (support charter 2027, credit ledger, payment-card data,
-payment failures during processor incidents with its status page, record format
-changes, confirm-before-write quality standards) and four decoys (cache hits
-half price, skip confirm for small credits, a draft refund-authority proposal,
-one subagent per product). The R0 credits page's R1 v2 lowers the
-duplicate-credit limit from $500 to $250 per line. Every one of the 20
-`maintain_r1` scenarios exercises a ΔR change; unchanged behavior is measured
-by replaying the 10 R0 scenarios on R1 (Q10).
+(`data/db_r1.json`, merged over `data/db.json` only in R1), an R1 record format
+(money as `{value, currency}`, a case `priority`, `billing_account_id` on the
+writable tables, and an account `billing_timezone`), and planted records. The
+scored rules are S0 and S1, ten each, with one normal case per rule:
+
+| S0 rule (case) | S1 rule (case, kind) |
+|---|---|
+| BILL-1 tokenizer counting (a0-01) | BILL-CREDIT: $250 from March 2027 usage, $500 before (a1-01, a1-02, changed) |
+| BILL-3 retries billed (a0-02) | BILL-SUPERSEDED with v2 current (a1-02, stale) |
+| BILL-4 30-minute telemetry (a0-03) | BILL-VERIFY: billing month in `billing_timezone` (a1-05, changed) |
+| BILL-6 contract SLA claim to account_team (a0-04) | BILL-4: 60 minutes from March 2027, a Slack decoy says 10 (a1-06, changed) |
+| BILL-7 invoice mismatch to billing_ops (a0-05) | BILL-7, R1 write format (a1-04, stale) |
+| BILL-9 goodwill to finance (a0-06) | BILL-9, R1 write format (a1-07, stale) |
+| BILL-CREDIT in-limit credit (a0-07) | BILL-INCIDENT: no case; retry date only from status cards (a1-03, changed) |
+| BILL-CREDIT over limit + BILL-SUPERSEDED old help page (a0-08) | BILL-LEDGER (a1-08, changed) |
+| BILL-ROUTE unexplained meter rows to billing_engineering (a0-09) | BILL-PCI (a1-09, changed) |
+| BILL-VERIFY look up before quoting (a0-10) | BILL-10: 402 on Free (a1-10, changed) |
+
+*Changed* means the rule text changed; *stale* means it didn't, but the R1
+console breaks A0's implementation. INCIDENT, LEDGER, PCI and BILL-10 each
+replace an R0 page planted as their stale counterpart (failed card payments and
+card updates 2026, credit balances 2026, free-tier limits 2025); no S0 case
+touches those topics, so they never decide an R0 answer. Every R1 replacement
+names the page it replaces. Unchanged behavior is measured by replaying the 10
+R0 scenarios on R1 (Q10); every R1 edit has a March 2027 cutoff that the R0
+cases (August-September 2026, dates stated) fall before.
 
 Every scenario rule (`BILL-*`) is defined in `tests/data/provenance.json` with the
 builder-visible records that state it in each release; expected answers are
@@ -216,20 +233,24 @@ Required skills, subagents, and hook guardrails must contain substantive job-spe
 and be reachable through the deployed agent. Placeholder files do not establish
 capability. Audit loading/delegation behavior and the component's effect in the
 runtime evidence; there is no requirement to invoke either in every case. The
-conversation reward (`reward`) does not score artifact presence. Since 1.0.0,
-`reward.json` also reports `artifact_quality`: code checks for the instruction's
-size limits, a non-stub skill, subagent and `@hook`, and whether some graded
-conversation loaded the skill and delegated to the subagent. It does not change
-`reward`, and component quality still needs trace review.
+conversation reward (`reward`) does not score artifact presence. Each step's
+`reward.json` reports `artifact_quality`: code checks for the instruction's size
+limits, a non-stub skill, subagent and `@hook`, and that `load_skill` and
+`delegate` are exposed. It does not change `reward`, and component quality still
+needs trace review.
 
 Each hidden case in `tests/data/billing_scenarios.json` is a simulated
-conversation (10 per step, 20 in total), chosen so that every check is decided
-by code: build_r0 keeps a0-02, a0-04, a0-05, a0-10, a0-12, a0-18, a0-22, a0-24,
-a0-25, a0-31; maintain_r1 keeps a1-05 to a1-10, a1-15 to a1-18. Cases whose
-correctness lived only in explanation wording were dropped. The runtime provides one typed record store with
+conversation (10 per step, 20 in total: a0-01 to a0-10, a1-01 to a1-10), chosen
+so that every check is decided by code. Every case is normal: the developer
+states a real need once, never pushes, names no team or rule, and holds facts
+back until asked; every ask a check depends on comes before the first turn
+where a handoff is correct, because a handoff ends the conversation. A case's
+first rule is the one it tests; BILL-CONFIRM is listed second on a1-01 and
+a1-02 so the consent check runs. The runtime provides one typed record store with
 `describe`, `query`, `insert`, and `update`; its schema is discoverable through
-`describe()`. R1 exposes cents as money objects across console operations and
-requires a case priority when escalating. The shared baseline is `data/db.json` (plus `data/db_r1.json` in R1),
+`describe()`. R1 exposes cents as money objects, names the account
+`billing_account_id` on the writable tables, adds `billing_timezone` to accounts,
+and requires a case priority when escalating. The shared baseline is `data/db.json` (plus `data/db_r1.json` in R1),
 copied into the image at root-only `/opt/redwood-data/db.json`; each conversation
 gets its release view.
 Gold and alternatives are generic insert/update traces replayed from that
@@ -238,12 +259,13 @@ identifiers and leftover drafts. The action check (hyper-tau's ACTION on
 console operations) requires each listed `query:`, `insert:`, `update:`, or
 `write:` operation to match a successful call: the account lookup, handoff
 facts in the case or the conversation before it, and text no write may store.
-The case reward and Harbor's averaging remain unchanged; practice retrieval
-metrics are not part of reward.
+Practice retrieval questions are not part of the reward.
 - **COMMUNICATE.** Values the agent must tell the developer, derived from the
-  console or R (e.g. a1-09's ledger balance and both grant expiry dates); any
+  console or R (e.g. a1-08's ledger balance and both grant expiry dates); any
   listed form counts, and no value appears in the developer's brief.
-- **NEVER_SAY.** Values no agent message may contain (a1-16/a1-17 card digits).
+- **NEVER_SAY.** Values no agent message may contain: a1-09's card digits, and
+  the wrong answer a frozen R0 copy gives (a1-03's calendar-day retry date,
+  a1-05's UTC-month token total).
 - **No LLM judge.** The assignment rules out a model judging the trajectory, so
   every former judge question was either turned into one of the checks above
   or dropped with its case. A verdict is reproducible from the case log.
@@ -287,137 +309,76 @@ and call log remain recorded. This does not claim to capture every internal Pyth
   the basis for auditing the delivered artifact.
 - Every hidden scenario rule cites builder-visible R records per release
   (`tests/data/provenance.json`, test-enforced). A static audit found none of the
-  scenarios' invoice, request or subscription IDs anywhere in R0, R1 or
-  `environment/app`. R1 answers rely on R1-only records (the hosted-API
-  packages policy, the discounting-and-credits policy, the marketplace
-  invoicing notes, and the 2027 support records) or R1 console data.
-- Scenario DB checks accept every outcome the cited records allow: for
-  example a1-10 (expired promotional credit) accepts a finance handoff or no
-  case, as long as nothing is promised.
-- Placement (axis 1), maintenance health (axis 2), and ΔR uptake/regression
-  (axis 3) are diagnostics in `tests/evolve/diagnostics.py`;
-  they never change reward.
-- Cost follows hyper-tau's credit requirement: agent tokens at the published
-  rates, set-wide mean against a published budget, soft overage subtracted from
-  the score. The budget is `null` (no penalty) until an oracle run calibrates it.
-- Fairness is not yet calibrated: no Q00/Q01/Q10/Q11 run has completed (the
-  available OpenAI key allows 50 requests/day per model), so false rejections,
-  shortcuts, and A0-fails/A1-passes ordering are unmeasured until a complete
-  run is read.
+  scenarios' invoice or request IDs anywhere in R0, R1 or `environment/app`
+  (re-run 2026-10-23; the only account name found, acme-analytics, appears in
+  upstream emails that say nothing about billing retries). Every R1 case relies
+  on an R1-only carrier record or the R1 console (test-enforced).
+- Planted R0 records were checked against all ten S0 cases at Q00 and Q10: none
+  changes an S0 answer. The 2024 #support thread saying Support may approve
+  goodwill under $200 is kept as a superseded contradicting record for BILL-9;
+  the 2026 escalation-paths page's usage-anomaly row now defers billing cases
+  to the routing page, so it no longer competes with a0-09's route.
+- Scenario DB checks accept every outcome the cited records allow (e.g. a0-07
+  and a0-08 accept either duplicated line in R0, where no record names the copy).
+- Drift, regression, health and workspace sizes are diagnostics in
+  `scores.json` (`tests/evolve/diagnostics.py`); they never change the reward.
+  Runtime cost is reported (tokens, calls, seconds per conversation), not penalised.
+- Calibration is thin: one oracle run and one Opus 5.5 build have been graded,
+  with one attempt per case. Ten cases per step means one case moves a pass rate
+  by 0.1.
 - References, future overlays, baseline, verifier files, and score logs are
   root-only. The practice socket is root:harbor 0660 and unreachable by the
   support user. Its directory is traversable so builder access works even
   when startup uses a restrictive umask. Safe logs contain hashes and timing,
   not credentials, passages, or hidden answers.
 - `Task.md`, the research report, `tests/`, and `solution/` are not copied into
-  `/app`. `environment/probe_key` is installed only under the root-only path.
+  `/app`.
 - This is a frozen simulated company and support environment, with predefined
   allowed models and no direct production services. It does not measure live
   enterprise connector behavior, unlimited infrastructure choice, or discovery
   across unseen companies.
 
-## Oracle results and triage
-
-Historical: these results predate the judge removal and the 10+10 case cut, and need re-running on the current verifier. Reference oracle, rebuilt indexes, judge at low reasoning. Runs 2 and 3 are after
-the deterministic-routing edits (run 3 also has the oracle and grader fixes below).
-
-| Run | Q00 | Q01 | Q10 | Q11 | Drift (Q11-Q01) | Regression (Q10-Q00) |
-|---|---|---|---|---|---|---|
-| 2 | 0.90 | 0.10 | 0.95 | 0.70 | +0.60 | +0.05 |
-| 3 | 0.90 | 0.10 | 0.95 | 0.85 | +0.75 | +0.05 |
-| pass^2 (runs 2+3) | 0.80 | 0.05 | 0.90 | 0.60 | | |
-
-Final two full runs (B, C) on the current revision. pass^2 = passes in both runs; pass@2 = passes in at least one.
-Q01 uses runs A and B (A0 and its R1 cases were unchanged). Q11 run B uses the a1-03 rerun after the console fix below.
-
-| Metric | Q00 | Q01 | Q10 | Q11 | Drift | Regression |
-|---|---|---|---|---|---|---|
-| pass^1 (mean) | 1.00 | 0.125 | 1.00 | 0.95 | +0.825 | 0.00 |
-| pass^2 | 1.00 | 0.10 | 1.00 | 0.95 | +0.85 | 0.00 |
-| pass@2 | 1.00 | 0.15 | 1.00 | 0.95 | +0.80 | 0.00 |
-
-Only remaining failure: a1-19 in both runs. The oracle explains the Free 402 but not the remedy (add a payment method or upgrade), which the R1 Free-tier policy states: a fair oracle miss.
-
-After the five fixes in the table, the five affected cases (a0-25, a0-05, a1-03, a1-04, a1-07) pass 2/2 reruns.
-
-Broken A1 (R1 oracle keeping the R0 $500 duplicate limit) on a1-05, a1-06, a1-19:
-1/3 pass; a1-05 and a1-19 fail on the missing dispute, so the checks tell good
-maintenance from stale maintenance.
-
-Judge stability: the run-1 transcripts were rejudged at low and high reasoning,
-with 1 flip in 228 answers (0.4%).
-
-| Case | Call | Basis |
-|---|---|---|
-| a0-18 | R ambiguity, fixed in R | Routing page: an unconfirmed contract claim goes to the account team, including an SLA credit |
-| a1-02 | R ambiguity, fixed in R | Routing page: confirming a contract figure needs no case |
-| a1-03 | R ambiguity, fixed in R | Routing page: an older conflicting page gets an explanation, not a case |
-| a1-13 | R gap, fixed in R; grader widened | Marketplace notes: a branded invoice needs Legal approval Redwood doesn't give; the judge accepts either phrasing |
-| a1-11 | Grader widened | Credit ledger page: expiry is quoted from the ledger, so the judge accepts the ledger date or 12 months |
-| a1-20 | Scenario brief | The simulator pushed for a review the brief didn't ask for; the brief now accepts the console amounts |
-| a0-05, a0-22 | Oracle | Skill: route by what is asked; open the case before the details arrive (routing page) |
-| a1-07 | Oracle | R1 duplicates page: the copy is the line no usage record points to; the tool returns `copy_line_ids` |
-| a1-09 | Oracle | AGENTS.md: no figures from superseded guidance |
-| a1-15 | Oracle | Skill: read the marketplace notes for marketplace-billed accounts |
-| a1-04 | Grader too strict | Hosted packages policy: a paid plan with overage disabled returns 402, and the console can't show the setting, so a conditional caveat no longer fails |
-| a0-25 | Grader too strict | The R0 console shows request IDs on invoice lines, so looking them up counts as well as asking |
-| a0-05 | Judge wording | R0 says Redwood uses the model-native tokenizer; "its own tokenizer" also counts |
-| a1-07 | Scenario brief | The customer refused before being asked, so confirmation was never needed; they now raise approvals only when asked to confirm |
-| a1-03 | Scenario brief | The simulator asked for an escalation the brief didn't contain; the quota is now stated as used up |
-| a0-04, a0-13, a0-22 | Oracle | It invited a dispute after explaining (routing page: explain and stop); it missed the 30-minute follow-up (routing table) |
-| a0-22, a0-24, a0-25 | Grader too strict | Routing page lists what Billing Ops needs, not that Support must ask; the console shows invoices, lines and request IDs. Intake checks accept asking or looking up; ACTION `contains` and a0-22's "what to send" check still verify the facts |
-| a0-05, a0-18, a0-12 | Oracle (A1 regression) | AGENTS.md: route by what is asked; open the case when saying a team must decide; handoff timing comes from Support routing records, not engineering SLOs (R0 routing page, still current in R1) |
-| a1-03 | Environment data | The brief says current-period usage is used up, but the R1 console had none after the Apr 5 renewal; added two mossgate-dev usage rows (Apr 5-7) over the Free limit |
-| a1-20 | Weak drift case | A0 passes it in both Q01 runs, so it adds nothing to drift |
-
-## Validation and remaining work
-
-The research behind the changes is in [docs/rag_research.md](../../docs/rag_research.md); that
-document describes the pre-repair findings, not the current runtime contract.
-
-Local verification: all tests in `tests/redwood_devsupport` pass, and
-`scripts/check_redwood.sh` (ruff, strict mypy, xenon, no getattr/setattr)
-passes. Command (no model credentials or paid requests):
+## Running and scoring
 
 ```sh
-uv run --python 3.12 --no-project --with pytest --with httpx --with 'pydantic>=2.9,<3' \
-  --with 'openai>=1.100,<3' --with 'anthropic>=0.60,<1' --with 'fastembed==0.9.0' \
-  --with 'lancedb>=0.22,<0.30' --with 'numpy>=2,<3' pytest -q tests/redwood_devsupport
+harbor run -y -c tasks/redwood-devsupport/run-config.claude.json -o "$PWD/jobs"   # builder: A0, then A1
+scripts/grade_snapshots.sh jobs/<job>/<trial>                                      # Q00, Q01, Q10, Q11 + reward
 ```
 
-Checks cover the billing console, the scripted developer and consent order,
-the provider gateways (provider errors invalidate a run, bad agent requests do
-not), grading, and the oracle workspaces. A scripted support conversation verifies that each
-tool result reaches the next model call and appears in retained evidence.
+Harbor's per-step `reward.json` is a placeholder (`graded: false`); the run's
+reward is `<trial>/graded/reward.json`. The gate, the Q runs and `scores.json`
+are described in `tests/README.md`.
 
-Docker packaging checks built the actual image, exercised builder/socket
-access in R0, denied access to references and future state, revealed the R1
-overlay, checked cumulative record count and new-question availability without
-restarting the scorer, and denied the support user access to R, references,
-logs, and the practice socket. These are deterministic packaging checks, not
-scored model runs. Harbor 0.22.0 resolves the current run config successfully.
-The preceding v0.2 Harbor installation-only job `jobs/rag-contract-install-20260927` completed
-without an exception. It built the environment and installed Pi using a
-clearly fake placeholder for the required environment variable; its result has
-no agent execution or verifier result. Its displayed zero is not an eval score.
+Oracle (2026-10-23, the current 20 cases, support agent and customer wording on gpt-6-luna,
+`REDWOOD_CUSTOMER_MODEL=gpt-6-luna`): Q00 1.0, Q01 0.1, Q10 1.0, Q11 1.0, reward 1.0. Audit of all 40
+conversations: no customer message contained an expected value, a team name or "dispute"; every value
+the agent stated came from a tool result or was computed from them (a1-08's $250 sum, a1-03's retry
+date from the four status cards); every handoff quoted a retrieved rule naming its team. A0's one Q01
+pass (a1-05) used the R1 console's visible `billing_timezone`, so that case separates A0 from A1 only
+weakly. Two runs before this one found case and oracle bugs that are fixed: months named without a year
+(the agent is never told the date), a0-09's wording not matching its routing row, the oracle not linking
+its dispute, and the customer ignoring approval questions asked in chat (it now answers them; consent
+still counts only through `confirm_with_developer`).
 
-For v0.3, all 49 existing tests pass. Offline pack 1.0.0's synthetic self-check
-passes locally and inside the rebuilt image as `harbor`, with no API calls.
-Its read-only inspector processed all 3513 R0 records without malformed JSON.
-Packaging checks confirmed all three pack files are readable but not writable
-by the builder, and hidden references remain inaccessible. Local documentation
-links, version labels, and exact instruction/spec agreement were also checked.
+The developer can be worded by a model: with `REDWOOD_CUSTOMER_MODEL` set, `run/written_customer.py`
+rewords each scripted line as a reply to the agent (baseline customer rules, no behaviour persona), while
+code keeps the order of asks, the facts, the consent answer and the endings; a rewording that drops a
+number or identifier, or fails, is replaced by the scripted line, and turns are cached for regrading.
 
-The 1.0.0 runs (oracle, and Claude Opus 5.5 high in Claude Code) and their
-analysis are in `RUN_REPORT.md`:
+Opus 5.5 builder (job `2026-10-23__08-42-32`, Claude Code, high effort, subscription; $19.03 of the $30
+cap: $11.24 for A0 in 129 turns, $7.79 for A1 in 68), graded like the oracle: Q00 0.9, Q01 0.1, Q10 0.9,
+Q11 0.9, reward 1.0; drift 8 of 9 measurable R1 cases absorbed (a1-05 already passed at A0), no
+regression. Its two failures are capability misses the oracle shows are solvable: a0-01 (A0 and A1)
+opened a Billing Engineering case for a token gap the published pages explain, and a1-03 said the
+retry date was unknown instead of working it out from the four past incident status cards (failure
+mode #4). The leak audit found no expected value, team name or "dispute" in any customer message.
 
-```sh
-harbor run -p ./tasks/redwood-devsupport -a oracle -o "$PWD/jobs"
-harbor run -y -c tasks/redwood-devsupport/run-config.claude.json -o "$PWD/jobs"
-```
+Previous graded build (on the previous scenario set, before the S0/S1 rewrite):
+Claude Opus 5.5 (high) in Claude Code, support agent served by gpt-6-luna (high):
+Q00 0.8, Q01 0.0, Q10 0.8, Q11 0.9, so reward 0.0. Its failures were cases opened
+that policy says not to open. The current 20 cases have not been graded yet.
 
-Read the complete builder trajectory, runtime model/tool contexts, scenario
-evidence, and release transition before interpreting that score. One run can
-validate plumbing, not establish reliability or calibrated practice cutoffs.
-Keep Status: Draft until concrete spec review and actual calibration evidence
-justify a stronger status.
+Local checks need no model credentials: `tests/redwood_devsupport` (pytest) and
+`scripts/check_redwood.sh` (ruff, strict mypy, xenon). One run validates the
+plumbing; it does not establish reliability. Keep Status: Draft until repeated
+runs calibrate the gate.
