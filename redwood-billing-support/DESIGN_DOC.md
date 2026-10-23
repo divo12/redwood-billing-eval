@@ -119,6 +119,11 @@ misses the parts that need judgment: the date scope, and the retry date that no 
 20. **One session, two deadlines.** Two hours to build, then one hour, in the same Claude Code session, to
     understand a 3,547-record change to its own system. A0 is frozen and graded as delivered.
 
+For more failure ideas, see [`research.md`](research.md): failure modes for every part of a support agent's
+harness (system prompt, AGENTS.md, guardrails and hooks, the agent loop, tools, skills, subagents, retrieval,
+memory, handoff, budgets). Time allowed only part of it to be built into this task; its last section maps what
+is implemented to the traps above.
+
 ## 5. Fairness audit against the assignment rubric
 
 - **Solvable.** The oracle (`steps/*/solution/solve.sh`) builds a workspace through the same runtime, sandbox and
