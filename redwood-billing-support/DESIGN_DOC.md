@@ -164,7 +164,7 @@ is implemented to the traps above.
 | Disk | about 2 GB per built image and up to 1 GB of job output per trial |
 | Builder credentials | `CLAUDE_CODE_OAUTH_TOKEN` (subscription) or `ANTHROPIC_API_KEY`; for another Anthropic-compatible endpoint, `ANTHROPIC_BASE_URL` plus its key (run 9 uses OpenRouter this way) |
 | Support-model credentials | `SUPPORT_MODEL` and `USER_MODEL` (LiteLLM ids, e.g. `openai/gpt-6-luna`) and the provider key LiteLLM reads for them: `OPENAI_API_KEY` and `OPENAI_BASE_URL`, `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY` |
-| Provider rate limit | about 500K tokens per minute at `GRADE_WORKERS=2`, about 1M at 4 (120 conversations of about 7 calls each) |
+| Provider rate limit | about 1M tokens per minute at the default `GRADE_WORKERS=4`, about 500K at 2 (120 conversations of about 7 calls each) |
 | Network | allowlisted hosts only (`task.toml`): Claude Code's install and API hosts for the builder; the support model's provider hosts for the practice sidecar and the grading step |
 | Wall-clock time | about 3 h of building (2 h and 1 h steps) plus 1-2 h of grading inside `maintain_r1`'s verifier (`timeout_sec = 10800`) |
 

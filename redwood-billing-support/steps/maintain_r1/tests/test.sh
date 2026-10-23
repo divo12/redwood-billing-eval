@@ -11,7 +11,7 @@ if [ "$status" -eq 0 ]; then
   out=/logs/verifier/graded
   mkdir -p "$out"
   export REDWOOD_CUSTOMER_CACHE="$out/customer-turns.jsonl"
-  w=${GRADE_WORKERS:-2}
+  w=${GRADE_WORKERS:-4}
   cd /tests || exit 2
   python -m grade.grade build_r0 /run/redwood-agent-R0 --out "$out/q00" --workers "$w" > "$out/q00.txt" &&
     python -m grade.grade maintain_r1 /run/redwood-agent-R0 --out "$out/q01" --workers "$w" > "$out/q01.txt" &&

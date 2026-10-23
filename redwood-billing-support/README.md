@@ -30,7 +30,7 @@ with `set -a; . ./.env; set +a`.
 | `USER_MODEL` | the model that words the scripted developer's lines; default `openai/gpt-6-luna` |
 | `OPENAI_API_KEY`, `OPENAI_BASE_URL` | provider credentials for `openai/...` models (an Azure `/openai/v1` URL works) |
 | `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY` | instead, for `anthropic/...` or `openrouter/...` models |
-| `GRADE_WORKERS` | conversations graded in parallel (default 2; raise it only with a high rate limit) |
+| `GRADE_WORKERS` | conversations graded in parallel (default 4, which needs about 1M tokens per minute of rate limit; lower it for a smaller limit) |
 
 `SUPPORT_MODEL` is fixed per run. The image writes it into the builder-visible
 `framework/deployment_manifest.json` and the starter agent, and the instructions name the parameter. Practice and
@@ -46,8 +46,8 @@ harbor view ./jobs
 ```
 
 Harbor 0.22.0 names the Claude Code agent `claude-code` (there is no agent called `claude`). A full run takes
-about 3 h of building plus 90-110 min of grading inside `maintain_r1`'s verifier. Grading makes about 120 × 7
-support-model calls; with gpt-6-luna that needs about 500K tokens per minute of rate limit at 2 workers.
+about 3 h of building plus about an hour of grading inside `maintain_r1`'s verifier. Grading makes about 120 × 7
+support-model calls; with gpt-6-luna that needs about 1M tokens per minute of rate limit at 4 workers (500K at 2).
 
 ## Reward
 
