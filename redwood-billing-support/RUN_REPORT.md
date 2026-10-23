@@ -183,8 +183,9 @@ case each time. Each is a sampling miss by the support model, within the gate's 
 
 `steps/maintain_r1/tests/test.sh` grades both agents after the builder's last step (full design in `DESIGN_DOC.md`
 section 5):
-- **Deliverable checks** on each workspace (`artifact_quality`): prompt size limits, a real skill, subagent and
-  `@hook`, all reachable, and the builder's session resumed across steps.
+- **Deliverable checks** on each workspace: prompt size limits, a real skill, a subagent and an `@hook`, all
+  reachable. `artifact_quality` reports A1's share. A step that doesn't resume the builder's session is marked
+  invalid.
 - **120 conversations**: A0 and A1, each on the 30 R0 and the 30 R1 cases (Q00, Q01, Q10, Q11). The developer is a
   script in code (facts only through the `ask_developer` form, a fixed consent answer); a model only rewords its
   lines. The agent runs sandboxed as `nobody` on its frozen workspace, on the conversation's own date.
@@ -223,7 +224,9 @@ developer's form, which the contract tells the agent to use: a0-05-T fails only 
 **Substantive.** The remaining failures are capability gaps: a rule written into the build and retrieved, but never tested on its case (tokenizer
 escalations, 5/5), a change inside an existing page half-adopted (failed-payments page and the $500 scope, 3/5), and
 a needed fact never asked for (a1-07 family, a0-05-T, a0-02-A). In each, the deciding record is builder-visible and
-published (or, for the retry date, uniquely determined by published status cards).
+published (or, for the retry date, uniquely determined by published status cards). No failure comes from the
+time limit: every builder stopped on its own, after 17-26 of the 120 minutes allowed to build and 10-14 of the 60
+allowed to maintain (Harbor's step timestamps, runs 5-9).
 
 **Reproducible.** Runtime, resources, credentials, network and rate limits are declared (`DESIGN_DOC.md` section
 8). Fixed: LiteLLM's retry dependency (`tenacity`) was missing, so a retried call crashed the agent (1 of 450
@@ -264,22 +267,22 @@ handles the new world (`q11`). A maintenance mistake here is a real cost that no
 a credit refused that policy allows, a case opened that policy says not to, a customer told the wrong retry date.
 
 Cost per trial: the builder averages $16.22 by Claude Code's meter, and grading 120 conversations on gpt-6-luna
-averages $0.67 (measured from recorded tokens; 70-82% of input tokens are cache hits). Grading takes 60-90 minutes at
-2-4 workers and needs a provider rate limit of 500K-1M tokens per minute.
+averages $0.67 (measured from recorded tokens; 70-82% of input tokens are cache hits). Grading took 39-48 minutes in
+runs 6-8 and needs a provider rate limit of 500K-1M tokens per minute.
 
 ## Limitations
 
 - **One change cycle.** The task measures one evolution step (R0 to R1); repeated maintenance over several
   releases, where errors could compound, is not tested.
 - **Few trials.** Five target-model trials; the evolution failures appear in three of five, the build failure in
-  all five. With 30 cases per release one case moves a rate by 0.033, and the gate allows three misses and one case
-  of regression slack. The support model is sampled, so a case can flip between runs.
+  all five. With 30 cases per release one case moves a rate by 0.033, and the gate allows three misses per Q and
+  three cases of regression slack. The support model is sampled, so a case can flip between runs.
 - **Old conversations, old dates.** `regression` replays the R0 conversations on the maintained agent with their
   original 2026 dates, while its knowledge is from 2027. One agent reasoned that a page revised in 2027 was not yet
   valid on that date; the regression evidence that depends on this is weighted less.
 - **The support model is gpt-6-luna**, for cost. Maintenance is judged through how that model uses the maintained
   agent; results with a Claude support model are not reported.
-- **Weight.** A full trial takes about 4.5 h and needs a provider key for the support model.
+- **Weight.** A full Opus trial took 70-78 min (runs 6-8), and every trial needs a provider key for the support model.
 - **Fixes after the runs.** The audit fixes above landed after these runs; their scores are reported as graded and
   as rescored.
 

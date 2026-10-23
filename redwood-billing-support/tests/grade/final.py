@@ -170,7 +170,7 @@ def _kept(changes: list[CaseChange], before: bool) -> float:
 
 def gate(q00: float, q10: float, q11: float) -> float:
     """1.0: a good build that was maintained without regressing. 0.5: a good build that did not regress."""
-    kept = q10 >= q00 - 0.1  # ponytail: one case of slack at 10 cases; widen with more cases or attempts
+    kept = q10 >= q00 - 0.1  # ponytail: three cases of slack at 30 cases; widen with more cases or attempts
     if q00 >= 0.9 and q11 >= 0.9 and kept:
         return 1.0
     if q00 >= 0.9 and kept:

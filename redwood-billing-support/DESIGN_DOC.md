@@ -282,7 +282,7 @@ different case each time.
   accepted alternatives cover every outcome the records allow (e.g. either duplicated line).
 - **Substantive, long-horizon.** Corpus forensics, then architecture and indexing, then tools, skills, subagent
   and hooks, then practice and debugging; then diffing a changed corpus, re-indexing, scoped edits and regression
-  checks. Two steps, about 3 hours, one session.
+  checks. Two steps in one session, with 3 hours allowed (Opus used 27-39 minutes).
 - **Reproducible.** Pinned base image digest, a full `requirements.lock`, an embedding model baked into the
   image, and fixed data. Model access is declared: the builder's harness, and one provider key for the deployed
   support model (Section 8).
@@ -320,7 +320,7 @@ different case each time.
 | Support-model credentials | `SUPPORT_MODEL` and `USER_MODEL` (LiteLLM ids, e.g. `openai/gpt-6-luna`) and the provider key LiteLLM reads for them: `OPENAI_API_KEY` and `OPENAI_BASE_URL`, `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY` |
 | Provider rate limit | about 1M tokens per minute at the default `GRADE_WORKERS=4`, about 500K at 2 (120 conversations of about 7 calls each) |
 | Network | allowlisted hosts only (`task.toml`): Claude Code's install and API hosts for the builder; the support model's provider hosts for the practice sidecar and the grading step |
-| Wall-clock time | about 3 h of building (2 h and 1 h steps) plus 1-2 h of grading inside `maintain_r1`'s verifier (`timeout_sec = 10800`) |
+| Wall-clock time | limits of 2 h and 1 h for the two builder steps; measured over Opus runs 5-9, building took about 20 min and maintaining about 12 min. Grading inside `maintain_r1`'s verifier took 39-48 min (limit `timeout_sec = 10800`). A full Opus trial took 70-78 min (runs 6-8); an oracle trial 26-39 min |
 
 All secrets are read from the host environment (`${VAR}` in `task.toml` and `docker-compose.yaml`); none is stored
 in the task. During the build, only the `practice-model` container receives provider keys.

@@ -3,10 +3,10 @@
 A two-step, long-horizon Harbor task about **building and then maintaining an LLM agent**. The model under test
 (the builder, Claude Opus 5.5 in Claude Code) is the engineer who owns Redwood Inference's billing-support agent:
 
-1. **`build_r0`** (2 h): read a 3,529-record company export (Slack, Gmail, Jira, Linear, Confluence, Drive,
+1. **`build_r0`** (2 h limit): read a 3,529-record company export (Slack, Gmail, Jira, Linear, Confluence, Drive,
    HubSpot, Fireflies, GitHub) that mixes current policy with drafts, superseded pages and unrelated noise; decide
    what knowledge to ship; build a retrieval index, tools, a skill, a subagent and a guardrail hook; test it.
-2. **`maintain_r1`** (1 h, same session): six months later the export grows by 3,561 records, three pages are
+2. **`maintain_r1`** (1 h limit, same session): six months later the export grows by 3,561 records, three pages are
    revised *in place*, and the billing console changes format. Update the agent without breaking what it did.
 
 The delivered agent (on the deployed support model) then holds **90 held-out conversations** with a scripted
@@ -63,8 +63,10 @@ harbor view ./jobs
 
 Harbor 0.22.0 names the Claude Code agent `claude-code` (there is no agent called `claude`). `--resume-trajectory` is
 required: step 2 must continue the builder's step-1 session, and the verifier marks a run that starts afresh as
-invalid (Harbor's default is a fresh session per step). A full run takes
-about 3 h of building plus about an hour of grading inside `maintain_r1`'s verifier. Grading makes about 120 × 7
+invalid (Harbor's default is a fresh session per step). Measured over Opus
+runs 5-9, building takes about 20 min and maintaining about 12 min, well inside the 2 h and 1 h limits. Grading
+inside `maintain_r1`'s verifier takes 39-48 min, so a full Opus trial takes 70-78 min. An oracle trial takes 26-39
+min. Grading makes about 120 × 7
 support-model calls; with gpt-6-luna that needs about 1M tokens per minute of rate limit at 4 workers (500K at 2).
 
 ## Reward
