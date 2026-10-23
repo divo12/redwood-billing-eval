@@ -1,0 +1,198 @@
+{
+ "id": "a0-10-M",
+ "grade": {
+  "id": "a0-10-M",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 8,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 8,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 11,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "find_account",
+   "invoice_lines",
+   "list_invoices",
+   "load_skill",
+   "search_policy"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 14.770259566999812,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hi, could you tell me our invoice total and what it includes?"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_wGwFP3eEVVh2OSCLn0fmyYmg",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    },
+    {
+     "id": "call_UPyJc0M9gRg5hmV3L0pEGEoV",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "org_id",
+       "invoice_id",
+       "invoice_month"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. A confirmed duplicate accepted by the console may be credited; report the amount only after the tool confirms it. For a confirmed duplicate over the console limit, submit the `duplicate_charge` dispute and escalate to `billing_ops` with its dispute ID. Promise no outcome or timeline.\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, UTC window, and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for Support's credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"org_id\": \"graniteworks\", \"invoice_id\": \"I don't have that.\", \"invoice_month\": \"August 2026\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_qoqcR3WgddAxmWDeoDoe2uW2",
+     "name": "find_account",
+     "arguments": {
+      "org": "graniteworks"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"graniteworks\", \"org\": \"graniteworks\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\"}, \"contracts\": [], \"credit_grants\": []}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_6qucCFn0662cBO3QMoeNTsTO",
+     "name": "list_invoices",
+     "arguments": {
+      "account_id": "graniteworks"
+     }
+    },
+    {
+     "id": "call_C1ILbE7RhtrkhZBpgl7FvC7X",
+     "name": "search_policy",
+     "arguments": {
+      "query": "Current billing policy invoice totals customer readable invoice contents line items taxes invoice billing detail"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoices\": [{\"invoice_id\": \"INV-2026-0831-177\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total_cents\": 273000, \"total_dollars\": \"$2730.00\"}, {\"invoice_id\": \"INV-BG-202603-021\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total_cents\": 227782, \"total_dollars\": \"$2277.82\"}, {\"invoice_id\": \"INV-BG-202604-021\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total_cents\": 190882, \"total_dollars\": \"$1908.82\"}, {\"invoice_id\": \"INV-BG-202605-021\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total_cents\": 115056, \"total_dollars\": \"$1150.56\"}, {\"invoice_id\": \"INV-BG-202606-021\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total_cents\": 283439, \"total_dollars\": \"$2834.39\"}, {\"invoice_id\": \"INV-BG-202607-021\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total_cents\": 330111, \"total_dollars\": \"$3301.11\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/gmail/rachel_kim/20251116-invoice-currency-and-tax-appendix-recon.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/rachel_kim/20251116-invoice-currency-and-tax-appendix-recon.json\\ntitle: Invoice currency reconciliation & tax appendix for Order Form (RE: currency split)\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\ninvoices for each billing entity in that entity's local currency (USD for the US entity, EUR for the EMEA entity).\\n- Taxes/VAT: Our standard approach is to list taxes separately on each invoice by line item. For EMEA customers we include VAT where applicable; where reverse-charge applies we will mark the invoice as reverse-charge and include the supporting note. Withholding tax: by default the customer is responsible for withholding unless gross-up is contractually required.\\n- Net terms: Our standard hosted API is Net30. For committed reserved capacity we can approve Net45 on a case-by-case basis with finance signoff (usually tied to credit checks or purchase order cadence).\\n- Invoice cadence: monthly by default; we can do quarterly \"}, {\"source\": \"sources/gmail/jasmine_liu/20260809-invoicing-aggregation-and-tax-entity-routing-discuss.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20260809-invoicing-aggregation-and-tax-entity-routing-discuss.json\\ntitle: Invoicing aggregation & tax entity routing for ACME order form\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nFrom: jasmine_liu@redwood.ai\\\\nTo: Sarah Liu <sarah.liu@acme-software.com>\\\\nCc: camila_reyes@redwood.ai, ben_carter@redwood.ai\\\\nDate: Mon, 09 Aug 2026 11:03:00 -07:00\\\\nSubject: Re: Invoicing aggregation & tax entity routing for ACME order form\\\\n\\\\nHi Sarah \\u2014 thanks for the clear summary and the PO. We can support the consolidated invoice + line-level entity breakdown you described, but there are a few tradeoffs to flag so we can align with Finance and Legal. Proposed approach:\\\\n\\\\n- Invoicing cadence: one consolidated invoice per calendar month (single document) with line items tagged to your entity codes. We will include the entity identifier in the invoice line description so your AP can split entries to each legal entity.\\\\n- Minimum \"}, {\"source\": \"sources/gmail/monica_patel/20260903-payment-schedule-confirmation-and-tax-handoff.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260903-payment-schedule-confirmation-and-tax-handoff.json\\ntitle: Invoice 2026-07-31 \\u2014 payment schedule confirmation & tax handoff\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nFrom: Nina Rao <nina.rao@sylvercloud.com>\\nTo: Monica Patel <monica.patel@redwoodinference.com>\\nDate: Wed, 2 Sep 2026 11:05:00 -0700\\nSubject: Re: Invoice 2026-07-31 \\u2014 payment schedule confirmation & tax handoff\\n\\nHi Monica,\\n\\nThanks for the invoice and W\\u20119. A couple of items from our side before we lock dates:\\n\\n1) Treasury is asking for a vendor onboarding form completed with our supplier classification and TIN for their records \\u2014 I\\u2019ve attached our standard form; please complete section A and return.\\n2) We need the invoice to explicitly state whether any VAT was charged (this is for our AP validation). If VAT is not applicable, please include an explicit line \\\"VAT: 0.00 (not applicable)\\\" on the invoice copy you sent.\\n3) Our treasury \"}, {\"source\": \"sources/jira/customer-support/SUP-208404-toolcall-aggregation-margin-invoice-breakdown-question.json\", \"status\": \"Resolved\", \"date\": \"2026-03-10\", \"text\": \"source: sources/jira/customer-support/SUP-208404-toolcall-aggregation-margin-invoice-breakdown-question.json\\ntitle: Discrepancy: tool-invoke line items vs aggregated token lines producing ~12% higher May invoice\\nstatus/authority: Resolved; unspecified\\ndate: 2026-03-10\\n[section: description 1]\\ntool-invoke per-invocation line item (per-invoke rate) and the generation token lines that appear to include the same tool payload tokens. The aggregation logic should classify tool payload tokens under the tool-invoke charge only (not also under main-request token billing).\"}, {\"source\": \"sources/jira/customer-support/SUP-782951-per-inference-memory-surcharge-applied-to-batch-embed-invoice-question.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-782951-per-inference-memory-surcharge-applied-to-batch-embed-invoice-question.json\\ntitle: Unexpected per-inference memory surcharge on batch embeddings invoice line\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: description 1]\\nIssue summary:\\nCustomer reports an unexpected 'per-inference memory surcharge' line on their March 8 invoice for a batch embedding job. The job was a scheduled batch embed run of 120k documents using rwd-embed-2.1; billing shows a separate memory surcharge line totaling $213.45 in addition to the expected batch-embed line item.\\n\\nImpact:\\n- Customer received an unexpected charge (line item) that they do not recognize; total invoice increased by 10%.\\n- Finance team at BrightPath flagged the invoice and paused auto-pay pending explanation.\\n- Risk of customer dissatisfaction / churn for an enterprise-dedicated account.\\n\\nObserved invoice details:\\n- Invoice ID: INV-2026-03-08-9981\\n- Invoice date: \"}, {\"source\": \"sources/gmail/rachel_kim/20251116-invoice-currency-and-tax-appendix-recon.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/rachel_kim/20251116-invoice-currency-and-tax-appendix-recon.json\\ntitle: Invoice currency reconciliation & tax appendix for Order Form (RE: currency split)\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nFrom: Rachel Kim <rachel.kim@redwood.com>\\nTo: Sam Lee <procurement@novacorp.com>, billing@novacorp.com\\nCc: Kimberly Park <kimberly.park@redwood.com>, Karthik Iyer <karthik.iyer@redwood.com>\\nDate: 2025-11-16T11:02:00-08:00\\nSubject: RE: Clarify invoicing currency / taxes for upcoming order form\\n\\nHi Sam \\u2014 thanks for the clear list. High level response below and I attached a draft Order Form + a redline of the proposed tax appendix for your tax/legal teams to review (redline_tax_appendix.docx, Nova_OrderForm_v3.pdf).\\n\\nShort answers:\\n- Currency & entity invoicing: We can support per-entity invoicing on a single commercial template by adding entity mapping and invoice remittance fields. Practically this means Redwood will issue separate \"}, {\"source\": \"sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\", \"status\": \"In Review\", \"date\": \"2025-03-05\", \"text\": \"source: sources/linear/design/PM-9031-tiered-burst-quotas-overage-grace-periods.json\\ntitle: Tiered burst quotas, soft/hard rate limits and overage billing policy\\nstatus/authority: In Review; unspecified\\ndate: 2025-03-05\\n[section: requirements 5]\\nConsole: show real-time quota burn, projected date-to-exhaust at current rate, burst buffer usage, and one-click opt-in for overage billing\\n\\n[section: requirements 6]\\nAPI responses must include: X-Quota-Remaining, X-Burst-Remaining, X-RateLimit-Reset, and a machine-readable reason for throttling (soft_throttle | hard_limit | quota_exhausted)\\n\\n[section: requirements 7]\\nBilling: invoice line items for overage must list units consumed, unit price, and associated plan id; prorated mid-cycle plan upgrades should recompute remaining monthly quota and adjust overage thresholds\"}, {\"source\": \"sources/jira/customer-support/SUP-208404-toolcall-aggregation-margin-invoice-breakdown-question.json\", \"status\": \"Resolved\", \"date\": \"2026-03-10\", \"text\": \"source: sources/jira/customer-support/SUP-208404-toolcall-aggregation-margin-invoice-breakdown-question.json\\ntitle: Discrepancy: tool-invoke line items vs aggregated token lines producing ~12% higher May invoice\\nstatus/authority: Resolved; unspecified\\ndate: 2026-03-10\\n[section: description 1]\\nIssue summary: Customer NeonRetail reported their finalized invoice for May shows a ~12% surplus compared to the Console estimate. The delta originates from a set of tool-invoke line items that, when summed with the token-level generation lines, produce double counting.\\n\\nImpact: Single enterprise account; month-end finalized invoice already paid. Customer requests an itemized explanation and corrective credit or refund. Business impact: invoice is material to their monthly budget for the retail season (estimated $18k delta).\\n\\nEnvironment: prod-us-east, dedicated tenancy with hosted fallback enabled.\\n\\nObserved behaviour: Many streaming chat sessions that used function/tool-calls show both a \"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_2CPicfA5sJxLnJsrTtEBTCGh",
+     "name": "invoice_lines",
+     "arguments": {
+      "invoice_id": "INV-2026-0831-177"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoice\": {\"invoice_id\": \"INV-2026-0831-177\", \"account_id\": \"graniteworks\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total_cents\": 273000}, \"billing_channel\": \"direct\", \"lines\": [{\"line_id\": \"INV-2026-0831-177/L1\", \"invoice_id\": \"INV-2026-0831-177\", \"description\": \"Hosted API usage, Aug 1-31\", \"product\": \"hosted_api\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"amount_cents\": 231000, \"request_ids\": [\"req_g12\"], \"amount_dollars\": \"$2310.00\"}, {\"line_id\": \"INV-2026-0831-177/L2\", \"invoice_id\": \"INV-2026-0831-177\", \"description\": \"Embeddings, Aug 1-31\", \"product\": \"embeddings\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"amount_cents\": 42000, \"request_ids\": [\"req_g19\"], \"amount_dollars\": \"$420.00\"}], \"confirmed_duplicates\": [], \"lookalikes\": []}"
+  },
+  {
+   "role": "assistant",
+   "content": "Your August 2026 invoice (Aug 1\u201331) totals **$2,730.00** and is currently **open**. It includes:\n\n- Hosted API usage: **$2,310.00**\n- Embeddings: **$420.00**"
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that\u2019s what I needed for the books."
+  },
+  {
+   "role": "assistant",
+   "content": "You\u2019re welcome!"
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

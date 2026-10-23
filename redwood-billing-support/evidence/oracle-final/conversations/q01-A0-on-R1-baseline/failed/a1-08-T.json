@@ -1,0 +1,223 @@
+{
+ "id": "a1-08-T",
+ "grade": {
+  "id": "a1-08-T",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": false,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 6,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 12,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": false,
+    "problem": "never said any of ['expired', 'no longer available', 'balance of 0', 'balance is 0', 'nothing left', 'has lapsed']",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "find_account",
+   "invoice_lines",
+   "list_invoices",
+   "load_skill",
+   "search_policy"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 23.220908167000744,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hey, we had a promo credit on our account. Is it still there, was it applied to our March 2027 bill, and what\u2019s the amount of the Mar 1-15 usage line on that bill?"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_YX5IPCXLBOTM4rmvtbVJiTOS",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "org_id"
+      ]
+     }
+    },
+    {
+     "id": "call_WnlO2NoehKBOIxG9NvhtRWGQ",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"org_id\": \"cinder-analytics\"}}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. A confirmed duplicate accepted by the console may be credited; report the amount only after the tool confirms it. For a confirmed duplicate over the console limit, submit the `duplicate_charge` dispute and escalate to `billing_ops` with its dispute ID. Promise no outcome or timeline.\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, UTC window, and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for Support's credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_cX7jpSrKw4pN2yO1Wctuiebg",
+     "name": "find_account",
+     "arguments": {
+      "org": "cinder-analytics"
+     }
+    },
+    {
+     "id": "call_bUFZX6qYaBwFuRZ7ZV7lmQJf",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current published billing credit policy promo credits balance application eligibility expiry payout and billing routing approval guidance credit inquiries"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"cinder-analytics\", \"org\": \"cinder-analytics\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2026-10-05\", \"billing_timezone\": \"UTC\"}, \"contracts\": [], \"credit_grants\": [{\"grant_id\": \"GRANT-cinder-analytics-1\", \"account_id\": \"cinder-analytics\", \"kind\": \"promotional\", \"amount\": {\"value\": \"50.00\", \"currency\": \"USD\"}, \"remaining\": {\"value\": \"50.00\", \"currency\": \"USD\"}, \"granted_on\": \"2027-01-06\", \"expires_on\": \"2027-04-06\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/gmail/rachel_kim/20260802-dataforge-credit-policy-review.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/rachel_kim/20260802-dataforge-credit-policy-review.json\\ntitle: Follow-up: promotional credit requests flagged \\u2014 DataForge account review\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 4]\\nIP clusters).\\\\n- Past credits: we issued small trial credits 2x in Q1 and a promotional top-up in May; the May top-up had an abnormal token burn and then a new account was created one week later.\\\\n\\\\nRecommendation: mark as \\\\\\\"promo review - high risk\\\\\\\" and deny auto-approve. Options: 1) Require corporate billing verification and a signed MSA before granting further credits; 2) Offer a short paid pilot at 40% discount (no promo credits) to validate and onboard.\\\\n\\\\nIf legal signs off on a one-time exception with strict token caps we could approve up to $1k credits. Otherwise deny.\\\\n\\\\n\\u2014Vivek (Sales Ops)\\\\n(attachment: acct_registrations.pdf)\\\\n\"}, {\"source\": \"sources/slack/support/1987654321-staggered-expiry-promo-credit-late-deduction.json\", \"status\": \"unspecified\", \"date\": \"1987654780\", \"text\": \"source: sources/slack/support/1987654321-staggered-expiry-promo-credit-late-deduction.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1987654780\\n[section: messages 11]\\ndavid_billing: Agreed. What's the delta amount to credit? Also need to create Billing ticket and issue customer-facing note.\\n\\n[section: messages 12]\\nmaria_support: Reconciled numbers: billed delta = $423.75 (tokens difference 3,333 @ $0.12725/token). Customer wants the credit applied this billing cycle.\\n\\n[section: messages 13]\\ndavid_billing: Creating ticket and issuing one-off credit now. Ticket: Billing-TKT-789. Notifying accounts. @lisa_prodops can you schedule the ledger ordering change PR?\\n\\n[section: messages 14]\\nlisa_prodops: I'll open a PR to enforce credit-apply ordering by (expiry_ts asc, allocation_ts asc) and add a boolean to block late-consume in auto-backfill. ETA EOD tomorrow. :eyes:\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\\ntitle: Support Console: Duplicate-Charge Credits and Billing Disputes\\nstatus/authority: published; unspecified\\ndate: 2026-02-05\\n[section: body 5]\\n## What Support never credits\\n- Goodwill, exceptions, SLA credits, or any credit someone says a manager, sales rep or Redwood engineer already approved. These stay with Finance, per the #support guidance from FP&A. Route the request; don't issue anything from the console.\\n- Marketplace purchases, which are billed by the marketplace.\\n\\n[section: body 6]\\n## Telling the customer\\n- Say what you did: the credit note and its amount, or that a dispute is open and Billing Ops has the case. Don't promise the outcome of a dispute or a date.\\n\\n_Last reviewed 2026-02-05._\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-credit-balances-2026.json\", \"status\": \"published\", \"date\": \"2026-05-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-credit-balances-2026.json\\ntitle: Support Console: Reading Credit Balances\\nstatus/authority: published; unspecified\\ndate: 2026-05-06\\n[section: body 2]\\n## Purpose\\nHow to answer \\\"what is my credit balance?\\\" from the support console. This page covers reading balances only.\\n\\n[section: body 3]\\n## Where balances live\\nEach credit a customer holds is a row in `credit_grants`. The current balance of a grant is its `remaining_cents`; the customer's balance is the sum across their grants.\\n\\n[section: body 4]\\n## Quoting a balance\\n- Look up the account, then query `credit_grants` by account.\\n- Quote the total and, for each grant, its remaining amount and `expires_on`.\\n- A grant with no `expires_on` does not expire.\\n\\n_Last reviewed 2026-05-06._\"}, {\"source\": \"sources/gmail/rachel_kim/20260802-dataforge-credit-policy-review.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/rachel_kim/20260802-dataforge-credit-policy-review.json\\ntitle: Follow-up: promotional credit requests flagged \\u2014 DataForge account review\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 6]\\nFrom: Rachel Kim <rachel.kim@redwood.ai>\\\\nTo: Samir Shah <samir@dataforge.ai>\\\\nCc: Ben Carter <ben.carter@redwood.ai>\\\\nDate: Mon, 2 Aug 2026 16:45:00 -07:00\\\\nSubject: Re: Request for additional promo credits for POC\\\\n\\\\nHi Samir \\u2014 thanks for your patience while we investigated. To be transparent our ops team flagged multiple accounts and usage patterns consistent with promo stacking. Because of that we can\\u2019t approve the full $5k extension as a unilateral promotional top-up.\\\\n\\\\nTwo paths to move forward quickly:\\\\n1) Short paid pilot: we can do a 2-week paid pilot at a 40% discount (no promo credits) so your team gets uninterrupted access and we can convert to a committed plan if it validates. I can issue an invoice and a trial seat bundle \"}, {\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 14]\\ncredit note to reduce invoice #9876 to $0 (preferred, standard ops \\u2014 takes 1-3 business days to reflect).\\n> 2) If the customer prefers a refund (card already charged), finance can route a chargeback/refund; that takes 3-5 business days and will reflect as a refund + VAT reversal.\\n> 3) Approve an extension / top-up to trial credits (I can provision an extra $1,000 promo credit if Lauren signs off; this does not retroactively change VAT treatment on an already-paid invoice but will offset future usage).\\n>\\n> I've attached invoice_9876.pdf (stub) and our promo terms doc for Q1. If we go with option 1 I'll create the credit note and notify Acme.\\n>\\n> -Dev\\n> Billing Operations | Redwood Inference\\n> dev_patel@redwood.ai\\n>\"}, {\"source\": \"sources/slack/support/1987654321-staggered-expiry-promo-credit-late-deduction.json\", \"status\": \"unspecified\", \"date\": \"1987654780\", \"text\": \"source: sources/slack/support/1987654321-staggered-expiry-promo-credit-late-deduction.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1987654780\\n[section: messages 9]\\nmaria_support: I can run the repro in staging if you want. Customer needs an interim fix \\u2014 they're already billing dispute-ing.\\n\\n[section: messages 10]\\nlisa_prodops: short-term: we should issue a one-off credit for the delta and mark it as \\\"billing adjustment\\\" so customer invoicing matches. Long-term: change ordering rule for when ledger/backfill applies credits \\u2014 enforce apply_ts <= invoice_cutoff for auto-apply or queue for next invoice rather than retroactively adjust consumed_ts. Also add a guard in reconciliation: if credits allocated before cutoff but consumed_ts > cutoff, reconcile should treat them as if consumed at allocation_ts when possible.\"}, {\"source\": \"sources/jira/customer-support/SUP-81234-credit-memo-post-rollout-invoice-adjustment-query.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-81234-credit-memo-post-rollout-invoice-adjustment-query.json\\ntitle: Unexpected post-rollout credit memo applied to prior invoice causing balance confusion\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: investigation_notes 1]\\nBilling findings so far: automated adjustment pipeline flagged token-class tagging change after model rollout; rule 'reclassify-trial-to-promo' triggered generation of CM-2026-03-09-77 for a subset of customers. BrightHealth appears to have been incorrectly included due to a tag mismatch on their org metadata (legacy flag: 'pilot_enrollment=true'). Engineering verified metering reprocess (mb-2026-03-08-19) touched historical rows for us-east and produced delta rows. No external payout initiated; the credit memo is an accounting document. Next steps: Billing to reverse the credit memo or convert to internal memo pending customer approval, produce full ledger export, and update the runbook to exclude \"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_0eTXzq3B9ci7BICq8QcerSyw",
+     "name": "list_invoices",
+     "arguments": {
+      "account_id": "cinder-analytics"
+     }
+    },
+    {
+     "id": "call_m8Ri1t6ZcPjOpAGj3OA7CxAS",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current published billing routing approval guidance requests about promotional credit already granted balance or credit application issue; route triggers; credit grant application eligibility expiry payout rules"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoices\": [{\"invoice_id\": \"INV-BG-202610-040\", \"account_id\": \"cinder-analytics\", \"period_start\": \"2026-10-05\", \"period_end\": \"2026-10-31\", \"issued_on\": \"2026-11-01\", \"status\": \"paid\", \"total\": {\"value\": \"3102.44\", \"currency\": \"USD\"}, \"total_dollars\": \"$3102.44\"}, {\"invoice_id\": \"INV-BG-202611-040\", \"account_id\": \"cinder-analytics\", \"period_start\": \"2026-11-01\", \"period_end\": \"2026-11-30\", \"issued_on\": \"2026-12-01\", \"status\": \"paid\", \"total\": {\"value\": \"1689.19\", \"currency\": \"USD\"}, \"total_dollars\": \"$1689.19\"}, {\"invoice_id\": \"INV-BG-202612-040\", \"account_id\": \"cinder-analytics\", \"period_start\": \"2026-12-01\", \"period_end\": \"2026-12-31\", \"issued_on\": \"2027-01-01\", \"status\": \"paid\", \"total\": {\"value\": \"1953.40\", \"currency\": \"USD\"}, \"total_dollars\": \"$1953.40\"}, {\"invoice_id\": \"INV-BG-202701-040\", \"account_id\": \"cinder-analytics\", \"period_start\": \"2027-01-01\", \"period_end\": \"2027-01-31\", \"issued_on\": \"2027-02-01\", \"status\": \"paid\", \"total\": {\"value\": \"2214.65\", \"currency\": \"USD\"}, \"total_dollars\": \"$2214.65\"}, {\"invoice_id\": \"INV-BG-202702-040\", \"account_id\": \"cinder-analytics\", \"period_start\": \"2027-02-01\", \"period_end\": \"2027-02-28\", \"issued_on\": \"2027-03-01\", \"status\": \"paid\", \"total\": {\"value\": \"2463.13\", \"currency\": \"USD\"}, \"total_dollars\": \"$2463.13\"}, {\"invoice_id\": \"INV-BG-202703-040\", \"account_id\": \"cinder-analytics\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"issued_on\": \"2027-04-01\", \"status\": \"open\", \"total\": {\"value\": \"2146.44\", \"currency\": \"USD\"}, \"total_dollars\": \"$2146.44\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/gmail/rachel_kim/20260802-dataforge-credit-policy-review.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/rachel_kim/20260802-dataforge-credit-policy-review.json\\ntitle: Follow-up: promotional credit requests flagged \\u2014 DataForge account review\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 4]\\nIP clusters).\\\\n- Past credits: we issued small trial credits 2x in Q1 and a promotional top-up in May; the May top-up had an abnormal token burn and then a new account was created one week later.\\\\n\\\\nRecommendation: mark as \\\\\\\"promo review - high risk\\\\\\\" and deny auto-approve. Options: 1) Require corporate billing verification and a signed MSA before granting further credits; 2) Offer a short paid pilot at 40% discount (no promo credits) to validate and onboard.\\\\n\\\\nIf legal signs off on a one-time exception with strict token caps we could approve up to $1k credits. Otherwise deny.\\\\n\\\\n\\u2014Vivek (Sales Ops)\\\\n(attachment: acct_registrations.pdf)\\\\n\"}, {\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"source: sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\\ntitle: Billing Adjustments Approval Matrix\\nstatus/authority: final; unspecified\\ndate: 2026-02-03\\n[section: content 1]\\ninvoice; above that, the Controller |\\n| Refund of a paid invoice line after an approved adjustment | Billing Ops | Up to $5,000; above that, the Controller |\\n| Goodwill credit, waiver, or exception to a billing rule | Finance (FP&A) | Any amount, decided in FP&A's review. Support and Billing Ops route these requests and never issue them |\\n| SLA credit on a self-serve account | Finance (FP&A) | Self-serve plans carry no SLA. FP&A reviews any request as goodwill |\\n| SLA credit under a signed contract | Account team files the claim; Finance approves | Per the contract's SLA terms. No amount is promised before Finance's review |\\n| Promotional or campaign credits | Growth marketing | Within the campaign budget FP&A approved |\\n| Partner program funds (MDF) | Partnerships | Per the \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\\ntitle: Support Console: Duplicate-Charge Credits and Billing Disputes\\nstatus/authority: published; unspecified\\ndate: 2026-02-05\\n[section: body 5]\\n## What Support never credits\\n- Goodwill, exceptions, SLA credits, or any credit someone says a manager, sales rep or Redwood engineer already approved. These stay with Finance, per the #support guidance from FP&A. Route the request; don't issue anything from the console.\\n- Marketplace purchases, which are billed by the marketplace.\\n\\n[section: body 6]\\n## Telling the customer\\n- Say what you did: the credit note and its amount, or that a dispute is open and Billing Ops has the case. Don't promise the outcome of a dispute or a date.\\n\\n_Last reviewed 2026-02-05._\"}, {\"source\": \"sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\", \"status\": \"published\", \"date\": \"2025-05-02\", \"text\": \"source: sources/confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation.json\\ntitle: Dedicated Throughput SLO Escalation Playbook\\nstatus/authority: published; unspecified\\ndate: 2025-05-02\\n[section: content 1]\\ncredit-eligible?\\n- **Premium:** written throughput commitment; credit review is standard for confirmed breaches.\\n- **Plus:** may be eligible depending on contract addenda; treat as \\u201creview required.\\u201d\\n- **Standard:** generally best-effort; credit requests require Product + Finance approval.\\n\\n### When to initiate a credit review\\nInitiate when:\\n- SRE confirms an SLO breach per canonical evaluator, AND\\n- The breach is not excluded (e.g., customer throttling), AND\\n- The customer requests credits OR the account team recommends proactive review.\\n\\n### Approval path (default)\\n1) CS/Support compiles incident details and SRE confirmation.\\n2) SRE provides breach window + summary.\\n3) Product Dedicated confirms entitlement interpretation \"}, {\"source\": \"sources/gmail/rachel_kim/20260802-dataforge-credit-policy-review.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/rachel_kim/20260802-dataforge-credit-policy-review.json\\ntitle: Follow-up: promotional credit requests flagged \\u2014 DataForge account review\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 6]\\ntoday.\\\\n\\\\n2) One-time exception: we can approve up to $1k in promo credits if you provide (a) corporate billing contact + phone, (b) signed MSA or pilot terms (I can route DocuSign) and (c) verification of primary corporate domain. This would be a conditional grant and monitored for abuse.\\\\n\\\\nIf you\\u2019d like the $1k exception please send billing contact and I\\u2019ll loop legal. Otherwise I\\u2019ll send a short paid-pilot proposal.\\\\n\\\\nThanks,\\\\nRachel Kim\\\\nAccount Executive | Redwood Inference\\\\n\\\\nOn Wed, Jul 28, 2026 at 09:12 AM Samir Shah <samir@dataforge.ai> wrote:\\\\n> Hi Rachel,\\\\n> \\\\n> Thanks again for the credits so far \\u2014 the POC is progressing and the engineers need an extra tranche to finish an integration test...\\\\n\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-credit-balances-2026.json\", \"status\": \"published\", \"date\": \"2026-05-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-credit-balances-2026.json\\ntitle: Support Console: Reading Credit Balances\\nstatus/authority: published; unspecified\\ndate: 2026-05-06\\n[section: body 2]\\n## Purpose\\nHow to answer \\\"what is my credit balance?\\\" from the support console. This page covers reading balances only.\\n\\n[section: body 3]\\n## Where balances live\\nEach credit a customer holds is a row in `credit_grants`. The current balance of a grant is its `remaining_cents`; the customer's balance is the sum across their grants.\\n\\n[section: body 4]\\n## Quoting a balance\\n- Look up the account, then query `credit_grants` by account.\\n- Quote the total and, for each grant, its remaining amount and `expires_on`.\\n- A grant with no `expires_on` does not expire.\\n\\n_Last reviewed 2026-05-06._\"}, {\"source\": \"sources/slack/support/1749139920-goodwill-credit-asks-routing-finance.json\", \"status\": \"unspecified\", \"date\": \"1749142380\", \"text\": \"source: sources/slack/support/1749139920-goodwill-credit-asks-routing-finance.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1749142380\\n[section: messages 1]\\nPriya Shah: quick one - self-serve customer asking for a goodwill credit after the us-east blip yesterday. now that billing ops is live, do these go to billing ops?\\n\\n[section: messages 2]\\nDev Patel: pretty sure no but want FP&A to confirm before it goes in the routing page. @Rishi Malhotra\\n\\n[section: messages 3]\\nRishi Malhotra: correct, not billing ops. credit, goodwill and exception approvals come to Finance. open the case to finance with the ask, the amount if they gave one, and why. we decide. billing ops only applies what we approve\\n\\n[section: messages 4]\\nRishi Malhotra: and please don't route these straight to legal. we pull legal in ourselves if it's non-standard comp or touches contract terms\"}, {\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 25]\\nHi Jordan \\u2014 quick update from Billing Ops: per Lauren's approval we have done the following:\\n\\n- Issued a credit note for invoice #9876 that offsets the $42.17 usage charge. If the invoice was unpaid, the balance will be shown as $0. If the invoice was already charged to card, finance has scheduled a refund for the billed amount \\u2014 you should see the refund or credit on your card within 3\\u20135 business days.\\n- Applied a one-time promotional top-up of $1,000 to your account (promo code internal: SALES_TOPUP_8421). This will appear as an account credit and will be used before future billing events.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_Dys6IPmS405afPhcpEDDHETN",
+     "name": "invoice_lines",
+     "arguments": {
+      "invoice_id": "INV-BG-202703-040"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoice\": {\"invoice_id\": \"INV-BG-202703-040\", \"account_id\": \"cinder-analytics\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"issued_on\": \"2027-04-01\", \"status\": \"open\", \"total\": {\"value\": \"2146.44\", \"currency\": \"USD\"}}, \"billing_channel\": \"direct\", \"lines\": [{\"line_id\": \"INV-BG-202703-040/L1\", \"invoice_id\": \"INV-BG-202703-040\", \"description\": \"Hosted API usage, Mar 1-15\", \"product\": \"hosted_api\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-15\", \"amount\": {\"value\": \"1389.14\", \"currency\": \"USD\"}, \"request_ids\": [\"req_ae85f6cf3c\", \"req_3ab5d4fec9\"], \"amount_dollars\": \"$1389.14\"}, {\"line_id\": \"INV-BG-202703-040/L2\", \"invoice_id\": \"INV-BG-202703-040\", \"description\": \"Hosted API usage, Mar 16-31\", \"product\": \"hosted_api\", \"period_start\": \"2027-03-16\", \"period_end\": \"2027-03-31\", \"amount\": {\"value\": \"305.04\", \"currency\": \"USD\"}, \"request_ids\": [\"req_fe29a4f379\", \"req_d2c334e557\"], \"amount_dollars\": \"$305.04\"}, {\"line_id\": \"INV-BG-202703-040/L3\", \"invoice_id\": \"INV-BG-202703-040\", \"description\": \"Batch jobs, Mar 1-31\", \"product\": \"batch\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"amount\": {\"value\": \"452.26\", \"currency\": \"USD\"}, \"request_ids\": [\"req_3785d3668c\"], \"amount_dollars\": \"$452.26\"}], \"confirmed_duplicates\": [], \"lookalikes\": []}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_U5zv2KnXdOYG9F9cdbcOu6Cl",
+     "name": "search_policy",
+     "arguments": {
+      "query": "published promotional credit grants terms how credits apply to invoices usage charges expiration unused credits cash payout refund redemption eligibility automatically applied"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 25]\\nHi Jordan \\u2014 quick update from Billing Ops: per Lauren's approval we have done the following:\\n\\n- Issued a credit note for invoice #9876 that offsets the $42.17 usage charge. If the invoice was unpaid, the balance will be shown as $0. If the invoice was already charged to card, finance has scheduled a refund for the billed amount \\u2014 you should see the refund or credit on your card within 3\\u20135 business days.\\n- Applied a one-time promotional top-up of $1,000 to your account (promo code internal: SALES_TOPUP_8421). This will appear as an account credit and will be used before future billing events.\"}, {\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 32]\\nSubject: Re: Trial credits charged on invoice? \\u2014 resolved\\n\\nHi Jordan \\u2014 thanks for your patience and sorry again for the surprise. To recap:\\n\\n\\u2022 We found that your initial $250 trial credit was fully consumed by a burst of usage; that triggered overage billing against the card on file.\\n\\u2022 Per internal approval, we issued a credit note to offset invoice #9876 and applied a $1,000 promotional account top-up.\\n\\u2022 If invoice #9876 was already charged, our finance team has scheduled a refund; you should see the net refund (and any VAT reversal) on your card within 3\\u20135 business days. If you prefer a different handling (refund vs. credit), reply and we'll act accordingly.\\n\\nWe'd also be happy to extend the formal trial window for another 30 days if you want \"}, {\"source\": \"sources/jira/customer-support/SUP-581233-promotional-credit-applied-to-merged-subaccount-leading-to-unexpected-charge.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-581233-promotional-credit-applied-to-merged-subaccount-leading-to-unexpected-charge.json\\ntitle: Promotional credit applied to merged subaccount leading to unexpected charge on primary org invoice\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: description 1]\\noriginal subaccount or be explicitly re-targeted to an org-level credit and reflected on the correct invoice.\\n\\nAdditional context: Customer provided CSV export of invoice and org-merge audit log (attached). They are requesting either (A) reallocation of the promo credit to the original subaccount invoice and an invoice correction/credit memo, or (B) a clear explanation and confirmation that the $2,340 will be refunded/waived if allocation cannot be changed.\\n\\n[section: steps_to_reproduce 1]\\n1) Simulate org consolidation via Console with alias mapping (old-sub -> new-sub) in staging mirror of production\"}, {\"source\": \"sources/jira/customer-support/SUP-81234-credit-memo-post-rollout-invoice-adjustment-query.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-81234-credit-memo-post-rollout-invoice-adjustment-query.json\\ntitle: Unexpected post-rollout credit memo applied to prior invoice causing balance confusion\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: comments 3]\\n2026-03-11 - Janelle Kim (Billing):\\nPreliminary check: CM-2026-03-09-77 was created by an automated adjustment workflow tied to a post-deployment metering reconciliation job that reclassified some tokens from \\\"trial-credit\\\" to \\\"promo-credit\\\" for customers enrolled in the rollout. Investigating whether BrightHealth was part of that cohort. Not yet applied as a refund (no payout), only a credit memo entry. Will follow up with ledger entries.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-credit-balances-2026.json\", \"status\": \"published\", \"date\": \"2026-05-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/support-console-credit-balances-2026.json\\ntitle: Support Console: Reading Credit Balances\\nstatus/authority: published; unspecified\\ndate: 2026-05-06\\n[section: body 2]\\n## Purpose\\nHow to answer \\\"what is my credit balance?\\\" from the support console. This page covers reading balances only.\\n\\n[section: body 3]\\n## Where balances live\\nEach credit a customer holds is a row in `credit_grants`. The current balance of a grant is its `remaining_cents`; the customer's balance is the sum across their grants.\\n\\n[section: body 4]\\n## Quoting a balance\\n- Look up the account, then query `credit_grants` by account.\\n- Quote the total and, for each grant, its remaining amount and `expires_on`.\\n- A grant with no `expires_on` does not expire.\\n\\n_Last reviewed 2026-05-06._\"}, {\"source\": \"sources/linear/product-management/PM-450312-client-priority-credits-and-sprint-reservation-protocol.json\", \"status\": \"Planned\", \"date\": \"2025-02-23\", \"text\": \"source: sources/linear/product-management/PM-450312-client-priority-credits-and-sprint-reservation-protocol.json\\ntitle: Client Priority Credits and Sprint Reservation Protocol\\nstatus/authority: Planned; unspecified\\ndate: 2025-02-23\\n[section: risks 5]\\nSecurity: audit trail must be tamper-evident for enterprise customers (may later require HSM-backed signing)\\n\\n[section: open_questions 1]\\nShould credits auto-expire at quarter end or roll into a reduced carryover cap?\\n\\n[section: open_questions 2]\\nDo we permit partial-redemption for multi-sprint projects or require discrete reservations per sprint?\\n\\n[section: open_questions 3]\\nIs redemption capped to feature-level acceptance criteria or can it reserve non-functional work (capacity tuning, infra)?\\n\\n[section: open_questions 4]\\nHow should credits map to Dedicated capacity reservations (do we reserve GPU pools or engineering effort)?\"}, {\"source\": \"sources/gmail/jasmine_liu/20260321-interim-billing-allocation-theranova.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/jasmine_liu/20260321-interim-billing-allocation-theranova.json\\ntitle: Charge discrepancy after mid-period seat reduction \\u2014 proposed credit\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nactivated mid-month) and send a draft credit memo for your review within 1 business day.\\n- If you prefer the credit applied to the next invoice, we'll do that automatically; otherwise we can process a refund to the original payment method once the credit memo is approved.\\n- Clarify VAT handling: you provided an EU VAT ID \\u2014 please confirm whether you require reverse-charge (zero-rated) treatment on the credit. If not, we'll issue the credit inclusive of 22% VAT.\\n\\nAttaching: usage_report_Mar2026.csv (CSV, 18KB) \\u2014 shows seats and add-on activation timestamps.\\n\\nBest,\\nJasmine Liu\\nAccount Manager, Redwood Inference\\njasmine.liu@redwood.com\\n--\\nAttachment: usage_report_Mar2026.csv (text/csv, 18KB)\"}, {\"source\": \"sources/gmail/monica_patel/20251103-ar-invoice-journal-correction.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20251103-ar-invoice-journal-correction.json\\ntitle: AR aging & revenue recognition: invoice adjustments, VAT reclaim, and JNL-2025-089\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 2]\\nFrom: Rishi Malhotra <rishi_malhotra@redwood.com>\\nTo: Monica Patel <monica_patel@redwood.com>, Marissa Cole <marissa_cole@redwood.com>\\nCc: Aditya Rao <aditya_rao@redwood.com>\\nDate: Tue, 04 Nov 2025 09:15:00 -0800\\nSubject: Re: AR aging & revenue recognition: invoice adjustments, VAT reclaim, and JNL-2025-089\\n\\nMonica \\u2014 thanks for the summary and the spreadsheet. Quick notes after a first pass:\\n\\n- The July credit (INV-20250720-CRT) was issued to correct a double-billing on a support add-on; the original revenue for that add-on was recognized in July (Q3). The credit reverses recognized revenue, so technically revrec should be adjusted back to July (we will post a reversing revenue entry to the July GL and apply the credit there).\\n- If \"}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "Yes\u2014the account still has **$50.00** in promotional credit, expiring **April 6, 2027**.\n\nI don\u2019t see it applied to the March bill: the invoice shows the full **$2,146.44** total across its charge lines, and the credit\u2019s full $50 remains on the account. The invoice is still open.\n\nThe **Mar 1\u201315 hosted API usage** line is **$1,389.14**."
+  },
+  {
+   "role": "user",
+   "content": "Got it, thanks."
+  },
+  {
+   "role": "assistant",
+   "content": "You\u2019re welcome!"
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

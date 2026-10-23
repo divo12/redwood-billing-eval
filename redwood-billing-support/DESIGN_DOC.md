@@ -171,8 +171,8 @@ is implemented to the traps above.
 Builder results on the final case set: runs 5, 6 and 7 all score reward 0 (Q00 0.833, 0.833, 0.733), and still 0
 when rescored with every defect below removed. The failures recur (detailed in `RUN_REPORT.md`): the tokenizer
 gap is escalated instead of explained in every run, the $500 scope is dropped on maintenance in two of three, and
-the retry-date inference is missed in two of three (and in every earlier build). The oracle scored 1.0 in four of
-four runs, missing at most two cases per run, a different one each time (variance in the support model).
+the retry-date inference is missed in two of three (and in every earlier build). The oracle scored 1.0 in five of
+five runs, missing at most two cases per run, a different one each time (variance in the support model).
 
 The gate (Q00 ≥ 0.9, Q11 ≥ 0.9, Q10 ≥ Q00 − 0.1) allows three misses in 30 and one case of regression slack.
 

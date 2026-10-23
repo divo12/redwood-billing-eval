@@ -3,7 +3,7 @@
 ## Summary
 
 `claude-opus-5-5` at `reasoning_effort=high` (Claude Code) scores **reward 0 in 3/3 runs**; the oracle scores
-**1.0 in 4/4**. Two evolution failures:
+**1.0 in 5/5**. Two evolution failures:
 
 **1. Maintenance only adds, it never repairs (3/3 runs).** A rule Opus's first build fails to follow stays broken
 after the update, in every run. When a developer reports more billed tokens than they counted and asks "can someone
@@ -22,13 +22,14 @@ revised in place: in runs 5 and 6 the maintained agent lost the $500 limit that 
 handed off duplicates its R0 build had credited (that evidence comes from Q10, which replays 2026 conversations
 against 2027 knowledge, so we weight it less).
 
-The oracle passes all of these cases in every run.
+The oracle passes the failed-payments and matrix cases in every run (25/25) and the tokenizer cases in 48 of 50.
 
 The failure survives the fairness audit below: rescored with every case or verifier defect it found removed, all
 three runs still score 0.
 
 | Agent | Run | reward | q00 | q11 | drift | regression | behaviour_robustness | artifact_quality |
 |---|---|---|---|---|---|---|---|---|
+| Oracle | `evidence/oracle-final` (submitted version) | **1.0** | 1.0 | 1.0 | 1.0 | 0.967 | 0.978 | 1.0 |
 | Oracle | `evidence/oracle-2026-10-24` | **1.0** | 1.0 | 1.0 | 1.0 | 0.967 | 0.978 | 1.0 |
 | Oracle | `evidence/oracle-2026-10-24-b` | **1.0** | 1.0 | 0.967 | 0.96 | 0.967 | 0.978 | 1.0 |
 | Opus 5.5 | `evidence/opus-5-5-run6` | **0.0** | 0.833 | 0.867 | 0.818 | 0.84 | 0.756 | 1.0 |
@@ -36,7 +37,7 @@ three runs still score 0.
 | Opus 5.5 | `evidence/opus-5-5-run5` (earlier version) | **0.0** | 0.833 | 0.90 | 0.80 | 0.96 | 1.0 | 1.0 |
 
 Two more oracle runs (`evidence/oracle`, an earlier version; and one graded in Harbor on 2026-10-23) also scored
-1.0. Every case Opus fails, the oracle passes in at least 3 of 4 runs.
+1.0: five of five. Every case Opus fails, the oracle passes in at least 4 of 5 runs.
 
 **The failure in one line:** the deciding records reach the support agent, but the builder never turns them into
 behaviour the agent reliably acts on, and when the world changes it replaces rules instead of scoping them. The
@@ -94,7 +95,7 @@ every earlier build).
 `steps/*/solution/solve.sh` installs a reference workspace (hybrid retrieval over embedded billing records, a
 billing-investigation skill and `billing_rules.py` that state each rule, a policy subagent, hooks), builds its
 index with the same local embedder, and on R1 embeds only the new and revised records. It runs through the same
-conversation loop, sandbox and console as the builder's agent, with no shortcut. Four runs, reward 1.0 each; it
+conversation loop, sandbox and console as the builder's agent, with no shortcut. Five runs, reward 1.0 each (the last on exactly the submitted version); it
 misses at most two cases per run, a different one each time (the support model is sampled).
 
 ## Fairness audit

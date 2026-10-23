@@ -1,0 +1,381 @@
+{
+ "id": "a1-07-C",
+ "grade": {
+  "id": "a1-07-C",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": false,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": false,
+    "problem": "cases: extra [], missing [{'account_id': 'growthloop', 'team': 'finance', 'status': 'escalated', 'dispute_id': None}]",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "insert:cases",
+      "at": 17,
+      "ok": false
+     },
+     {
+      "op": "insert:cases",
+      "at": 19,
+      "ok": false
+     },
+     {
+      "op": "insert:cases",
+      "at": 21,
+      "ok": false
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "ask_developer",
+   "escalate_case",
+   "find_account",
+   "invoice_lines",
+   "list_invoices",
+   "load_skill",
+   "search_policy",
+   "usage_summary"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 49.01725895799973,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hi, a runaway script drove up our March 2027 bill. Your billing terms say accidental usage is refunded automatically, so please refund it. How much was the invoice, and how many tokens did the script use? Org growthloop."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_Wyv1CX4ahlixO07wlJlMk2ju",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-investigation"
+     }
+    },
+    {
+     "id": "call_0IsT6pqe2COrZIoSXz4NowRb",
+     "name": "find_account",
+     "arguments": {
+      "org": "growthloop"
+     }
+    },
+    {
+     "id": "call_xsyJVnz52UVxq3oZQ3OJoq6e",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current billing terms accidental or runaway usage automatic refunds credits refund eligibility invoice dispute"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-investigation\", \"steps\": \"1. Look up the account first. For invoice questions, list invoices and inspect the relevant lines; for usage questions, read the available usage summary. Check the plan, contract, grants, and billing channel when they affect the answer.\\n1a. Facts the developer hasn't written come only from `ask_developer`. When a charge or count looks higher than they expected, ask `checks_done` (what their client does: retries, timeouts, how they counted) and any `request_ids` before concluding; when they have no invoice id, ask `invoice_month` and inspect that month's invoice lines yourself before any handoff. Relative dates (\\\"last month\\\") need the month confirmed. A question about one event (a script, an outage, a failed payment) needs `time_of_issue` first.\\n2. Search the current published policy for the question. For plan or quota behavior, use the account's plan and current usage. For a token-count discrepancy, retrieve the usage-accounting guidance and state the documented counting basis and causes, not just that counts may differ. For any credit question, including an informational question about typical amounts or ranges, retrieve the current billing routing, handoff, and approval guidance as well as the relevant credit policy. For an unused or unapplied credit, explain the retrieved rules for eligibility, application, expiry, and payout rather than only repeating the balance.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook.json. -->\\n3. For missing usage, check the workspace, time range, filters, request outcome, and reporting guidance. State the published freshness threshold and what to provide if usage remains missing; route only when the current rule's trigger is met.\\n<!-- Source: R0/sources/confluence/eng-sre/slo-and-error-budgets/hosted-api-slo-overload-exceptions-and-budget-policy.json. -->\\n4. When an SLA answer depends on the plan, check the account's plan and state the retrieved plan-specific condition; do not imply an SLA from an engineering SLO.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n5. For a refund, invoice correction or reconciliation, credit approval, exception, or other action Support cannot take, retrieve the current routing rule and open the case in the same turn you say it is routed. Include known facts and note unresolved gaps in the case, then ask for missing details. A customer who reports a wrong charge but can't yet name the invoice or line still gets the case now, with what they gave you. Quote the retrieved rule naming the owning team in `routing_rule`. Route by what the customer asks for, not by the topic: a request for a credit on charges you have explained follows the credit-request row, not the invoice-dispute row.\\n6. Before any handoff for a credit, refund, goodwill, SLA, contract, marketplace, overcharge, or invoice dispute, search the current billing routing and approval guidance. Use its named team and trigger; do not infer eligibility or choose a team from a product contact. Do not open a case for an informational question, an unavailable console field, or an unmet waiting-period trigger. A customer insisting on an investigation does not meet a trigger: if the retrieved rules explain what they report (counting basis, admitted retries, reporting lag), answer and open no case, and don't hand it to another team instead.\\n<!-- Sources: R0/sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json; R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n7. For a suspected duplicate, inspect invoice lines and distinguish confirmed duplicates from lookalikes. A confirmed duplicate accepted by the console may be credited; report the amount only after the tool confirms it. For a confirmed duplicate over the console limit, submit the `duplicate_charge` dispute and escalate to `billing_ops` with its dispute ID. Promise no outcome or timeline.\\n8. For an unconfirmed duplicate or lookalike, collect the invoice, line items, UTC window, and request IDs (`ask_developer` for any the developer has not given), then follow current routing guidance without holding the required case for missing details. For marketplace billing, search both marketplace and routing policy.\\n9. Answer the customer's other questions and finish all console actions before escalating, because an escalated case ends console use.\\n\\n10. State Redwood's retrieved rule, with its threshold, plan condition, or team, and explain why it matters; don't answer from general knowledge. If retrieval returns records that disagree, follow the newest current published one and say which you followed.\\n11. For an unexpected Redwood charge on a cloud or marketplace bill, use `ask_developer` for the `billing_period` and `line_items`, compare them with the account's billing channel, and put them on any case you open.\\n<!-- Source: R0/sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json. -->\\n12. If the customer cites an older page that says something different from the current one, explain the current behaviour and which page is current. Open no case for the old page, even if they ask you to log it as a bug.\\n\\n## What to retrieve for common questions\\n\\nEach item names what to search; the answer is in the retrieved record, not here.\\n- Token-count gap: search usage and token accounting for the counting basis (which tokenizer, what is counted) and when a gap goes to engineering. Explain the basis before offering any handoff.\\n- Missing usage: the threshold is in the billing case routing page's Telemetry row (successful requests still missing after a stated number of minutes) and the onboarding triage playbook; search for those, not a dashboard freshness SLA. Past the threshold with verified 2xx requests, open the Telemetry case with the request IDs. Before it, open no case; tell the customer when and with what to follow up.\\n- Overcharge, disputed line, refund, or export mismatch: search billing routing for the owning team and the details it needs. Open the case in the same conversation with what the customer has.\\n- Over-limit confirmed duplicate: search the console credits and disputes page for the dispute procedure and Finance's billing adjustments approval matrix for Support's credit limit.\\n- Credit, goodwill, or exception request: search routing and the goodwill-credit guidance for who reviews it and which team Support hands it to. Share no percentages or typical ranges.\\n- SLA: search the SLA and error-budget policy for the plan-specific condition, and check the account's plan and contract.\\n- Informational question the console answers: answer it; routing covers only what Support can't resolve in the conversation.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"account\": {\"account_id\": \"growthloop\", \"org\": \"growthloop\", \"plan\": \"self_serve\", \"plan_name\": \"Growth\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2026-10-05\", \"billing_timezone\": \"UTC\"}, \"contracts\": [], \"credit_grants\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/product-docs/pricing-and-packaging/duplicate-charges-and-refunds-help-2025.json\", \"status\": \"published\", \"date\": \"2026-01-21\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/duplicate-charges-and-refunds-help-2025.json\\ntitle: Help Center: Duplicate Charges and Refunds (archived)\\nstatus/authority: published; unspecified\\ndate: 2026-01-21\\n[section: body 1]\\n> Archived 2026-01-21. This help-center article is no longer current. Support handles duplicate charges as described on \\\"Support Console: Duplicate-Charge Credits and Billing Disputes\\\".\\n\\n[section: body 2]\\n## Duplicate charges\\nIf your invoice bills the same usage twice, contact Support with the invoice number. Support refunds a duplicated line in full on request.\\n\\n[section: body 3]\\n## Refund timing\\nRefunds reach your card within 5-10 business days.\"}, {\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 14]\\ncredit note to reduce invoice #9876 to $0 (preferred, standard ops \\u2014 takes 1-3 business days to reflect).\\n> 2) If the customer prefers a refund (card already charged), finance can route a chargeback/refund; that takes 3-5 business days and will reflect as a refund + VAT reversal.\\n> 3) Approve an extension / top-up to trial credits (I can provision an extra $1,000 promo credit if Lauren signs off; this does not retroactively change VAT treatment on an already-paid invoice but will offset future usage).\\n>\\n> I've attached invoice_9876.pdf (stub) and our promo terms doc for Q1. If we go with option 1 I'll create the credit note and notify Acme.\\n>\\n> -Dev\\n> Billing Operations | Redwood Inference\\n> dev_patel@redwood.ai\\n>\"}, {\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 25]\\nHi Jordan \\u2014 quick update from Billing Ops: per Lauren's approval we have done the following:\\n\\n- Issued a credit note for invoice #9876 that offsets the $42.17 usage charge. If the invoice was unpaid, the balance will be shown as $0. If the invoice was already charged to card, finance has scheduled a refund for the billed amount \\u2014 you should see the refund or credit on your card within 3\\u20135 business days.\\n- Applied a one-time promotional top-up of $1,000 to your account (promo code internal: SALES_TOPUP_8421). This will appear as an account credit and will be used before future billing events.\"}, {\"source\": \"sources/slack/support/1987654321-staggered-expiry-promo-credit-late-deduction.json\", \"status\": \"unspecified\", \"date\": \"1987654780\", \"text\": \"source: sources/slack/support/1987654321-staggered-expiry-promo-credit-late-deduction.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1987654780\\n[section: messages 9]\\nmaria_support: I can run the repro in staging if you want. Customer needs an interim fix \\u2014 they're already billing dispute-ing.\\n\\n[section: messages 10]\\nlisa_prodops: short-term: we should issue a one-off credit for the delta and mark it as \\\"billing adjustment\\\" so customer invoicing matches. Long-term: change ordering rule for when ledger/backfill applies credits \\u2014 enforce apply_ts <= invoice_cutoff for auto-apply or queue for next invoice rather than retroactively adjust consumed_ts. Also add a guard in reconciliation: if credits allocated before cutoff but consumed_ts > cutoff, reconcile should treat them as if consumed at allocation_ts when possible.\"}, {\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"source: sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\\ntitle: Billing Adjustments Approval Matrix\\nstatus/authority: final; unspecified\\ndate: 2026-02-03\\n[section: content 1]\\ncredit note, a refund, a write-off or a re-issued invoice.\\n- **Per line**: the amount of one invoice line, taken whole. An adjustment is never split across several smaller ones to stay under a limit.\\n- **Billing error**: a line that bills the wrong rate, quantity or product, or bills the same usage twice.\\n- **Goodwill**: any reduction of a correct charge, for any reason.\\n\\n## Approval matrix\\n| Adjustment | Who issues it | Limit and approver |\\n|---|---|---|\\n| Duplicate-charge credit (console-confirmed duplicate line on a direct invoice) | Support, from the support console | Up to $500 per duplicated line. Over that, Support opens a dispute and Billing Ops takes it |\\n| Billing-error correction other than a duplicate (wrong rate, quantity or product) | Billing Ops | Up to $2,000 per \"}, {\"source\": \"sources/gmail/monica_patel/20260621-sequoia-interim-payment-structure-exec-escalation.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260621-sequoia-interim-payment-structure-exec-escalation.json\\ntitle: Re: Sequoia Health \\u2014 invoicing cadence & interim payment structure\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 3]\\n\\u2014 recommend credit check and 30% deposit to mitigate.\\n- Operational impact: billing consolidation and one invoice per quarter is fine, but credit hold/usage caps must be enforced in billing system.\\n\\nRequested approval: temporary exception to standard terms to allow quarterly invoicing for 12 months provided: 30% deposit at signing, Net-60 on quarter invoices, $250k credit cap, monthly usage reporting, and automatic revert to standard terms on breach.\\n\\nI\\u2019ve attached the term sheet and a short DD summary. Requesting Jonas or Finance lead to approve or propose final conditional language.\\n\\n\\u2014 Karthik\\nKarthik Iyer\\nHead, Deal Desk | Redwood Inference\\nkarthik_iyer@redwoodinference.com\\n\\nAttachments: deal-due-diligence-summary.pdf, \"}, {\"source\": \"sources/slack/support/1738214567-stark-invoice-clash-po-update-escalation.json\", \"status\": \"unspecified\", \"date\": \"1738214689\", \"text\": \"source: sources/slack/support/1738214567-stark-invoice-clash-po-update-escalation.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1738214689\\n[section: text 10]\\nsamir: tagging tax team separately, but for support path: we can refund gross and record VAT reversal in ledger. legal/tax may need invoice credit note. propose: refund INV-2026-00124, create credit note CN-2026-045 for VAT reporting, and mark PO as settled once.\\n\\n[section: text 11]\\nmike: performing refund now. running internal refund command: ```\\n# run by billing operator\\nPOST /internal/refunds\\n\\n[section: text 12]\\n{ \\\"invoice_id\\\": \\\"INV-2026-00124\\\", \\\"reason\\\": \\\"duplicate_charge\\\", \\\"initiated_by\\\": \\\"mike\\\" }\\n```\\n\\n[section: text 13]\\nbilling-bot: Refund initiated: RFD-98765 for invoice INV-2026-00124 \\u2014 status: pending.\"}, {\"source\": \"sources/gmail/monica_patel/20251103-ar-invoice-journal-correction.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20251103-ar-invoice-journal-correction.json\\ntitle: AR aging & revenue recognition: invoice adjustments, VAT reclaim, and JNL-2025-089\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 3]\\ncollections: we will pay the remaining undisputed invoices (INV-20250512 and INV-20250615) by 2025-11-10. The disputed amount related to the July credit we will coordinate after you confirm the VAT reclaim approach.\\n\\nAnna Lopez\\nAccounts Payable\\nBrightCore Systems\\naccounts@brightcoresys.com\\n\\nAttachments: BrightCore_refund_confirmation_CR-7890.pdf, bank_trace_CR-7890.png\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_BCOmh2bAvlB7wZweYoGsZb15",
+     "name": "list_invoices",
+     "arguments": {
+      "account_id": "growthloop"
+     }
+    },
+    {
+     "id": "call_Y20ltN5HURxMwqGiNSxkkTnI",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "time_of_issue",
+       "checks_done",
+       "request_ids"
+      ]
+     }
+    },
+    {
+     "id": "call_hZSul4rR1gy1uJmUWjgayhiy",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current published policy accidental usage runaway script usage refunds goodwill credit requests refund routing team trigger approval self-serve"
+     }
+    },
+    {
+     "id": "call_ECYpZzuU44ILRbWvBoXuZIpH",
+     "name": "search_policy",
+     "arguments": {
+      "query": "current policy usage token accounting how input output tokens counted request usage summary"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoices\": [{\"invoice_id\": \"INV-BG-202610-037\", \"account_id\": \"growthloop\", \"period_start\": \"2026-10-05\", \"period_end\": \"2026-10-31\", \"issued_on\": \"2026-11-01\", \"status\": \"paid\", \"total\": {\"value\": \"1078.51\", \"currency\": \"USD\"}, \"total_dollars\": \"$1078.51\"}, {\"invoice_id\": \"INV-BG-202611-037\", \"account_id\": \"growthloop\", \"period_start\": \"2026-11-01\", \"period_end\": \"2026-11-30\", \"issued_on\": \"2026-12-01\", \"status\": \"paid\", \"total\": {\"value\": \"1769.45\", \"currency\": \"USD\"}, \"total_dollars\": \"$1769.45\"}, {\"invoice_id\": \"INV-BG-202612-037\", \"account_id\": \"growthloop\", \"period_start\": \"2026-12-01\", \"period_end\": \"2026-12-31\", \"issued_on\": \"2027-01-01\", \"status\": \"paid\", \"total\": {\"value\": \"2077.34\", \"currency\": \"USD\"}, \"total_dollars\": \"$2077.34\"}, {\"invoice_id\": \"INV-BG-202701-037\", \"account_id\": \"growthloop\", \"period_start\": \"2027-01-01\", \"period_end\": \"2027-01-31\", \"issued_on\": \"2027-02-01\", \"status\": \"paid\", \"total\": {\"value\": \"1484.64\", \"currency\": \"USD\"}, \"total_dollars\": \"$1484.64\"}, {\"invoice_id\": \"INV-BG-202702-037\", \"account_id\": \"growthloop\", \"period_start\": \"2027-02-01\", \"period_end\": \"2027-02-28\", \"issued_on\": \"2027-03-01\", \"status\": \"paid\", \"total\": {\"value\": \"3201.61\", \"currency\": \"USD\"}, \"total_dollars\": \"$3201.61\"}, {\"invoice_id\": \"INV-BG-202703-037\", \"account_id\": \"growthloop\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"issued_on\": \"2027-04-01\", \"status\": \"open\", \"total\": {\"value\": \"1811.43\", \"currency\": \"USD\"}, \"total_dollars\": \"$1811.43\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"time_of_issue\": \"The script looped all day on March 17, 2027 (UTC).\", \"checks_done\": \"I don't have that.\", \"request_ids\": \"I don't have that.\"}}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/slack/support/1749139920-goodwill-credit-asks-routing-finance.json\", \"status\": \"unspecified\", \"date\": \"1749142380\", \"text\": \"source: sources/slack/support/1749139920-goodwill-credit-asks-routing-finance.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1749142380\\n[section: messages 1]\\nPriya Shah: quick one - self-serve customer asking for a goodwill credit after the us-east blip yesterday. now that billing ops is live, do these go to billing ops?\\n\\n[section: messages 2]\\nDev Patel: pretty sure no but want FP&A to confirm before it goes in the routing page. @Rishi Malhotra\\n\\n[section: messages 3]\\nRishi Malhotra: correct, not billing ops. credit, goodwill and exception approvals come to Finance. open the case to finance with the ask, the amount if they gave one, and why. we decide. billing ops only applies what we approve\\n\\n[section: messages 4]\\nRishi Malhotra: and please don't route these straight to legal. we pull legal in ourselves if it's non-standard comp or touches contract terms\"}, {\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"source: sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\\ntitle: Billing Adjustments Approval Matrix\\nstatus/authority: final; unspecified\\ndate: 2026-02-03\\n[section: content 1]\\ninvoice; above that, the Controller |\\n| Refund of a paid invoice line after an approved adjustment | Billing Ops | Up to $5,000; above that, the Controller |\\n| Goodwill credit, waiver, or exception to a billing rule | Finance (FP&A) | Any amount, decided in FP&A's review. Support and Billing Ops route these requests and never issue them |\\n| SLA credit on a self-serve account | Finance (FP&A) | Self-serve plans carry no SLA. FP&A reviews any request as goodwill |\\n| SLA credit under a signed contract | Account team files the claim; Finance approves | Per the contract's SLA terms. No amount is promised before Finance's review |\\n| Promotional or campaign credits | Growth marketing | Within the campaign budget FP&A approved |\\n| Partner program funds (MDF) | Partnerships | Per the \"}, {\"source\": \"sources/jira/customer-support/SUP-777650-unexpected-retroactive-price-floor-applied-to-embed-batch-invoice.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-777650-unexpected-retroactive-price-floor-applied-to-embed-batch-invoice.json\\ntitle: Unexpected retroactive price-floor applied to a large batch-embedding invoice\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: investigation_notes 5]\\nEstimate of incorrect charge: aggregator applied higher unit_price to 100% of job tokens (1.2M rows * 1 embed each) instead of only 124K fallback items; delta =~ $3,420.\\n\\n[section: investigation_notes 6]\\nRelated repo change: commit ab12cd34ef introduced the job-level aggregation accidentally; PR 4823 reverted local test but not deployed to production at the time of job.\\n\\n[section: next_steps 1]\\nHold on finalizing billing credits pending approval from billing manager\\n\\n[section: next_steps 2]\\nCreate refund/credit memo draft for BrightVoice (approx USD 3,420) if investigation confirms pipeline fault\"}, {\"source\": \"sources/jira/customer-support/SUP-100527-duplicate-postback-retry-causing-embed-usage-spike.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-100527-duplicate-postback-retry-causing-embed-usage-spike.json\\ntitle: Duplicate postback retries from aggregator causing large embedding usage spike\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: comments 3]\\n2026-03-10 12:40 - Billing Eng (Lena): Suggested provisional credit while we run full reconciliation because this will affect finalized invoice. Opening INT-44321 to coordinate audit and ledger adjustments.\\n\\n[section: comments 4]\\n2026-03-11 16:02 - Customer (Marc, AtlasSearch): Thanks \\u2014 request provisional credit and confirmation the fix is on the roadmap. Customer will pause their nightly job until we confirm remediation.\\n\\n[section: comments 5]\\n2026-03-12 10:18 - Support (Aisha): Applied provisional hold and requested docs for full reconciliation. Notified Finance for a provisional credit of $1,520 pending final audit (ticket notes attached).\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\ncorrection to Billing Ops |\\n| Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why. Applies even when Support has just explained that the charge is correct |\\n| SLA credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\\n| Customer says they have a contract the console doesn't show | Account team | The account team \"}, {\"source\": \"sources/slack/support/1748901234-retry-loop-credit-count-mismatch.json\", \"status\": \"unspecified\", \"date\": \"1748901278\", \"text\": \"source: sources/slack/support/1748901234-retry-loop-credit-count-mismatch.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1748901278\\n[section: messages 22]\\nemily: updated customer \\u2014 i told them we found a bug where cached responses bypassed billing emission after a recent refactor, we've debited the missing 115 tokens and added a credit note for transparency. customer asked for proof, i've attached tx id and audit note. they asked for a goodwill credit to offset confusion.\\n\\n[section: messages 23]\\nraj: mba - recommend we grant a one-time goodwill credit of 200 tokens for acct_8t9z. also add alerting for cache-hit without usage_event. i'll file an observability ticket.\\n\\n[section: messages 24]\\nhao: filed INFRA-5623: alert if cache-hit AND no usage_event emitted within 5s.\"}, {\"source\": \"sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-761827-waiver-applied-next-cycle-after-dedicated-fallback.json\\ntitle: Promotional waiver applied to next billing cycle instead of current after dedicated fallback\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: comments 5]\\n2026-03-11 08:30 - Kate O'Neill (Customer Success): Informed BrightLearn that we have a temporary workaround: manual credit applied to the current invoice while engineering continues root-cause. Customer requested written confirmation and timeline.\\n\\n[section: comments 6]\\n2026-03-12 10:15 - Diego Martinez (Billing): Applied manual invoice adjustment and triggered refund/autopay retry. Ticket remains open pending permanent fix and postmortem.\\n\\n[section: investigation_notes 1]\\nInitial hypothesis: postback-reconciler attached waiver to billing period based on pricing_tag at time of ingestion. The dedicated-fallback caused a pricing tag refresh which flipped period mapping for in-flight postbacks.\"}, {\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 14]\\n> Subject: Re: Trial credits charged on invoice? (invoice_9876 attached)\\n>\\n> Hi team \\u2014 I pulled the usage and billing events for Acme Analytics. Summary:\\n>\\n> - Customer signed up 2026-02-24 via PLG and got the standard $250 trial credit applied at signup (self-serve).\\n> - On 2026-02-28 they hit a burst of token usage (large eval job) that exhausted the free $250 credit.\\n> - The account had a card on file and overage billing triggered, creating invoice #9876 for the remaining usage ($42.17 plus VAT).\\n> - VAT was applied because Acme's billing address indicates they are in a taxable region and our system currently auto-applies VAT for card-charged invoices.\\n>\\n> Options I recommend:\\n> 1) Issue a manual promotional credit to cover the $42.17 and create a \"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/gmail/rachel_kim/20250509-billing-attribution-system-tool-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/rachel_kim/20250509-billing-attribution-system-tool-clarify.json\\ntitle: Billing attribution for system prompts and tool outputs \\u2014 clarification requested\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 3]\\nTool-return content: when a tool is invoked and the tool returns text that the model incorporates into its final output, the tool-return tokens are billed as OUTPUT tokens. If a tool return is resubmitted as input for a subsequent model call, those tokens would also be billed again as input on that subsequent call.\\\\n- Rounding: Redwood token accounting does per-request tokenization with integer token counts (no fractional tokens). We round up token math per request (i.e., each request's pre- and post-token counts are integerized, then aggregated on the invoice). There is no extra per-tool rounding beyond that.\\\\n\\\\nWorked example from your sample (approx):\\\\n- single request: client sends prompt (user) = 420 tokens; system prompt = 28 \"}, {\"source\": \"sources/jira/customer-support/SUP-2917-token-accounting-discrepancy-embeddings-usage-higher-than-client-side-tokenization.json\", \"status\": \"Closed\", \"date\": \"2025-03-07\", \"text\": \"source: sources/jira/customer-support/SUP-2917-token-accounting-discrepancy-embeddings-usage-higher-than-client-side-tokenization.json\\ntitle: token accounting discrepancy: embeddings usage higher than client-side tokenization\\nstatus/authority: Closed; unspecified\\ndate: 2025-03-07\\n[section: comments 2]\\nEthan Park (Eng): For rw-embed-3-large we use the model-native tokenizer; it differs from their tokenizer on unicode normalization + whitespace. Also, we count the full request payload text field; if they include leading/trailing whitespace it counts.\\n\\n[section: comments 3]\\nRachel Kim (Support): Provided guidance + suggested they use /v1/tokenize endpoint in staging to compare counts with Redwood.\\n\\n[section: comments 4]\\nEthan Park (Eng): Added note: embeddings requests with multiple inputs are counted per input after normalization; batching doesn't change total tokens.\"}, {\"source\": \"sources/gmail/rachel_kim/20250509-billing-attribution-system-tool-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/rachel_kim/20250509-billing-attribution-system-tool-clarify.json\\ntitle: Billing attribution for system prompts and tool outputs \\u2014 clarification requested\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 1]\\nincludes in the final response, does the token count for that returned content count as model OUTPUT tokens, or are they treated as input tokens for the *next* model pass? Our logs show tool responses of ~170 tokens on average.\\\\n\\\\nI attached (invoice_20250430.pdf) and a small sample of request logs (example_request_log.txt). Can your team confirm how attribution and rounding are being applied? Specifically, are you rounding per-request or per-invoice aggregation?\\\\n\\\\nThanks \\u2014 we need this for our month-end reconciliation and for a short QBR later this week.\\\\n\\\\n\\u2014Samantha\\\\nDirector, AI Integrations\\\\nAcme Corp\\\\n\"}, {\"source\": \"sources/confluence/architecture-and-standards/decision-records/adr-027-throughput-slo-metric-definition.json\", \"status\": \"published\", \"date\": \"2025-03-06\", \"text\": \"source: sources/confluence/architecture-and-standards/decision-records/adr-027-throughput-slo-metric-definition.json\\ntitle: ADR-027: Dedicated Throughput SLO Metric Definition (Canonical Metric + Attribution Model)\\nstatus/authority: published; unspecified\\ndate: 2025-03-06\\n[section: content 1]\\nfree tiers, promotions) and may include tokens not tied to executed compute.\\n- The SLO should track serving capacity, not invoicing behavior.\\n\\n### E) Count streaming tokens per chunk as they are emitted\\nRejected because:\\n- Introduced double counting (see PR-19422) and made chunking an SLO variable.\\n- Completion-based accounting is simpler and more robust.\\n\\n---\\n\\n## Implementation notes\\n### Standard metric events\\nFor each completed request, emit a single completion event with:\\n- deployment_id, region, tier\\n- route_id (optional but recommended)\\n- model_id, model_version\\n- slo_eligible (\\\"true\\\"/\\\"false\\\")\\n- executed_input_tokens, executed_output_tokens\\n- delivered_input_tokens, delivered_output_tokens\\n- \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/token-accounting-discrepancy-intake-and-triage.json\", \"status\": \"published\", \"date\": \"2025-04-22\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/token-accounting-discrepancy-intake-and-triage.json\\ntitle: Support Ops: Reconciling token accounting discrepancy reports (intake + triage)\\nstatus/authority: published; unspecified\\ndate: 2025-04-22\\n[section: body 2]\\n## Purpose\\nThis page documents how Support should handle and count reports of a **token accounting discrepancy** across intake channels. These cases frequently arrive via Slack, email, or Jira, and can be double-counted unless we normalize to a single canonical support record.\\n\\n[section: body 3]\\n## Definition (use this phrase)\\nWe classify a case as a *token accounting discrepancy* when a customer claims that billed token totals (Console Usage and/or invoice export) do not match their own calculation from application logs or local tokenization.\"}, {\"source\": \"sources/confluence/finance-and-legal/budgeting-and-forecasting/blended-cost-methodology-v1.json\", \"status\": \"published\", \"date\": \"2025-02-11\", \"text\": \"source: sources/confluence/finance-and-legal/budgeting-and-forecasting/blended-cost-methodology-v1.json\\ntitle: Blended Cost Methodology v1 (Unit Economics Dashboard)\\nstatus/authority: published; unspecified\\ndate: 2025-02-11\\n[section: content 1]\\nprocess described below.\\n\\n## Metric definition (v1)\\n### Primary KPI\\n**Blended Cost per 1M Output Tokens**\\n\\n**Formula:**\\n- **Blended $/1M output tokens** = (Allocated cost in USD / Total output tokens) * 1,000,000\\n\\n**Unit:** USD per 1,000,000 output tokens.\\n\\n### What counts as \\u201coutput tokens\\u201d\\nIncluded:\\n- Tokens generated by the model and returned to the caller in both streaming and non-streaming responses.\\n- Tokens generated for tool/function-call structured outputs when they are part of the model\\u2019s generated output.\\n\\nExcluded:\\n- Input/prompt tokens.\\n- Tokens generated internally but not returned due to request cancellation, truncation before delivery, or transport errors (unless explicitly flagged as delivered; see \\u201cKnown \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/token-estimates-for-sales-quotes-2026.json\", \"status\": \"published\", \"date\": \"2026-02-09\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/token-estimates-for-sales-quotes-2026.json\\ntitle: Estimating Token Volumes for Sales Quotes\\nstatus/authority: published; unspecified\\ndate: 2026-02-09\\n[section: body 2]\\n## Purpose\\nHow solutions engineers estimate a prospect's monthly tokens before a quote. Estimates use an approximate tokenizer and round up 10% for safety. This page is about forecasting before purchase. It does not explain how billed tokens are counted on an invoice; for that, see the token accounting pages and the billing routing page.\\n\\n[section: body 3]\\n## Method\\n1. Sample 100 representative requests.\\n2. Count characters and divide by 4 for English text.\\n3. Multiply by expected monthly volume and add 10%.\\n\\n_Last reviewed 2026-02-09._\"}, {\"source\": \"sources/confluence/eng-platform/systems-and-services/unit-economics-aggregation-service.json\", \"status\": \"published\", \"date\": \"2025-02-18\", \"text\": \"source: sources/confluence/eng-platform/systems-and-services/unit-economics-aggregation-service.json\\ntitle: Unit Economics Aggregation Service (UEAS) \\u2014 System Overview\\nstatus/authority: published; unspecified\\ndate: 2025-02-18\\n[section: content 1]\\n`quantization_profile` (allowed-value)\\n- `region` (canonical)\\n- `customer_tier` (self_serve | dedicated | private | enterprise)\\n- `streaming` (true|false)\\n- `output_tokens` (sum)\\n- `input_tokens` (sum)\\n- `requests` (count)\\n- `gpu_cost_usd` (allocated)\\n- `overhead_cost_usd` (allocated, if enabled by allocation version)\\n- `blended_cost_per_1m_output_tokens_usd`\\n- `cache_hit_rate` (weighted)\\n- `batching_efficiency` (weighted)\\n- `prefill_decode_ratio` (weighted)\\n- `data_quality_flags` (string enum summary; see \\u201cData quality\\u201d section)\\n\\n**2) `ue_hourly_recon`** (reconciliation support)\\n- **Grain:** hour \\u00d7 region \\u00d7 provider \\u00d7 capacity_type (as available)\\n- **Purpose:** ties allocated compute cost back to rate card inputs and fleet spend \"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_ZtZEA774ZQLDD3inP3CpZrOf",
+     "name": "invoice_lines",
+     "arguments": {
+      "invoice_id": "INV-BG-202703-037"
+     }
+    },
+    {
+     "id": "call_3FVH51bD5cuZzfQyfjRd0d4V",
+     "name": "usage_summary",
+     "arguments": {
+      "account_id": "growthloop",
+      "start_utc": "2027-03-17T00:00:00Z",
+      "end_utc": "2027-03-17T23:59:59Z"
+     }
+    },
+    {
+     "id": "call_ivHeoar6VtsbK2k7Qodzdr25",
+     "name": "search_policy",
+     "arguments": {
+      "query": "published current billing case routing request refund accidental correctly billed usage self-serve direct invoice refund/goodwill credit request details why route Finance trigger"
+     }
+    },
+    {
+     "id": "call_slwIStYWR5P83PCqmIINGkLJ",
+     "name": "search_policy",
+     "arguments": {
+      "query": "published current accidental or unintended API usage automatic refund policy runaway script correct charges no automatic refunds"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoice\": {\"invoice_id\": \"INV-BG-202703-037\", \"account_id\": \"growthloop\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"issued_on\": \"2027-04-01\", \"status\": \"open\", \"total\": {\"value\": \"1811.43\", \"currency\": \"USD\"}}, \"billing_channel\": \"direct\", \"lines\": [{\"line_id\": \"INV-BG-202703-037/L1\", \"invoice_id\": \"INV-BG-202703-037\", \"description\": \"Hosted API usage, Mar 1-15\", \"product\": \"hosted_api\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-15\", \"amount\": {\"value\": \"988.10\", \"currency\": \"USD\"}, \"request_ids\": [\"req_802bc88f20\", \"req_422ec46268\"], \"amount_dollars\": \"$988.10\"}, {\"line_id\": \"INV-BG-202703-037/L2\", \"invoice_id\": \"INV-BG-202703-037\", \"description\": \"Hosted API usage, Mar 16-31\", \"product\": \"hosted_api\", \"period_start\": \"2027-03-16\", \"period_end\": \"2027-03-31\", \"amount\": {\"value\": \"501.15\", \"currency\": \"USD\"}, \"request_ids\": [\"req_6b89574341\"], \"amount_dollars\": \"$501.15\"}, {\"line_id\": \"INV-BG-202703-037/L3\", \"invoice_id\": \"INV-BG-202703-037\", \"description\": \"Embeddings, Mar 1-31\", \"product\": \"embeddings\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"amount\": {\"value\": \"322.18\", \"currency\": \"USD\"}, \"request_ids\": [\"req_2b880252b5\", \"req_deba82c1cd\", \"req_5b94aa1171\"], \"amount_dollars\": \"$322.18\"}], \"confirmed_duplicates\": [], \"lookalikes\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"count\": 2, \"billed_tokens\": 17683825, \"cached_tokens\": 4706719, \"http_status_counts\": {\"200\": 2}, \"billed_tokens_by_day\": {\"2027-03-17\": 17683825}, \"start_utc\": \"2027-03-17T00:00:00Z\", \"end_utc\": \"2027-03-17T23:59:59Z\", \"requests\": {}}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/slack/support/1749139920-goodwill-credit-asks-routing-finance.json\", \"status\": \"unspecified\", \"date\": \"1749142380\", \"text\": \"source: sources/slack/support/1749139920-goodwill-credit-asks-routing-finance.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1749142380\\n[section: messages 1]\\nPriya Shah: quick one - self-serve customer asking for a goodwill credit after the us-east blip yesterday. now that billing ops is live, do these go to billing ops?\\n\\n[section: messages 2]\\nDev Patel: pretty sure no but want FP&A to confirm before it goes in the routing page. @Rishi Malhotra\\n\\n[section: messages 3]\\nRishi Malhotra: correct, not billing ops. credit, goodwill and exception approvals come to Finance. open the case to finance with the ask, the amount if they gave one, and why. we decide. billing ops only applies what we approve\\n\\n[section: messages 4]\\nRishi Malhotra: and please don't route these straight to legal. we pull legal in ourselves if it's non-standard comp or touches contract terms\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\ncorrection to Billing Ops |\\n| Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why. Applies even when Support has just explained that the charge is correct |\\n| SLA credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\\n| Customer says they have a contract the console doesn't show | Account team | The account team \"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"source: sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\\ntitle: Billing Support: Case Routing and Handoffs\\nstatus/authority: published; unspecified\\ndate: 2026-02-06\\n[section: body 4]\\n## Routing table\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Disputed or duplicated line on a direct Redwood invoice | Billing Ops | Invoice number, the line(s), UTC window, request IDs |\\n| Refund request on a direct invoice line the customer says was billed in error | Billing Ops | Billing Ops confirms the charge and requests approval where needed |\\n| Invoice total doesn't match the customer's usage export | Billing Ops | Note the export's timezone and filters |\\n| Payment failures, holds, receipts | Billing Ops | |\\n| Meter discrepancy the related pages don't explain: request IDs whose billed tokens still don't match after the tokenizer, payload and retry rules are applied | Billing Engineering | Billing Eng checks meter correctness and hands any \"}, {\"source\": \"sources/gmail/monica_patel/20260219-unexpected-high-monthly-consumption-query.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260219-unexpected-high-monthly-consumption-query.json\\ntitle: Unexpected high consumption on Jan invoice \\u2014 request for usage breakdown\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 4]\\nFrom: naomi_feldman@redwood.com\\nTo: monica_patel@redwood.com, Lisa Chen <lisa@solargrid.com>\\nCc: aditya_rao@redwood.com\\nDate: Wed, 18 Feb 2026 09:15:00 -08:00\\nSubject: Re: Unexpected high consumption on Jan invoice\\n\\nThanks Aditya \\u2014 that level of detail helps. Per Redwood billing policy, fallbacks and retries are billable (they consume inference capacity), but we do provide goodwill adjustments in cases where platform issues (e.g., 503s) caused sudden spikes and impacted a customer materially.\\n\\nGiven the evidence of two sustained traffic spikes coinciding with GPU pool 503s and automatic fallback routing, I recommend the following:\\n\\n1) Issue a one-time credit for the estimated fallback footprint delta (we propose a 50% credit on the 60M \"}, {\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 25]\\nHi Jordan \\u2014 quick update from Billing Ops: per Lauren's approval we have done the following:\\n\\n- Issued a credit note for invoice #9876 that offsets the $42.17 usage charge. If the invoice was unpaid, the balance will be shown as $0. If the invoice was already charged to card, finance has scheduled a refund for the billed amount \\u2014 you should see the refund or credit on your card within 3\\u20135 business days.\\n- Applied a one-time promotional top-up of $1,000 to your account (promo code internal: SALES_TOPUP_8421). This will appear as an account credit and will be used before future billing events.\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/duplicate-charges-and-refunds-help-2025.json\", \"status\": \"published\", \"date\": \"2026-01-21\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/duplicate-charges-and-refunds-help-2025.json\\ntitle: Help Center: Duplicate Charges and Refunds (archived)\\nstatus/authority: published; unspecified\\ndate: 2026-01-21\\n[section: body 1]\\n> Archived 2026-01-21. This help-center article is no longer current. Support handles duplicate charges as described on \\\"Support Console: Duplicate-Charge Credits and Billing Disputes\\\".\\n\\n[section: body 2]\\n## Duplicate charges\\nIf your invoice bills the same usage twice, contact Support with the invoice number. Support refunds a duplicated line in full on request.\\n\\n[section: body 3]\\n## Refund timing\\nRefunds reach your card within 5-10 business days.\"}, {\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 32]\\nSubject: Re: Trial credits charged on invoice? \\u2014 resolved\\n\\nHi Jordan \\u2014 thanks for your patience and sorry again for the surprise. To recap:\\n\\n\\u2022 We found that your initial $250 trial credit was fully consumed by a burst of usage; that triggered overage billing against the card on file.\\n\\u2022 Per internal approval, we issued a credit note to offset invoice #9876 and applied a $1,000 promotional account top-up.\\n\\u2022 If invoice #9876 was already charged, our finance team has scheduled a refund; you should see the net refund (and any VAT reversal) on your card within 3\\u20135 business days. If you prefer a different handling (refund vs. credit), reply and we'll act accordingly.\\n\\nWe'd also be happy to extend the formal trial window for another 30 days if you want \"}, {\"source\": \"sources/jira/customer-support/SUP-110999-unaccounted-tool-invoke-tokens-led-to-retro-charge-explainer.json\", \"status\": \"In Progress\", \"date\": \"2026-03-04\", \"text\": \"source: sources/jira/customer-support/SUP-110999-unaccounted-tool-invoke-tokens-led-to-retro-charge-explainer.json\\ntitle: Unexpected retroactive invoice increase after tool-calling tokens not reflected in meter \\u2014 request explanation and provisional credit\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-04\\n[section: description 1]\\nIssue summary:\\nCustomer BrightServe reports a retroactive invoice increase of $7,400 for the period 2026-02-12 to 2026-02-18 after our billing system applied a catch-up charge. They assert the usage spike corresponds to ramped production traffic that heavily used our function-calling / tool invocation feature.\\n\\nImpact:\\n- Customer saw a finalized invoice line item labeled 'Retroactive API usage adjustment' representing tokens that were not present in near-real-time usage dashboards.\\n- Invoice adjustment triggered finance hold and internal escalation for their procurement team. Customer is asking for a detailed breakdown of the retroactive tokens and \"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"results\": [{\"source\": \"sources/confluence/product-docs/pricing-and-packaging/duplicate-charges-and-refunds-help-2025.json\", \"status\": \"published\", \"date\": \"2026-01-21\", \"text\": \"source: sources/confluence/product-docs/pricing-and-packaging/duplicate-charges-and-refunds-help-2025.json\\ntitle: Help Center: Duplicate Charges and Refunds (archived)\\nstatus/authority: published; unspecified\\ndate: 2026-01-21\\n[section: body 1]\\n> Archived 2026-01-21. This help-center article is no longer current. Support handles duplicate charges as described on \\\"Support Console: Duplicate-Charge Credits and Billing Disputes\\\".\\n\\n[section: body 2]\\n## Duplicate charges\\nIf your invoice bills the same usage twice, contact Support with the invoice number. Support refunds a duplicated line in full on request.\\n\\n[section: body 3]\\n## Refund timing\\nRefunds reach your card within 5-10 business days.\"}, {\"source\": \"sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20260302-trial-credit-invoice-clarify.json\\ntitle: Clarify: Trial credits charged on invoice / promo extension request\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 32]\\nSubject: Re: Trial credits charged on invoice? \\u2014 resolved\\n\\nHi Jordan \\u2014 thanks for your patience and sorry again for the surprise. To recap:\\n\\n\\u2022 We found that your initial $250 trial credit was fully consumed by a burst of usage; that triggered overage billing against the card on file.\\n\\u2022 Per internal approval, we issued a credit note to offset invoice #9876 and applied a $1,000 promotional account top-up.\\n\\u2022 If invoice #9876 was already charged, our finance team has scheduled a refund; you should see the net refund (and any VAT reversal) on your card within 3\\u20135 business days. If you prefer a different handling (refund vs. credit), reply and we'll act accordingly.\\n\\nWe'd also be happy to extend the formal trial window for another 30 days if you want \"}, {\"source\": \"sources/jira/customer-support/SUP-777650-unexpected-retroactive-price-floor-applied-to-embed-batch-invoice.json\", \"status\": \"In Progress\", \"date\": \"2026-03-12\", \"text\": \"source: sources/jira/customer-support/SUP-777650-unexpected-retroactive-price-floor-applied-to-embed-batch-invoice.json\\ntitle: Unexpected retroactive price-floor applied to a large batch-embedding invoice\\nstatus/authority: In Progress; unspecified\\ndate: 2026-03-12\\n[section: investigation_notes 5]\\nEstimate of incorrect charge: aggregator applied higher unit_price to 100% of job tokens (1.2M rows * 1 embed each) instead of only 124K fallback items; delta =~ $3,420.\\n\\n[section: investigation_notes 6]\\nRelated repo change: commit ab12cd34ef introduced the job-level aggregation accidentally; PR 4823 reverted local test but not deployed to production at the time of job.\\n\\n[section: next_steps 1]\\nHold on finalizing billing credits pending approval from billing manager\\n\\n[section: next_steps 2]\\nCreate refund/credit memo draft for BrightVoice (approx USD 3,420) if investigation confirms pipeline fault\"}, {\"source\": \"sources/gmail/monica_patel/20251103-ar-invoice-journal-correction.json\", \"status\": \"unspecified\", \"date\": \"undated\", \"text\": \"source: sources/gmail/monica_patel/20251103-ar-invoice-journal-correction.json\\ntitle: AR aging & revenue recognition: invoice adjustments, VAT reclaim, and JNL-2025-089\\nstatus/authority: unspecified; unspecified\\ndate: undated\\n[section: messages 3]\\nFrom: accounts@brightcoresys.com (Anna Lopez)\\nTo: Monica Patel <monica_patel@redwood.com>\\nCc: payments@brightcoresys.com\\nDate: Wed, 05 Nov 2025 11:28:00 -0800\\nSubject: Re: AR aging & revenue recognition: invoice adjustments, VAT reclaim, and JNL-2025-089\\n\\nHi Monica,\\n\\nThanks for the heads up. Quick update from our side:\\n\\n- We processed a refund for the CW support item on 2025-08-02 and issued a customer credit note (ref: CR-7890). The refund was processed net of VAT at our side because our local tax team treated the original charge as VAT-exempt (we've attached our refund confirmation).\\n- We are happy to provide any tax paperwork required for reclaim \\u2014 attaching a PDF confirmation and the bank trace showing refund (see attachments).\\n- For \"}, {\"source\": \"sources/slack/support/1738214567-stark-invoice-clash-po-update-escalation.json\", \"status\": \"unspecified\", \"date\": \"1738214689\", \"text\": \"source: sources/slack/support/1738214567-stark-invoice-clash-po-update-escalation.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1738214689\\n[section: text 17]\\nana: notifying customer: \\\"Hi \\u2014 we discovered a race where a PO approval webhook retried and created a duplicate invoice. We've refunded INV-2026-00124 (RFD-98765). A credit note CN-2026-045 was issued to reverse VAT. Refund should appear in 3-5 business days; let us know if you need documentation for your accounting.\\\"\\n\\n[section: text 18]\\nzendesk-bot: Customer replied: \\\"Thanks \\u2014 can you also confirm the charge on card 4242 was reversed? Need proof for AP.\\\"\\n\\n[section: text 19]\\nmike: we refunded to the card txn, bank confirmation id: bank_ref_44321. attaching refund receipt (pdf).\"}, {\"source\": \"sources/linear/engineering/ENG-834159-detect-and-heal-ghost-fragment-charges.json\", \"status\": \"In Progress\", \"date\": \"2025-03-22\", \"text\": \"source: sources/linear/engineering/ENG-834159-detect-and-heal-ghost-fragment-charges.json\\ntitle: Detect and heal ghost fragment charges from delayed/out-of-order streaming frames\\nstatus/authority: In Progress; unspecified\\ndate: 2025-03-22\\n[section: description 1]\\nautomated refunds. Keep detection conservative by default and dark-launch telemetry before automatic refunds.\\n\\nScope: Changes span streaming-ingestor (sequence/fragment tracking), accounting-processor (single charge canonicalization), a backfill/repair worker for historical corrections, and Console dashboards + alerts. This ticket covers scoping, instrumentation, the detection algorithm, unit/integration tests, and a staged rollout plan.\"}, {\"source\": \"sources/slack/support/1738214567-stark-invoice-clash-po-update-escalation.json\", \"status\": \"unspecified\", \"date\": \"1738214689\", \"text\": \"source: sources/slack/support/1738214567-stark-invoice-clash-po-update-escalation.json\\ntitle: Untitled\\nstatus/authority: unspecified; unspecified\\ndate: 1738214689\\n[section: text 7]\\njess: that log looks like the webhook got delivered twice with same id but no idempotency header checked by billing-service. we had a partial rollback in feb where idempotency was optional.\\n\\n[section: text 8]\\nmike: yep. looks like billing-service didn't check X-Idempotency-Key because the header was missing from the retry. retry_count=1 produced a second invoice. both were paid quickly by card + PO settlement. initiating refund flow for duplicate. which invoice should we refund? keep older one, refund the later webhook-generated one?\\n\\n[section: text 9]\\nana: customer prefers refund of INV-2026-00124 (the webhook one). confirm VAT handling \\u2014 they want net amount refunded if tax already remitted.\"}, {\"source\": \"sources/linear/engineering/ENG-21456-rate-limit-refund-allocation-export-fix.json\", \"status\": \"In Progress\", \"date\": \"2025-03-05\", \"text\": \"source: sources/linear/engineering/ENG-21456-rate-limit-refund-allocation-export-fix.json\\ntitle: Resolve invoice rounding + rate-limit refund allocation causing NetSuite export variance\\nstatus/authority: In Progress; unspecified\\ndate: 2025-03-05\\n[section: monitoring 1]\\nDashboards: billing/mismatch-rate, billing/export-latency, netsuite/import-warnings. Alerts: mismatch-rate > 0.1% (P0), export job failure > 1 per hour (P1). Log sample retention for backfill runs: 365 days. Add structured audit events for any invoices changed by backfill (backfill_job_id, original_export_sha, corrected_export_sha).\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_MgE8CqzqsbZvtWtzq48uIMBu",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "growthloop",
+      "team": "finance",
+      "summary": "Growthloop requests refund/removal of March 17 runaway-script usage from March 2027 invoice",
+      "details": {
+       "organization": "growthloop",
+       "account_id": "growthloop",
+       "plan": "Growth self-serve; direct billing",
+       "invoice_id": "INV-BG-202703-037",
+       "invoice_period": "2027-03-01 through 2027-03-31",
+       "invoice_status": "Open",
+       "invoice_total": "$1,811.43 USD",
+       "relevant_invoice_line": "L2, Hosted API usage Mar 16-31, $501.15; line spans dates beyond the reported incident, so script-attributable amount is not isolated",
+       "reported_incident": "Customer says a script looped all day on 2027-03-17 UTC",
+       "usage_record": "Usage console shows 17,683,825 billed tokens on 2027-03-17 UTC across 2 requests; does not identify which requests belonged to script",
+       "request_ids": "Customer has none; usage summary did not expose IDs",
+       "checks_done": "Customer says they do not have client-side retry/timeout or other check details",
+       "customer_request": "Customer requests refund of accidental script usage and states they believe terms provide automatic refunds"
+      },
+      "unresolved": "No current published source retrieved confirms automatic refunds for accidental/runaway-script usage; the located 2026 help article is explicitly archived and only describes duplicate charges. No duplicate was identified. It is not established that all March 17 account usage came from the script, and the incident's charge amount cannot be isolated from the invoice line. Finance review is requested under the current route for removal of charges the customer considers correctly billed; no refund or credit is approved or issued.",
+      "routing_rule": "Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why. Applies even when Support has just explained that the charge is correct"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for cases"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_pFOYx3keThjc5zzv6vil6D2F",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "growthloop",
+      "team": "finance",
+      "summary": "Growthloop requests refund/removal of March 17 runaway-script usage from March 2027 invoice",
+      "details": {
+       "organization": "growthloop",
+       "account_id": "growthloop",
+       "plan": "Growth self-serve; direct billing",
+       "invoice_id": "INV-BG-202703-037",
+       "invoice_period": "2027-03-01 through 2027-03-31",
+       "invoice_status": "Open",
+       "invoice_total": "$1,811.43 USD",
+       "relevant_invoice_line": "L2, Hosted API usage Mar 16-31, $501.15; line spans dates beyond the reported incident, so script-attributable amount is not isolated",
+       "reported_incident": "Customer says a script looped all day on 2027-03-17 UTC",
+       "usage_record": "Usage console shows 17,683,825 billed tokens on 2027-03-17 UTC across 2 requests; does not identify which requests belonged to script",
+       "request_ids": "Customer has none; usage summary did not expose IDs",
+       "checks_done": "Customer says they do not have client-side retry/timeout or other check details",
+       "customer_request": "Customer requests refund of accidental script usage and states they believe terms provide automatic refunds"
+      },
+      "unresolved": "No current published source retrieved confirms automatic refunds for accidental/runaway-script usage; the located 2026 help article is explicitly archived and only describes duplicate charges. No duplicate was identified. It is not established that all March 17 account usage came from the script, and the incident's charge amount cannot be isolated from the invoice line. Finance review is requested under the current route for removal of charges the customer considers correctly billed; no refund or credit is approved or issued.",
+      "routing_rule": "Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for cases"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_acheS4t9EcgFlhDKSbdiYe9T",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "growthloop",
+      "team": "finance",
+      "summary": "Growthloop requests refund/removal of March 17 runaway-script usage from March 2027 invoice",
+      "details": {
+       "organization": "growthloop",
+       "plan": "Growth self-serve; direct billing",
+       "invoice_id": "INV-BG-202703-037",
+       "invoice_period": "2027-03-01 through 2027-03-31",
+       "invoice_status": "Open",
+       "invoice_total": "$1,811.43 USD",
+       "relevant_invoice_line": "L2, Hosted API usage Mar 16-31, $501.15; line spans dates beyond the reported incident, so script-attributable amount is not isolated",
+       "reported_incident": "Customer says a script looped all day on 2027-03-17 UTC",
+       "usage_record": "Usage console shows 17,683,825 billed tokens on 2027-03-17 UTC across 2 requests; usage summary did not expose IDs",
+       "request_ids": "Customer has none",
+       "checks_done": "Customer says they do not have client-side retry/timeout or other check details",
+       "customer_request": "Customer requests refund of accidental script usage and states they believe terms provide automatic refunds"
+      },
+      "unresolved": "No current published source retrieved confirms automatic refunds for accidental/runaway-script usage; the located 2026 help article is explicitly archived and only describes duplicate charges. No duplicate was identified. It is not established that all March 17 account usage came from the script, and the incident's charge amount cannot be isolated from the invoice line. Finance review is requested under the current route for removal of charges the customer considers correctly billed; no refund or credit is approved or issued.",
+      "routing_rule": "Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "Error: unknown_field: unknown field 'account_id' for cases"
+  },
+  {
+   "role": "assistant",
+   "content": "Sorry about the surprise bill. The March 2027 invoice **INV-BG-202703-037** totals **$1,811.43 USD** and is open. For **March 17 UTC**, the usage console records **17,683,825 billed tokens across 2 requests**. That is the account\u2019s total for that day; the console doesn\u2019t identify which tokens came from the script.\n\nThe relevant invoice line is **$501.15** for Hosted API usage from March 16\u201331, so I can\u2019t determine the script\u2019s exact dollar amount from the invoice. I also found no confirmed duplicate charges. I couldn\u2019t verify an automatic refund policy for accidental script usage: the only refund help page retrieved is explicitly archived and concerns duplicate charges.\n\nCurrent routing sends requests to remove correctly billed charges to Finance for review; that does not guarantee approval. I tried to submit your request, but the case tool returned an error, so **it has not been routed and no refund has been issued**."
+  },
+  {
+   "role": "user",
+   "content": "OK. What happens next?"
+  },
+  {
+   "role": "assistant",
+   "content": "Normally, Finance would review the request to remove the charge; that review wouldn\u2019t guarantee a credit or refund, and I don\u2019t have a reliable review timeline.\n\nHowever, the case submission failed, so **your request is not currently in Finance\u2019s queue**. I can\u2019t confirm that it will be reviewed until the handoff succeeds. If you have request IDs or logs that identify the script\u2019s calls, those could help distinguish its usage from other traffic, but I can\u2019t isolate the script\u2019s dollar amount from the invoice data currently available."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}
