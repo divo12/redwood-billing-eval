@@ -1,0 +1,185 @@
+{
+ "id": "a1-06",
+ "grade": {
+  "id": "a1-06",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contacts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 7,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "delegate",
+   "get_usage",
+   "load_skill",
+   "lookup_account",
+   "search_knowledge"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 49.12359085200114,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Three requests that returned 200 today, 8 April 2027, at 09:10 UTC (req_h301, req_h302, req_h303) are still missing from the usage page. I checked the workspace, filters and timezone. Org halcyon-data."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_nWiFuZIcnqKWKgui13R9glmJ",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-case-procedure"
+     }
+    },
+    {
+     "id": "call_pv9X0DkuoyjJ9VCAUzMQrl6Q",
+     "name": "lookup_account",
+     "arguments": {
+      "org": "halcyon-data"
+     }
+    },
+    {
+     "id": "call_kpsVwBpoGqnoLdHCjsNESLJo",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "missing usage not appearing usage page after hourly-batch cut-over threshold 60 minutes routing team required handoff intake details",
+      "scope": "policy"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-case-procedure\", \"steps\": \"# Billing case procedure\\n\\nRules (limits, owners, thresholds, effective dates) come from the pages you retrieve, not from this procedure.\\n\\n## 1. Classify the ask\\n- Explain-only: token counting, retries/cancelled streams, console lag, export columns, error codes and quotas, plan limits, credit balances, promo/workshop codes, card changes, typical credit amounts. Answer from the pages and stop; no case, even if the developer calls it a bug.\\n- Duplicate/incorrect charge on an invoice -> step 3.\\n- Refund, credit, goodwill, waiver, SLA/service credit, exception, \\\"already approved by X\\\", cashing out or restoring credits -> step 4.\\n- Payment failure, overdue/dunning, receipts -> step 5.\\n- Usage missing or tokens that don't match after the documented rules -> step 6.\\n- Plan, limit or reservation changes, MDF, reseller/marketplace bills: search who owns it; Support doesn't change these.\\n\\n## 2. Gather facts (one `ask_developer` call)\\nAsk only what is still missing: org_id, invoice_id/invoice_month, line_items/amounts, request_ids, response_status, time_of_issue + timezone, plan/contract, error_code, checks_done. Then `lookup_account`: note plan, has_signed_contract, billing_channel, payment_method, billing_timezone.\\n- Marketplace or reseller-billed: search how that channel is handled; Support issues no credit or dispute on invoices Redwood didn't issue.\\n\\n## 3. Duplicate or wrong charge\\n1. `get_invoice`. Use `date_helper` for any timezone, billing-month or business-day arithmetic. Use `duplicate_analysis`: a duplicate is confirmed only when two lines on the same direct invoice bill the same request ids AND the usage records point to exactly one of them (the original). Act only on the copy. Same description or amount is not enough.\\n2. Search the current credits/disputes page and the Support charter, and read `support_duplicate_credit_limit` for this invoice (it depends on the invoice's price book; check the approval matrix if unsure).\\n3. Support may credit only if the charter allows it for this account type (check self-serve vs signed contract) AND the copy line is within the limit: confirm the copy line and full amount with the developer, then `issue_credit_note` (reason `duplicate`). Tell them the amount credited and when credits apply (search the close calendar if asked).\\n4. Confirmed but over the limit, or an account Support may not credit: never split. Confirm the dispute, `open_dispute` (reason `duplicate_charge`, the copy line, request ids, window in the account's billing timezone), then `escalate_case` to Billing Ops with invoice, both line ids (original and copy), request ids and dispute id.\\n5. Not confirmed: no credit, no promise. Explain what the console shows, collect intake details, hand off per the routing page.\\n6. Check `existing_credit_notes`/`existing_disputes` first so nothing is done twice.\\n\\n## 4. Credits, refunds, SLA, exceptions\\nSearch the routing page, approval matrix and charter for who owns this exact ask (billed in error vs correct charge; self-serve vs signed contract; contract the console doesn't show). Support never issues these. Explain the general rule without promising an amount. `ask_developer` for what the owner needs (ask, amount, why, request_ids, time_of_issue, contract), then `escalate_case` to the owner.\\n\\n## 5. Payments\\nNever take any card details; card changes are self-service (search where). For a failed payment, get the failure time (UTC) and decline code, search published payment-processor incident notices and compare the time with each window: inside a window -> explain, say when retries complete, no case. If that notice doesn't state the completion date, derive the processor's usual schedule from earlier payment-processor notices (window end vs last-retry date, in business days; use `date_helper`) and apply it to this window. Outside every window (or the page lists another exception) -> Billing Ops case with invoice, decline code and time.\\n\\n## 6. Usage/meter\\nApply the documented token, retry, stream, batch and export rules and check the usage records. For missing usage, compare the request time with the current threshold for that endpoint and date (cut-overs change it); before the threshold explain when to check again, no case. Hand off only what the rules don't explain, to the team the routing page names.\\n\\n## 7. Close\\nReport what you did (ids, amounts, team) and the next step and owner. If you handed off, say the team has the case; don't promise outcome or timing.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"accounts\": [{\"account\": {\"account_id\": \"halcyon-data\", \"org\": \"halcyon-data\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\", \"billing_timezone\": \"UTC\"}, \"has_signed_contract\": false, \"contracts\": [], \"contacts\": [{\"contact_id\": \"CONTACT-halcyon-data-1\", \"account_id\": \"halcyon-data\", \"name\": \"halcyon-data Owner\", \"email\": \"owner@halcyon-data.dev\", \"role\": \"owner\"}, {\"contact_id\": \"CONTACT-halcyon-data-2\", \"account_id\": \"halcyon-data\", \"name\": \"halcyon-data Billing Admin\", \"email\": \"billing_admin@halcyon-data.dev\", \"role\": \"billing_admin\"}]}], \"note\": \"Contract rows tell you whether a signed contract/SLA exists, for routing and for what Support may do on the account. Don't quote contract terms or figures to the customer; their account team confirms terms. For credit balances use get_credit_balance.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"missing usage not appearing usage page after hourly-batch cut-over threshold 60 minutes routing team required handoff intake details\", \"scope\": \"policy\", \"results\": [{\"chunk_id\": \"confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json#8\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2027-03-20\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"9/10\", \"text\": \"\\u2026credit table in the incident closure procedure. That table is internal guidance for SRE and Finance when they propose a credit; any amount is decided in Finance's review under the customer's contract.\\n## Changes\\n- 2027-03-20: The missing-usage threshold is 60 minutes for requests made after the hourly-batch cut-over tracked in ENG-9120; requests made before it keep about 30 minutes. Windows in a handoff are given in the account's billing timezone (see the record format changes page).\\n- 2027-03-15: Card payments that fail inside a published payment-processor incident window no longer get a Billing Ops case.\\n- 2026-02-06: First published version.\\n\\n## Record metadata\\nauthor: Dev Patel\\nowner_team: customer-success\\ncreated_at: 2026-01-20\\nlast_updated: 2027-03-20\"}, {\"chunk_id\": \"confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json#5\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2027-03-20\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"6/10\", \"text\": \"\\u2026credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n[section: Routing table]\\n\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\\n| Customer says they have a contract the console doesn't show | Account team | The account team confirms the contract and owns any request that depends on it, including an SLA credit. Treat the account as the console shows it until then |\\n| Usage for successful (2xx) requests still missing from the Console after about 30 minutes, or after 60 minutes for requests made after Telemetry's hourly-batch cut-over (ENG-9120) | Telemetry | A pipeline issue, not a billing one. Since the cut-over, usage is written in hourly batches. Before the threshold, explain, say when to check again, and open no case |\"}, {\"chunk_id\": \"confluence/customer-success-and-support/known-issues-and-workarounds/embeddings-batch-usage-delay-2027.json#0\", \"title\": \"Known issue: Embeddings Batch usage can take up to 4 hours to appear\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2027-03-12\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"1/1\", \"text\": \"## Scope\\nThis applies only to the Embeddings Batch endpoint (`/v1/embeddings/batch`). Its usage is written when the whole batch finishes, so it can take up to 4 hours to appear on the Console usage page. It does not apply to Hosted API requests or ordinary embeddings calls; for those, the threshold is on the billing case routing page.\\n\\n## What to tell the customer\\nBatch usage appears when the batch finishes. No case is needed within 4 hours of the batch finishing.\\n\\n_Last reviewed 2027-03-12._\\n\\n## Record metadata\\nauthor: Owen Phillips\\nowner_team: customer-success\\ncreated_at: 2027-03-09\\nlast_updated: 2027-03-12\"}, {\"chunk_id\": \"confluence/oncall-and-incident-response/status-page-and-comms/status-card-batch-usage-page-delay-2027-03-15.json#0\", \"title\": \"INC: Usage page delayed for Batch API jobs\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2027-03-15\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"1/1\", \"text\": \"h1. INC: Usage page delayed for Batch API jobs\\n\\nStatus: resolved.\\n\\nh1. Window\\n2027-03-15 02:00 UTC to 2027-03-15 11:40 UTC.\\n\\nh1. Impact\\nUsage for Batch API jobs that finished in the window appeared on the Console usage page up to 8 hours late. Hosted API and Embeddings usage was not affected.\\n\\nh1. Resolution\\nThe batch usage writer was restarted and all delayed batch usage was backfilled by 13:00 UTC. Invoices were not affected.\\n\\n## Record metadata\\nauthor: Miles Thornton\\nowner_team: engineering\\ncreated_at: 2027-03-15\\nlast_updated: 2027-03-15\"}, {\"chunk_id\": \"confluence/product-docs/pricing-and-packaging/batch-api-pricing-2027.json#0\", \"title\": \"Batch API Pricing (2027)\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2027-01-20\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"1/1\", \"text\": \"## Pricing\\nBatch API jobs are billed at 50% of the Hosted API per-token rate for the same model, with a completion window of 24 hours.\\n\\n## How it shows on an invoice\\nBatch usage is billed on its own invoice lines, one per week, described as \\\"Batch jobs, <start>-<end>\\\". Each line links to the jobs it bills.\\n\\n## Limits\\n- Up to 50,000 requests per job.\\n- Jobs that don't finish in 24 hours are cancelled; finished requests in a cancelled job are billed, unfinished ones are not.\\n\\n_Last reviewed 2027-01-20._\\n\\n## Record metadata\\nauthor: Soojin Lee\\nowner_team: product\\ncreated_at: 2027-01-05\\nlast_updated: 2027-01-20\"}, {\"chunk_id\": \"google_drive/shared_drives/finance/2027-close-calendar-and-invoice-periods.json#0\", \"title\": \"2027 Close Calendar and Invoice Periods\", \"source_type\": \"Drive doc\", \"status\": \"final\", \"date\": \"2027-02-22\", \"authority\": \"final Drive doc - official documentation\", \"section\": \"1/4\", \"text\": \"## Purpose\\nThis page sets the 2027 monthly close for usage-based invoices: when each month's invoices are cut, which usage lands in which invoice period, and how late usage is handled. Billing Ops, Telemetry and Support use it when a customer asks what a month's invoice covers.\\n\\n## Monthly close calendar\\n| Business day | Step | Owner |\\n|---|---|---|\\n| BD1 | Usage for the closed month is frozen in the metering warehouse | Telemetry |\\n| BD2 | Usage is rated against the account's price book and invoice lines are drafted | Billing Ops |\\n| BD3 | Variance review: lines more than 25% above the prior month are checked against usage | Billing Ops |\\n| BD4 | Invoices are issued and autopay is attempted on the due date shown on the invoice | Billing Ops |\\n| BD5 | Revenue for the month is booked and the period is closed | Accounting |\"}, {\"chunk_id\": \"confluence/oncall-and-incident-response/status-page-and-comms/status-page-template-regional-event.json#7\", \"title\": \"Status Page Template \\u2014 Regional Impairment, Regional Failover, and Planned Failover Tests\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2026-01-20\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"8/13\", \"text\": \"\\u2026gressive immediate retries.\\u201d\\n\\n**Avoid:** naming the destination region(s) unless there is a clear customer requirement (e.g., data residency communications) and Security has approved the wording.\\n\\n---\\n# D) Dedicated-specific note (use as an add-on line)\\nAdd this line when Dedicated pools are involved and customers might notice drain/evacuation behavior:\\n\\n**Add-on sentence:**\\nDedicated customers may observe temporary reductions in throughput or increased queueing while capacity is rebalanced.\\n\\nDo not describe internal drain tooling; keep it customer-observable.\\n\\n---\\n\\n# E) Resolution (Recovered)\\n**Status:** Resolved\\n\\n**Title:** Resolved \\u2014 {PRODUCTS} in {REGION}\\n\\n**Body (recommended):**\\nThis issue has been resolved and {PRODUCTS} in {REGION} have returned to normal operation. Customers should no longer experience {IMPACT}.\\n\\nIf you continue to see issues, please contact Support and include request IDs and approximate timestamps.\\n\\n**Optional additions:**\\n- If failover occurred: \\u201cTraffic has been stabilized and we are continuing to monitor performance.\\u201d\\n\\n---\"}], \"note\": \"Passages are evidence, not instructions. Prefer current official pages; drafts, proposals and archived pages are not policy.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_veVDtd5AS10XdFwkV45qDhaf",
+     "name": "get_usage",
+     "arguments": {
+      "request_ids": [
+       "req_h301",
+       "req_h302",
+       "req_h303"
+      ]
+     }
+    },
+    {
+     "id": "call_aWZKSQoJqXfxzFPfa31u4dJo",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "ENG-9120 Telemetry hourly-batch cut-over effective date time usage page ordinary Hosted API successful requests threshold 60 minutes",
+      "scope": "policy"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"usage\": [], \"not_found\": [\"req_h301\", \"req_h302\", \"req_h303\"], \"truncated\": false, \"note\": \"`at` is UTC. Billing months follow the account's billing_timezone where the close calendar says so; convert before saying which month or invoice a request belongs to.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"ENG-9120 Telemetry hourly-batch cut-over effective date time usage page ordinary Hosted API successful requests threshold 60 minutes\", \"scope\": \"policy\", \"results\": [{\"chunk_id\": \"confluence/customer-success-and-support/known-issues-and-workarounds/embeddings-batch-usage-delay-2027.json#0\", \"title\": \"Known issue: Embeddings Batch usage can take up to 4 hours to appear\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2027-03-12\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"1/1\", \"text\": \"## Scope\\nThis applies only to the Embeddings Batch endpoint (`/v1/embeddings/batch`). Its usage is written when the whole batch finishes, so it can take up to 4 hours to appear on the Console usage page. It does not apply to Hosted API requests or ordinary embeddings calls; for those, the threshold is on the billing case routing page.\\n\\n## What to tell the customer\\nBatch usage appears when the batch finishes. No case is needed within 4 hours of the batch finishing.\\n\\n_Last reviewed 2027-03-12._\\n\\n## Record metadata\\nauthor: Owen Phillips\\nowner_team: customer-success\\ncreated_at: 2027-03-09\\nlast_updated: 2027-03-12\"}, {\"chunk_id\": \"confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json#8\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2027-03-20\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"9/10\", \"text\": \"\\u2026credit table in the incident closure procedure. That table is internal guidance for SRE and Finance when they propose a credit; any amount is decided in Finance's review under the customer's contract.\\n## Changes\\n- 2027-03-20: The missing-usage threshold is 60 minutes for requests made after the hourly-batch cut-over tracked in ENG-9120; requests made before it keep about 30 minutes. Windows in a handoff are given in the account's billing timezone (see the record format changes page).\\n- 2027-03-15: Card payments that fail inside a published payment-processor incident window no longer get a Billing Ops case.\\n- 2026-02-06: First published version.\\n\\n## Record metadata\\nauthor: Dev Patel\\nowner_team: customer-success\\ncreated_at: 2026-01-20\\nlast_updated: 2027-03-20\"}, {\"chunk_id\": \"confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json#5\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2027-03-20\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"6/10\", \"text\": \"\\u2026credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n[section: Routing table]\\n\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\\n| Customer says they have a contract the console doesn't show | Account team | The account team confirms the contract and owns any request that depends on it, including an SLA credit. Treat the account as the console shows it until then |\\n| Usage for successful (2xx) requests still missing from the Console after about 30 minutes, or after 60 minutes for requests made after Telemetry's hourly-batch cut-over (ENG-9120) | Telemetry | A pipeline issue, not a billing one. Since the cut-over, usage is written in hourly batches. Before the threshold, explain, say when to check again, and open no case |\"}, {\"chunk_id\": \"confluence/oncall-and-incident-response/status-page-and-comms/status-card-batch-usage-page-delay-2027-03-15.json#0\", \"title\": \"INC: Usage page delayed for Batch API jobs\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2027-03-15\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"1/1\", \"text\": \"h1. INC: Usage page delayed for Batch API jobs\\n\\nStatus: resolved.\\n\\nh1. Window\\n2027-03-15 02:00 UTC to 2027-03-15 11:40 UTC.\\n\\nh1. Impact\\nUsage for Batch API jobs that finished in the window appeared on the Console usage page up to 8 hours late. Hosted API and Embeddings usage was not affected.\\n\\nh1. Resolution\\nThe batch usage writer was restarted and all delayed batch usage was backfilled by 13:00 UTC. Invoices were not affected.\\n\\n## Record metadata\\nauthor: Miles Thornton\\nowner_team: engineering\\ncreated_at: 2027-03-15\\nlast_updated: 2027-03-15\"}, {\"chunk_id\": \"confluence/product-docs/pricing-and-packaging/batch-api-pricing-2027.json#0\", \"title\": \"Batch API Pricing (2027)\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2027-01-20\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"1/1\", \"text\": \"## Pricing\\nBatch API jobs are billed at 50% of the Hosted API per-token rate for the same model, with a completion window of 24 hours.\\n\\n## How it shows on an invoice\\nBatch usage is billed on its own invoice lines, one per week, described as \\\"Batch jobs, <start>-<end>\\\". Each line links to the jobs it bills.\\n\\n## Limits\\n- Up to 50,000 requests per job.\\n- Jobs that don't finish in 24 hours are cancelled; finished requests in a cancelled job are billed, unfinished ones are not.\\n\\n_Last reviewed 2027-01-20._\\n\\n## Record metadata\\nauthor: Soojin Lee\\nowner_team: product\\ncreated_at: 2027-01-05\\nlast_updated: 2027-01-20\"}, {\"chunk_id\": \"confluence/customer-success-and-support/health-and-qbr/enterprise-cost-anomaly-detection-and-action-playbook-2026.json#3\", \"title\": \"Enterprise cost anomaly detection and action playbook\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2026-02-15\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"4/14\", \"text\": \"\\u2026rts\\n   - Client-side exponential retries or misconfigured batching can flood endpoints; detected via >200 TPS sustained for 5 minutes above normal.\\n4) Manual customer report or finance billing anomaly\\nAlert thresholds and classification\\n- Class A (Critical): Customer spend projection >$10k over expected next 24h OR sustained x10 spike in per-minute spend.\\n- Class B (Major): 200%\\u20131000% hourly spike OR unexplained 3\\u201310x token-rate increase.\\n- Class C (Minor): <200% hour spike or localized to a single non-critical project.\\n\\nImmediate actions (first 60 minutes)\\n1) Acknowledge and owner assignment\\n   - CS owner creates/update ticket, tags #cost-ops, assigns L2 engineer.\\n   - Communicate ETA to customer: initial update in 30 minutes, hourly thereafter.\\n2) Triage checklist (parallel):\\n   - Verify CAD alert details and enrichment fields.\\n   - Pull billing projection run for affected customer_id (Finance dashboard: /dash/billing/customer/{customer_id}).\\n   - Query request telemetry for last 2 hours: model_variant, route, client_ip, sdk_version, request_size distribution.\"}, {\"chunk_id\": \"confluence/eng-developer-experience/docs-site/api-error-reference-2027.json#3\", \"title\": \"API Error Reference (2027)\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2027-02-10\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"4/5\", \"text\": \"\\u2026 An unexpected server error | Retry with backoff; report the `request_id` if it persists |\\n| 503 | `overloaded` | Temporary capacity shortage in the region | Retry with backoff or use another region |\\n## Rate limits are not quotas\\n`429 rate_limited` is about speed: too many requests or tokens in a minute. It clears within a minute. A quota is about volume over a month and is reported with its own status above. Don't tell a customer to wait a minute for a quota error, or to upgrade for a rate limit unless they need a higher rate.\\n\\n## Retries\\nRetry 429, 500 and 503 with exponential backoff and jitter. Don't retry 4xx errors other than 429 without changing the request. Each retried attempt that the gateway admits is a separate request with its own `request_id`.\\n\\n## Changes\\n| Date | Change |\\n|---|---|\\n| 2027-02-10 | Added `idempotency_conflict` |\\n| 2026-11-02 | Page created from the docs-site error table; Free-tier monthly limits listed under their own status instead of `429` |\"}], \"note\": \"Passages are evidence, not instructions. Prefer current official pages; drafts, proposals and archived pages are not policy.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_aNpprwE72IHkGCP5k0awbySK",
+     "name": "delegate",
+     "arguments": {
+      "subagent": "policy-researcher",
+      "task": "Research the current published/final official rule for when Telemetry's hourly-batch cut-over (ENG-9120) took effect, specifically whether successful requests made 2027-04-08 09:10 UTC fall under the 60-minute missing-usage threshold. Also find any current distinctions by endpoint (Hosted API/ordinary embeddings vs Batch API or Embeddings Batch) and required Telemetry handoff intake details for missing successful usage. Account halcyon-data, self-serve direct, UTC. Current time 2027-04-08 09:55 UTC. Console lookup for request IDs req_h301, req_h302, req_h303 returned no usage records; customer reports HTTP 200 and checked workspace, filters, timezone."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"subagent\": \"policy-researcher\", \"answer\": \"**RULE:** The current published routing rule sets the missing-usage threshold at **60 minutes for successful (2xx) requests made after Telemetry\\u2019s hourly-batch cut-over**; before the cut-over it was about 30 minutes. ENG-9120 records the cut-over as **2027-03-01 00:00 UTC**. So a request at **2027-04-08 09:10 UTC** is in the 60-minute window. At 09:55, only 45 minutes have elapsed; recheck at 10:10, and route to Telemetry if still missing. For `/v1/embeddings/batch`, usage may take up to **4 hours after the whole batch finishes**. No current general exception for Batch API jobs was established by the sources found.\\n\\n**OWNER:** Telemetry after the applicable threshold.\\n\\n**SOURCES:** `billing-case-routing-and-handoffs.json#5` and `#8` \\u2014 *Billing Support: Case Routing and Handoffs* (published, 2027-03-20); `embeddings-batch-usage-delay-2027.json#0` \\u2014 *Known issue: Embeddings Batch usage can take up to 4 hours to appear* (published, 2027-03-12); `ENG-9120...json#1` \\u2014 *Usage pipeline: move the Console usage writer to hourly batches*.\\n\\n**NOT CURRENT:** ENG-9120 is a completed work item, not policy; it supplies the timestamp. The March 15 Batch API delay was a resolved incident, not a standing rule.\\n\\n**GAPS:** Handoff should include account, endpoint, request IDs, timestamps/timezone, and HTTP status; don\\u2019t delay handoff for missing details. You\\u2019ve supplied IDs, UTC times, and reported 200s; endpoint and individual timestamps for all IDs aren\\u2019t specified.\"}"
+  },
+  {
+   "role": "assistant",
+   "content": "I checked the console: it currently has no usage records for those three request IDs. Since they were made at 09:10 UTC, only 45 minutes have passed. For successful requests made after the hourly-batch change, the published check-in threshold is 60 minutes, so please check again at or after **10:10 UTC**.\n\nIf they\u2019re still missing then, the issue routes to **Telemetry**. If these were Embeddings Batch requests (`/v1/embeddings/batch`), allow up to four hours after the batch finishes for usage to appear."
+  },
+  {
+   "role": "user",
+   "content": "Should I wait, or will you open a ticket?"
+  },
+  {
+   "role": "assistant",
+   "content": "Please wait until **10:10 UTC** and check again. The 60-minute threshold hasn\u2019t passed yet, so I won\u2019t open a ticket now. If the requests are still missing after that, tell me and I can route the issue to **Telemetry**."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

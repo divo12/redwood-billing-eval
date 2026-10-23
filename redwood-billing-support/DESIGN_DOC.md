@@ -50,9 +50,8 @@ them in a live conversation, and testing all of that before it ships.
    work it out for a new incident. *Opus's builds missed it in runs 5 and 6; run 7's build derived it.*
 5. **Restraint is a rule too.** The routing page says to *answer*, not hand off, when the published pages explain
    what the customer sees (tokenizer counts, billed retries, console lag), "even if the customer calls it a bug".
-   Escalating feels safe and is wrong. *The a0-01 tokenizer cases and a0-09-T failed in both Opus runs (run 6 passed
-   only the plain a0-01, not its three variants): the agent retrieved the rule, then escalated to Billing
-   Engineering anyway.*
+   Escalating feels safe and is wrong. *Opus's R0 build escalated the a0-01 tokenizer cases and a0-09-T in every
+   run: the agent retrieved the rule, then escalated to Billing Engineering anyway.*
 6. **Rules can't live in the prompt.** `system_prompt.md` and `AGENTS.md` are capped (1,500 and 4,000 characters)
    and may not hold exact billing rules, and no store of full source records is allowed. A rule has to become a
    skill step, a tool behaviour or a retrievable chunk the agent reliably uses: retrieving it is not enough.

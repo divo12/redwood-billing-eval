@@ -271,3 +271,21 @@ def test_health_splits_agent_errors_by_kind_and_counts_invalid_cases():
         "agent_error: agent exception"
     assert ending(Result(case_id="t", termination="max_steps")) == "max_steps"
     assert ending(Result(case_id="t", invalid="the model provider failed")) == "invalid"
+
+
+def test_tokenizer_explanations_are_matched_by_meaning_not_one_wording():
+    """A correct explanation in other words passes; vague or echoed text does not (the console check catches escalation)."""
+    from grade import grade
+    from grade.scenarios import load_scenarios, Step
+    from redwood_kit.messages import AssistantMessage
+    cases = {s.id: s for s in load_scenarios(Step.BUILD_R0)}
+
+    def passes(case_id, text):
+        return grade.check_communicate(cases[case_id].communicate, [AssistantMessage(content=text)]).passed
+
+    assert passes("a0-01", "Billed tokens use our canonical tokenization, which may differ from your local tokenizer.")
+    assert passes("a0-01-A", "Redwood bills embeddings using its canonical tokenization, so counts differ.")
+    assert passes("a0-09-T", "Compare against the complete request content using Redwood's counting rules.")
+    assert passes("a0-09-T", "Your estimate uses a different tokenizer, so it isn't a direct comparison.")
+    assert not passes("a0-01", "Token counts can vary for many reasons.")
+    assert not passes("a0-09-T", "Your estimate leaves out the system prompt and tool definitions.")

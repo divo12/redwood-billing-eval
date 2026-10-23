@@ -2,36 +2,32 @@
 
 ## Summary
 
-`claude-opus-5-5` at `reasoning_effort=high` (Claude Code) scores **reward 0 in 3/3 runs**; the oracle scores
-**1.0 in 5/5**. Two evolution failures:
+`claude-opus-5-5` at `reasoning_effort=high` (Claude Code) scores **reward 0 in 4/4 runs**; the oracle scores
+**1.0 in 5/5**.
 
-**1. Maintenance only adds, it never repairs (3/3 runs).** A rule Opus's first build fails to follow stays broken
-after the update, in every run. When a developer reports more billed tokens than they counted and asks "can someone
-check the meter?", the routing page says *"Answer, don't hand off: how billed tokens are counted (model-native
-tokenizer, full request payload) … explain it and stop there, even if the customer calls it a bug."* The rule is the
-same in R0 and R1. Opus's A0 escalates these cases to Billing Engineering (a0-01 and its variants, a0-09-T), and
-after a full maintenance pass its A1 still fails them, in all three runs (3, 3 and 5 cases): the update rewrites
-what changed and never re-tests what was already wrong.
+**In every run, the build breaks a published rule it retrieved.** When a developer reports more billed tokens than
+they counted and asks "can someone check the meter?", the routing page says *"Answer, don't hand off: how billed
+tokens are counted (model-native tokenizer, full request payload) … explain it and stop there, even if the customer
+calls it a bug."* Opus's R0 agent escalates these cases to Billing Engineering in all four runs (a0-01 and its
+variants, a0-09-T), which alone keeps the build below the 0.9 bar (Q00 0.77-0.86 after every correction).
 
-**2. A change inside an existing page is only half-adopted (2/3 runs).** R1 revises the failed-payments page in
-place: a payment that fails inside a processor incident now needs **no case**, and its retry date follows from past
-status cards (3 business days after the window ends: April 12). Run 5's maintained agent still followed the
-superseded procedure and opened a Billing Ops case; run 6's dropped the case but counted calendar days and told the
-developer **April 10**; only run 7 got both right. The same pattern shows on Finance's approvals matrix, also
-revised in place: in runs 5 and 6 the maintained agent lost the $500 limit that still applies to 2026 invoices and
-handed off duplicates its R0 build had credited (that evidence comes from Q10, which replays 2026 conversations
-against 2027 knowledge, so we weight it less).
-
-The oracle passes the failed-payments and matrix cases in every run (25/25) and the tokenizer cases in 48 of 50.
+**When the world changes, a change inside an existing page is only half-adopted (2 of 4 runs).** R1 revises the
+failed-payments page in place: a payment that fails inside a processor incident now needs **no case**, and its retry
+date follows from past status cards (April 12). Run 5's maintained agent still followed the superseded procedure and
+opened a case; run 6's dropped the case but told the developer **April 10**. In the same two runs the maintained
+agent lost the $500 limit that the revised approvals matrix keeps for older invoices. Runs 7 and 8 maintained these
+correctly, and run 8's maintenance even repaired the build's tokenizer escalations. The oracle passes all of these
+cases in every run.
 
 The failure survives the fairness audit below: rescored with every case or verifier defect it found removed, all
-three runs still score 0.
+four runs still score 0.
 
 | Agent | Run | reward | q00 | q11 | drift | regression | behaviour_robustness | artifact_quality |
 |---|---|---|---|---|---|---|---|---|
 | Oracle | `evidence/oracle-final` (submitted version) | **1.0** | 1.0 | 1.0 | 1.0 | 0.967 | 0.978 | 1.0 |
 | Oracle | `evidence/oracle-2026-10-24` | **1.0** | 1.0 | 1.0 | 1.0 | 0.967 | 0.978 | 1.0 |
 | Oracle | `evidence/oracle-2026-10-24-b` | **1.0** | 1.0 | 0.967 | 0.96 | 0.967 | 0.978 | 1.0 |
+| Opus 5.5 | `evidence/opus-5-5-run8` (submitted version) | **0.0** | 0.833 | 0.967 | 0.96 | 1.0 | 0.974 | 1.0 |
 | Opus 5.5 | `evidence/opus-5-5-run6` | **0.0** | 0.833 | 0.867 | 0.818 | 0.84 | 0.756 | 1.0 |
 | Opus 5.5 | `evidence/opus-5-5-run7` | **0.0** | 0.733 | 0.80 | 0.75 | 0.955 | 0.889 | 1.0 |
 | Opus 5.5 | `evidence/opus-5-5-run5` (earlier version) | **0.0** | 0.833 | 0.90 | 0.80 | 0.96 | 1.0 | 1.0 |
@@ -71,11 +67,11 @@ Failures across the three Opus runs, grouped by what went wrong (each conversati
 
 | Pattern | Cases | Runs | What the agent did | What the records say |
 |---|---|---|---|---|
-| **No restraint** | a0-01 and its variants, a0-09-T | 5, 6, 7 | Explained part of the token gap, then escalated "check the meter" to Billing Engineering, or hedged that it could not tell | The routing page: answer, don't hand off, when the published pages explain it (model-native tokenizer, full request payload), "even if the customer calls it a bug". The Billing Engineering row needs request IDs that still mismatch; the developer has none. |
+| **No restraint** | a0-01 and its variants, a0-09-T | 5, 6, 7, 8 | Explained part of the token gap, then escalated "check the meter" to Billing Engineering, or hedged that it could not tell | The routing page: answer, don't hand off, when the published pages explain it (model-native tokenizer, full request payload), "even if the customer calls it a bug". The Billing Engineering row needs request IDs that still mismatch; the developer has none. |
 | **Replaced instead of scoped** | a0-08 (run 5), a0-07-C and a0-08-T (run 6) | 5, 6 | A1 could not apply the $500 limit to a 2026 invoice: escalated a creditable duplicate, or credited then escalated | R1's approvals matrix: $250 only for invoices on the 2027 price book, $500 still for earlier ones |
 | **Rule never derived** | a1-03, a1-03-T | 5, 6 | Declined to give the payment-retry date | Four past status cards fix it: retries complete 3 business days after the incident window ends (run 7's build got it) |
-| **Never asked** | a1-07 and its variants; a0-02-A, a1-04-A | 5, 6, 7 | Reported a total without asking when the runaway script ran, or picked one reading of an ambiguous ask | The developer gives the date (or the line) through the form when asked; that day's two requests total 17,683,825 tokens |
-| **Wrong route** | a0-05-T, a1-04-A | 7 | Asked in chat whether a budget complaint was a relief request; sent an export mismatch to Billing Engineering | Routing: a request for relief on correct charges goes to Finance; an invoice-vs-export mismatch to Billing Ops |
+| **Never asked** | a1-07 and its variants; a0-02-A, a1-04-A | 5, 6, 7, 8 | Reported a total without asking when the runaway script ran, or picked one reading of an ambiguous ask | The developer gives the date (or the line) through the form when asked; that day's two requests total 17,683,825 tokens |
+| **Wrong route** | a0-05-T, a1-04-A | 7, 8 | Asked in chat whether a budget complaint was a relief request; sent an export mismatch to Billing Engineering | Routing: a request for relief on correct charges goes to Finance; an invoice-vs-export mismatch to Billing Ops |
 
 **Classification** (the brief's terms):
 - **Wrong hypothesis / not operationalised** (no restraint; rule never derived): retrieval worked (the agents quote
@@ -87,7 +83,7 @@ Failures across the three Opus runs, grouped by what went wrong (each conversati
   5: an SLA claim and a card-processor failure). None touched a tokenizer gap, a retry date or a date-scoped limit.
 
 **Recurring.** The restraint failure appears in every Opus run (and in runs 1-4 on earlier case sets); "never
-asked" in every run; the scoped-limit regression in two of three; the retry-date inference in two of three (and in
+asked" in every run; the scoped-limit regression in two of four; the retry-date inference in two of four (and in
 every earlier build).
 
 ## Oracle
@@ -100,40 +96,46 @@ misses at most two cases per run, a different one each time (the support model i
 
 ## Fairness audit
 
-Every failing conversation in runs 5, 6 and 7 was read, against the records that state its rule. Findings:
+Every failing conversation of Opus runs 5-8 was read against the records that state its rule. By the brief's
+criteria:
 
-**Fair (agent capability):** every pattern in the table above. In each, the deciding record is builder-visible,
-the oracle passes the case, and the agent either did not act on a rule it retrieved or did not ask for a fact the
-developer would have given.
+**Solvable.** The oracle scores reward 1.0 in 5/5 runs, the last on exactly the submitted version, through the
+same conversation loop, console and support model. Every case Opus fails, the oracle passes in at least 4 of 5
+runs. Every rule cites builder-visible records per release (test-enforced).
 
-**Fixed (not the agent's fault), and rescored:**
+**Unambiguous.** The instructions state the deliverable, interfaces, limits and success measure, and leak no rule
+value, team, threshold or answer (checked by scan). One case was ambiguous and was rewritten: a0-02-C's "conflict"
+fit a routing row, and two agents defensibly routed it (now a false policy claim the retries page refutes; the oracle
+passes it 3/3). Cases that are ambiguous by design (missing-info and ambiguous variants) are resolved by the
+developer's form, which the contract tells the agent to use: a0-05-T fails only when the agent asks in chat instead.
 
-| Finding | Why it was unfair | Fix |
+**Substantive.** The remaining failures are capability gaps: a rule retrieved but not followed (tokenizer
+escalations, 4/4), a change inside an existing page half-adopted (failed-payments page and the $500 scope, 2/4), and
+a needed fact never asked for (a1-07 family, a0-05-T, a0-02-A). In each, the deciding record is builder-visible and
+published (or, for the retry date, uniquely determined by published status cards).
+
+**Reproducible.** Runtime, resources, credentials, network and rate limits are declared (`DESIGN_DOC.md` section
+6). Fixed: LiteLLM's retry dependency (`tenacity`) was missing, so a retried call crashed the agent (1 of 450
+conversations, none in runs 6-8); now pinned and tested. Provider failures are marked invalid, never scored.
+
+**Non-brittle.** Four verifier defects were found and fixed, each with a test:
+
+| Defect | Effect | Fix |
 |---|---|---|
-| a0-02-C was ambiguous | its "conflict" was a $980 figure from the customer's own dashboard, which fits the routing row for invoice/export mismatches; an oracle run and Opus run 6 both defensibly routed it to Billing Ops | rewritten as a false policy claim the retries page refutes; the oracle passes it 3/3 |
-| a0-08 and a1-02 required saying the limit ($500, $250) | the duplicate pages tell Support to say what it did (a dispute is open), not to state the limit; the dispute itself is already checked on the console | the two values removed (hidden requirement) |
-| Q10 showed 2027 invoices to 2026 conversations | Q10 replays R0 cases on the R1 console, which also held R1's later invoices; an agent asked "what do we owe?" saw the future (a0-10-A in runs 6 and 7, a0-10-M for the oracle) | each conversation's console now holds its own release's records in the console release's format (test-enforced) |
-| A retried model call could crash the support agent | LiteLLM needs `tenacity` to retry (e.g. after a 429) and it was not installed; 1 of 450 graded conversations crashed (an oracle Q01 case), none in runs 6 or 7 | `tenacity` pinned, with a test |
+| Concept phrases matched by one wording | correct explanations failed: "Redwood's canonical tokenization" where "Redwood's tokenizer" passed, "the complete request" where "the full request" passed (5 conversations across runs 6-8, 1 for the oracle) | the tokenizer and payload checks accept the same concept in other words; vague or echoed text still fails |
+| a0-08 and a1-02 required stating the credit limit | the duplicate pages say to report the dispute, not the limit | the limit values removed |
+| Q10 showed R1's 2027 invoices to 2026 conversations | an agent asked "what do we owe?" saw the future | each conversation's console holds its own release's records |
+| a0-02-C's conflict was ambiguous | see Unambiguous | rewritten |
 
-Rescored with these defects removed (a defect case excluded, as invalid; a removed value no longer required):
-run 5 Q00 0.828, Q10 0.862, Q11 0.90; run 6 0.862, 0.821, 0.867; run 7 0.767, 0.759, 0.833. **Reward stays 0 for
-all three.**
+Rescored with every fix: run 5 Q00 0.828, Q10 0.862, Q11 0.900; run 6 0.862, 0.857, 0.867; run 7 0.767, 0.793,
+0.833; run 8 0.833, 0.967, 0.967. **Reward stays 0 for all four**; the oracle scores 1.0 on every key.
 
-**Checked and clean:**
-- **No near-miss phrasing.** Every failure on `communicate` alone was read: in each, the agent said a different
-  value (a stale date, a stale threshold, the wrong error code) or hedged, not the right value in other words.
-- **Simulated developer.** Audited over runs 5, 6 and 7 and the oracle (about 660 worded lines): no team or rule
-  names, no answers to questions asked in chat, no required value said before the agent said it, and every ending
-  matches the console. Three lines repeated values the agent had just given ("thanks for confirming the $340.00
-  credit note"); the wording model sees only the transcript, never the script's facts, so these are echoes.
-- **No leakage.** All six builder steps of runs 5-7 were audited: no hidden path, no network fetch, and no R1 record
-  reached a builder before R1.
-  `/tests`, seeds, overlays and the practice service are root-only; graded agents run as `nobody` after `/tests`
-  is made root-only. A grading-time leak (the task folder mounted world-readable) was found and closed earlier; no
-  workspace had used it. Identifier collisions that could pass a check by accident were removed (`req_pb402`).
-- **Shallow solutions fail.** A do-nothing agent fails all 60 cases, and the unmaintained A0 passes 4 to 8 of 30 R1
-  cases (Q01), both test- or run-verified.
-- **No LLM judge.** A model only rewords scripted lines; every verdict is reproducible from the case log.
+**Also checked:** the simulated developer invents no values, names no team, answers nothing asked in chat and gives
+no answer away (three lines echoed the agent's own words); every ending matches the console; all eight builder steps
+of runs 5-8 show no hidden path, network fetch or early R1 data; a do-nothing agent fails all 60 cases.
+
+**Open limitation:** the regression check replays 2026 conversations against 2027 knowledge (see Limitations);
+the $500-scope evidence that depends on it is weighted less.
 
 ## Realism and economic value
 
@@ -154,8 +156,8 @@ averages $0.67 (measured from recorded tokens; 70-82% of input tokens are cache 
 
 - **One change cycle.** The task measures one evolution step (R0 to R1); repeated maintenance over several
   releases, where errors could compound, is not tested.
-- **Few trials.** Three target-model trials; the evolution failures appear in two of three, the build failure in
-  all three. With 30 cases per release one case moves a rate by 0.033, and the gate allows three misses and one case
+- **Few trials.** Four target-model trials; the evolution failures appear in two of four, the build failure in
+  all four. With 30 cases per release one case moves a rate by 0.033, and the gate allows three misses and one case
   of regression slack. The support model is sampled, so a case can flip between runs.
 - **Old conversations, old dates.** `regression` replays the R0 conversations on the maintained agent with their
   original 2026 dates, while its knowledge is from 2027. One agent reasoned that a page revised in 2027 was not yet

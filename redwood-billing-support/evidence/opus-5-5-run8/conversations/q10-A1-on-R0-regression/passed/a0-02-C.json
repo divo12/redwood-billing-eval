@@ -1,0 +1,220 @@
+{
+ "id": "a0-02-C",
+ "grade": {
+  "id": "a0-02-C",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contacts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 7,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 11,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "get_invoice",
+   "get_usage",
+   "list_invoices",
+   "load_skill",
+   "lookup_account",
+   "search_knowledge"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 23.35886334800125,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hi, our Hosted API usage line for Aug 1-15, 2026 looks too high. Your docs say requests that time out on our side aren't billed, so our retries shouldn't be included. What did it actually cost for org acme-analytics?"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_d4RNS50K6BNa0uQU11nct9Op",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-case-procedure"
+     }
+    },
+    {
+     "id": "call_yVvPx6Bx5M0NolhahExi9zcQ",
+     "name": "lookup_account",
+     "arguments": {
+      "org": "acme-analytics"
+     }
+    },
+    {
+     "id": "call_O3kOUl1GUBRbKPxArn9ohTuu",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "Hosted API timeout on client side retries billable admitted attempts usage billing timeout non-200 current policy",
+      "scope": "policy"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-case-procedure\", \"steps\": \"# Billing case procedure\\n\\nRules (limits, owners, thresholds, effective dates) come from the pages you retrieve, not from this procedure.\\n\\n## 1. Classify the ask\\n- Explain-only: token counting, retries/cancelled streams, console lag, export columns, error codes and quotas, plan limits, credit balances, promo/workshop codes, card changes, typical credit amounts. Answer from the pages and stop; no case, even if the developer calls it a bug.\\n- Duplicate/incorrect charge on an invoice -> step 3.\\n- Refund, credit, goodwill, waiver, SLA/service credit, exception, \\\"already approved by X\\\", cashing out or restoring credits -> step 4.\\n- Payment failure, overdue/dunning, receipts -> step 5.\\n- Usage missing or tokens that don't match after the documented rules -> step 6.\\n- Plan, limit or reservation changes, MDF, reseller/marketplace bills: search who owns it; Support doesn't change these.\\n\\n## 2. Gather facts (one `ask_developer` call)\\nAsk only what is still missing: org_id, invoice_id/invoice_month, line_items/amounts, request_ids, response_status, time_of_issue + timezone, plan/contract, error_code, checks_done. Then `lookup_account`: note plan, has_signed_contract, billing_channel, payment_method, billing_timezone.\\n- Marketplace or reseller-billed: search how that channel is handled; Support issues no credit or dispute on invoices Redwood didn't issue.\\n\\n## 3. Duplicate or wrong charge\\n1. `get_invoice`. Use `date_helper` for any timezone, billing-month or business-day arithmetic. Use `duplicate_analysis`: a duplicate is confirmed only when two lines on the same direct invoice bill the same request ids AND the usage records point to exactly one of them (the original). Act only on the copy. Same description or amount is not enough.\\n2. Search the current credits/disputes page and the Support charter, and read `support_duplicate_credit_limit` for this invoice (it depends on the invoice's price book; check the approval matrix if unsure).\\n3. Support may credit only if the charter allows it for this account type (check self-serve vs signed contract) AND the copy line is within the limit: confirm the copy line and full amount with the developer, then `issue_credit_note` (reason `duplicate`). Tell them the amount credited and when credits apply (search the close calendar if asked).\\n4. Confirmed but over the limit, or an account Support may not credit: never split. Confirm the dispute, `open_dispute` (reason `duplicate_charge`, the copy line, request ids, window in the account's billing timezone), then `escalate_case` to Billing Ops with invoice, both line ids (original and copy), request ids and dispute id.\\n5. Not confirmed: no credit, no promise. Explain what the console shows, collect intake details, hand off per the routing page.\\n6. Check `existing_credit_notes`/`existing_disputes` first so nothing is done twice.\\n\\n## 4. Credits, refunds, SLA, exceptions\\nSearch the routing page, approval matrix and charter for who owns this exact ask (billed in error vs correct charge; self-serve vs signed contract; contract the console doesn't show). Support never issues these. Explain the general rule without promising an amount. `ask_developer` for what the owner needs (ask, amount, why, request_ids, time_of_issue, contract), then `escalate_case` to the owner.\\n\\n## 5. Payments\\nNever take any card details; card changes are self-service (search where). For a failed payment, get the failure time (UTC) and decline code, search published payment-processor incident notices and compare the time with each window: inside a window -> explain, say when retries complete, no case. If that notice doesn't state the completion date, derive the processor's usual schedule from earlier payment-processor notices (window end vs last-retry date, in business days; use `date_helper`) and apply it to this window. Outside every window (or the page lists another exception) -> Billing Ops case with invoice, decline code and time.\\n\\n## 6. Usage/meter\\nApply the documented token, retry, stream, batch and export rules and check the usage records. For missing usage, compare the request time with the current threshold for that endpoint and date (cut-overs change it); before the threshold explain when to check again, no case. Hand off only what the rules don't explain, to the team the routing page names.\\n\\n## 7. Close\\nReport what you did (ids, amounts, team) and the next step and owner. If you handed off, say the team has the case; don't promise outcome or timing.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"accounts\": [{\"account\": {\"account_id\": \"acme-analytics\", \"org\": \"acme-analytics\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\", \"billing_timezone\": \"UTC\"}, \"has_signed_contract\": false, \"contracts\": [], \"contacts\": [{\"contact_id\": \"CONTACT-acme-analytics-1\", \"account_id\": \"acme-analytics\", \"name\": \"acme-analytics Owner\", \"email\": \"owner@acme-analytics.dev\", \"role\": \"owner\"}]}], \"note\": \"Contract rows tell you whether a signed contract/SLA exists, for routing and for what Support may do on the account. Don't quote contract terms or figures to the customer; their account team confirms terms. For credit balances use get_credit_balance.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"Hosted API timeout on client side retries billable admitted attempts usage billing timeout non-200 current policy\", \"scope\": \"policy\", \"results\": [{\"chunk_id\": \"confluence/customer-success-and-support/known-issues-and-workarounds/usage-accounting-retries-and-stream-cancellation.json#1\", \"title\": \"Usage accounting: retries and streaming cancellation\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2025-02-18\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"2/3\", \"text\": \"\\u2026sage is recorded per-attempt.\\n- If a client retries after a timeout or non-200 response, each admitted attempt can be billable.\\n- The Usage dashboard lists rows by **request_id** (attempt identifier).\\n### Streaming cancellation\\n- **Prompt tokens** are counted once the request is admitted (even if the client cancels the stream later).\\n- **Completion tokens** are counted based on tokens actually generated/streamed prior to cancellation.\\n\\n## Common customer symptoms\\n- We only sent N requests but we see >N rows: retries created additional attempts.\\n- We timed out at 15s so we expected zero bill: prompt tokens + partial completion tokens may still be counted.\\n\\n## Recommended mitigations\\n1) Avoid automatic retries on client-side timeouts for long generations.\\n2) Increase client timeout where possible (align to max expected generation time).\\n3) Reduce max_tokens / output length to meet latency budgets.\\n4) For troubleshooting, ask for a small set of request_ids + the customers retry/cancel metrics.\"}, {\"chunk_id\": \"confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json#5\", \"title\": \"Hosted API Packages: Free Tier, Included Usage, and Overage Policy\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2026-02-26\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"6/16\", \"text\": \"\\u2026 does not change billed totals unless explicitly discounted by contract)\\n- Dimensions used for reporting (not limits unless contract says): `model`, `region`, `endpoint`, `customer_id`, `workspace_id`\\n### What counts toward billed tokens\\nCounts toward billed tokens:\\n- Prompt tokens that are processed for a request\\n- Completion tokens successfully generated and delivered (including streamed tokens that were sent before a disconnect)\\n- Tool/function call tokens and structured output tokens that are part of the model\\u2019s generated output (see meter spec)\\n\\nDoes NOT count toward billed tokens:\\n- Non-billable internal retries that are deduped by idempotency keys\\n- Requests rejected before model execution due to auth failure, invalid params, or quota pre-check (typically 4xx)\"}, {\"chunk_id\": \"confluence/product-docs/pricing-and-packaging/hosted-api-packages-free-tier-and-overage-policy.json#13\", \"title\": \"Hosted API Packages: Free Tier, Included Usage, and Overage Policy\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2026-02-26\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"14/16\", \"text\": \"\\u2026f externally visible\\n3) Any experiment that changes packaging must tag cohorts in analytics and be reported with pre/post segmentation if meter fixes overlap.\\n\\n---\\n\\n## Examples (for internal training)\\n### Example 1: Free tier hits limit\\n- Workspace on Free uses 260,000 billed tokens in month.\\n- Result: requests past 250,000 return the Free-tier quota error.\\n- Resolution: user upgrades or adds payment method to move to Builder.\\n\\n### Example 2: Builder tier goes into overage\\n- Included billed tokens: 20,000,000\\n- Actual billed tokens: 24,500,000\\n- Overage billed tokens: 4,500,000\\n- Invoice shows:\\n  - Subscription fee (Builder)\\n  - Included usage (0 charge)\\n  - Overage line item based on billed tokens (and requests if applicable)\\n\\n### Example 3: Streaming disconnect\\n- Customer starts a stream and receives 1,200 completion tokens before disconnect.\\n- Billed completion tokens = 1,200 (delivered tokens), not the model\\u2019s theoretical maximum.\\n\\n---\"}, {\"chunk_id\": \"confluence/customer-success-and-support/known-issues-and-workarounds/workaround-streaming-timeouts-and-reconnect.json#5\", \"title\": \"Workaround: Streaming timeouts, disconnects, and reconnect guidance\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2026-02-16\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"6/18\", \"text\": \"\\u2026|\\n\\n---\\n\\n## Immediate recommendations (customer-safe)\\n\\n### 1) Implement safe retries for streaming\\nBecause a streaming response is not reliably resumable mid-stream, retries should restart the request.\\n[section: ) Implement safe retries for streaming]\\n\\n**Recommended retry policy (baseline):**\\n- Retry on network exceptions (disconnect, timeout, EOF) and 5xx\\n- Use **exponential backoff with jitter**\\n- Cap attempts (avoid infinite retries)\\n- If the request is not idempotent in the customer\\u2019s app (e.g., triggers side-effects), require an app-level idempotency key before retrying\\n\\n**Suggested parameters (starting point):**\\n- Attempts: 3 total (1 initial + 2 retries)\\n- Backoff: 250ms, 1s, 2s (+/\\u2212 random jitter)\\n- Add a circuit breaker if failure rate spikes (avoid thundering herd)\\n\\n### 2) Increase/adjust client timeouts (streaming requires different defaults)\\nMake sure the customer differentiates:\\n- **Connect timeout** (TCP/TLS handshake)\\n- **Read/idle timeout** (no bytes received for a period)\\n- **Overall request deadline** (total wall time)\"}, {\"chunk_id\": \"confluence/eng-developer-experience/docs-site/api-error-reference-2027.json#3\", \"title\": \"API Error Reference (2027)\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2027-02-10\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"4/5\", \"text\": \"\\u2026 An unexpected server error | Retry with backoff; report the `request_id` if it persists |\\n| 503 | `overloaded` | Temporary capacity shortage in the region | Retry with backoff or use another region |\\n## Rate limits are not quotas\\n`429 rate_limited` is about speed: too many requests or tokens in a minute. It clears within a minute. A quota is about volume over a month and is reported with its own status above. Don't tell a customer to wait a minute for a quota error, or to upgrade for a rate limit unless they need a higher rate.\\n\\n## Retries\\nRetry 429, 500 and 503 with exponential backoff and jitter. Don't retry 4xx errors other than 429 without changing the request. Each retried attempt that the gateway admits is a separate request with its own `request_id`.\\n\\n## Changes\\n| Date | Change |\\n|---|---|\\n| 2027-02-10 | Added `idempotency_conflict` |\\n| 2026-11-02 | Page created from the docs-site error table; Free-tier monthly limits listed under their own status instead of `429` |\"}, {\"chunk_id\": \"confluence/customer-success-and-support/known-issues-and-workarounds/usage-accounting-retries-and-stream-cancellation.json#0\", \"title\": \"Usage accounting: retries and streaming cancellation\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2025-02-18\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"1/3\", \"text\": \"## Overview\\nSome customers reconcile Redwood token usage against internal estimates and may observe higher usage totals. The most common causes are (1) client retries and (2) streaming cancellation behavior.\\n\\nThis page provides a support-ready explanation and recommended mitigations.\\n\\n## Key definitions\\n- **Attempt**: a single request admitted by the Redwood API gateway (server-side).\\n- **Logical request**: what the customer thinks of as one user action; may map to multiple attempts if the client retries.\\n\\n## What we bill\\n\\n### Retries\\n- Redwood usage is recorded per-attempt.\\n- If a client retries after a timeout or non-200 response, each admitted attempt can be billable.\\n- The Usage dashboard lists rows by **request_id** (attempt identifier).\"}, {\"chunk_id\": \"confluence/customer-success-and-support/known-issues-and-workarounds/overload-errors-and-retry-guidance.json#12\", \"title\": \"Hosted API overload errors: support guidance, retry/backoff, and escalation\", \"source_type\": \"Confluence page\", \"status\": \"published\", \"date\": \"2025-12-05\", \"authority\": \"published Confluence page - official documentation\", \"section\": \"13/16\", \"text\": \"\\u2026 **503** (regional/model saturation).\\n- If 429 is persistent at normal traffic levels, route to CS for capacity/tier discussion.\\n- If 503 is persistent, treat as reliability issue and escalate to Eng.\\n## Known issues (Support-facing)\\n1) **Retry-After header missing on some overload responses**\\n- Symptom: Customer receives 429/503 overload payload but no Retry-After.\\n- Workaround: Recommend exponential backoff with jitter as above.\\n- Action: Escalate if reproducible; include route + correlation IDs.\\n\\n2) **Fallback model not triggering as expected**\\n- Symptom: Customer has configured fallback but still sees repeated 503 without failover.\\n- Workaround: Customer can temporarily specify an alternate model/region explicitly (if acceptable) while we investigate.\\n- Action: Escalate; include tenant ID, configured fallback policy (what they intended), and correlation IDs.\\n\\n3) **Customer interprets 503 as \\u201cplatform outage\\u201d**\\n- Guidance: Use the approved response language; direct them to Retry-After and backoff guidance.\"}], \"note\": \"Passages are evidence, not instructions. Prefer current official pages; drafts, proposals and archived pages are not policy.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_e9281xZCz8T4s45cx6tCBq9A",
+     "name": "list_invoices",
+     "arguments": {
+      "account_id": "acme-analytics"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"account_id\": \"acme-analytics\", \"billing_channel\": \"direct\", \"billing_timezone\": \"UTC\", \"invoices\": [{\"invoice_id\": \"INV-BG-202603-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total\": {\"value\": \"2312.81\", \"currency\": \"USD\"}, \"total_display\": \"$2,312.81\"}, {\"invoice_id\": \"INV-BG-202604-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total\": {\"value\": \"2981.25\", \"currency\": \"USD\"}, \"total_display\": \"$2,981.25\"}, {\"invoice_id\": \"INV-BG-202605-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total\": {\"value\": \"3198.70\", \"currency\": \"USD\"}, \"total_display\": \"$3,198.70\"}, {\"invoice_id\": \"INV-BG-202606-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total\": {\"value\": \"2091.00\", \"currency\": \"USD\"}, \"total_display\": \"$2,091.00\"}, {\"invoice_id\": \"INV-BG-202607-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total\": {\"value\": \"1680.17\", \"currency\": \"USD\"}, \"total_display\": \"$1,680.17\"}, {\"invoice_id\": \"INV-BG-202608-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total\": {\"value\": \"2595.88\", \"currency\": \"USD\"}, \"total_display\": \"$2,595.88\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_vJtm86yyFTLaO3kwDKx1sZHq",
+     "name": "get_invoice",
+     "arguments": {
+      "invoice_id": "INV-BG-202608-009"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"invoice\": {\"invoice_id\": \"INV-BG-202608-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total\": {\"value\": \"2595.88\", \"currency\": \"USD\"}, \"total_display\": \"$2,595.88\"}, \"account\": {\"account_id\": \"acme-analytics\", \"org\": \"acme-analytics\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"payment_method\": \"card\", \"status\": \"active\", \"billing_timezone\": \"UTC\", \"has_signed_contract\": false}, \"lines\": [{\"line_id\": \"INV-BG-202608-009/L1\", \"invoice_id\": \"INV-BG-202608-009\", \"description\": \"Hosted API usage, Aug 1-15\", \"product\": \"hosted_api\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-15\", \"amount\": {\"value\": \"1301.46\", \"currency\": \"USD\"}, \"request_ids\": [\"req_f5edecd9d1\", \"req_94f7e3e17e\", \"req_8e56afef63\"], \"amount_display\": \"$1,301.46\"}, {\"line_id\": \"INV-BG-202608-009/L2\", \"invoice_id\": \"INV-BG-202608-009\", \"description\": \"Hosted API usage, Aug 16-31\", \"product\": \"hosted_api\", \"period_start\": \"2026-08-16\", \"period_end\": \"2026-08-31\", \"amount\": {\"value\": \"862.80\", \"currency\": \"USD\"}, \"request_ids\": [\"req_10869169de\", \"req_4b1675a88c\", \"req_ed8cc8d9de\"], \"amount_display\": \"$862.80\"}, {\"line_id\": \"INV-BG-202608-009/L3\", \"invoice_id\": \"INV-BG-202608-009\", \"description\": \"Embeddings, Aug 1-31\", \"product\": \"embeddings\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"amount\": {\"value\": \"431.62\", \"currency\": \"USD\"}, \"request_ids\": [\"req_45469f6225\", \"req_70b6949abd\"], \"amount_display\": \"$431.62\"}], \"duplicate_analysis\": [], \"support_duplicate_credit_limit\": {\"per_line\": \"$500.00\", \"basis\": \"invoice period starts 2026-08-01: rated on an earlier price book\", \"source\": \"Billing Adjustments Approval Matrix (current)\"}, \"existing_credit_notes\": [], \"existing_disputes\": []}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_qE8gJUfPW62QScFPx24ZAt4g",
+     "name": "get_usage",
+     "arguments": {
+      "line_id": "INV-BG-202608-009/L1"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"usage\": [{\"request_id\": \"req_8e56afef63\", \"account_id\": \"acme-analytics\", \"at\": \"2026-08-03T04:55:07Z\", \"http_status\": 200, \"billed_tokens\": 8015455, \"cached_tokens\": 780445, \"line_id\": \"INV-BG-202608-009/L1\"}, {\"request_id\": \"req_94f7e3e17e\", \"account_id\": \"acme-analytics\", \"at\": \"2026-08-13T14:11:37Z\", \"http_status\": 200, \"billed_tokens\": 18481967, \"cached_tokens\": 1494755, \"line_id\": \"INV-BG-202608-009/L1\"}, {\"request_id\": \"req_f5edecd9d1\", \"account_id\": \"acme-analytics\", \"at\": \"2026-08-07T16:47:01Z\", \"http_status\": 200, \"billed_tokens\": 15067971, \"cached_tokens\": 4017843, \"line_id\": \"INV-BG-202608-009/L1\"}], \"not_found\": [], \"truncated\": false, \"note\": \"`at` is UTC. Billing months follow the account's billing_timezone where the close calendar says so; convert before saying which month or invoice a request belongs to.\"}"
+  },
+  {
+   "role": "assistant",
+   "content": "The Aug 1\u201315 Hosted API line on your invoice is **$1,301.46**. The full August invoice is **$2,595.88** and is currently open.\n\nThe usage records linked to that line show three requests, all recorded with HTTP 200. A client-side timeout doesn\u2019t by itself make an admitted attempt free: retries can be billed per attempt. Internal retries deduplicated by idempotency key, and requests rejected before model execution, are not billed. The records confirm the billed usage, but don\u2019t show which attempts your client experienced as timeouts."
+  },
+  {
+   "role": "user",
+   "content": "So retried attempts are billed as usage too?"
+  },
+  {
+   "role": "assistant",
+   "content": "Yes. Redwood records usage per admitted attempt, so a client retry after a timeout may be billed separately\u2014even if it\u2019s part of the same logical request. Internal retries deduplicated by idempotency keys aren\u2019t billed."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}
