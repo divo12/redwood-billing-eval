@@ -59,40 +59,64 @@ them in a live conversation, and testing all of that before it ships.
 
 **Keeping them right when the world changes (step 2)**
 
+R1 is not a clean changelog. It mixes six kinds of change, and each kind has its own way to go wrong.
+
 7. **Changed in place.** R1 revises the routing page, the failed-payments page and Finance's approvals matrix at
    their R0 paths with a later date. A builder that diffs file names, or keeps its R0 index, never sees the change.
-8. **Date-scoped changes.** The duplicate-credit limit drops to $250 only for invoices on the 2027 price book (only
+8. **Superseded without saying so.** The R0 pages on failed card payments and card updates, credit balances and
+   free-tier limits are replaced by newer ones, but the new pages carry effective dates, not "this replaces X". The old page
+   stays in the export and stays retrievable; only comparing dates and status tells the agent which one governs.
+   The developer often cites the old one ("your 2025 help page says Support refunds duplicates in full"), so the
+   agent must say which page is current rather than follow the customer.
+9. **Date-scoped changes.** The duplicate-credit limit drops to $250 only for invoices on the 2027 price book (only
    Finance's close calendar says that starts 1 March 2027); the usage-delay threshold becomes 60 minutes only after a
    cut-over that only a Linear ticket dates. The old rule still governs older invoices, and Q10 replays the R0
    conversations to check it. *Opus's A1 dropped the $500 that still applies to 2026 invoices (a0-08 in run 5;
    a0-07-C, a0-08, a0-08-T in run 6).*
-9. **A breaking console change with no policy change.** R1 serves money as `{value, currency}`, renames the account
-   field on writable tables, adds `billing_timezone` (the billing month is now in the account's timezone) and
-   requires an escalation priority. A0's tools break on cases whose rules never changed.
-10. **A procedure withdrawn.** The card-update procedure is retracted in place; card digits must never be repeated
-    (`never_say`), and the developer must be sent to their billing settings instead.
+10. **Contradictions planted next to every change.** Each new rule arrives with a newer-looking competitor: a Slack
+    thread saying the delay threshold is 10 minutes, agents' "everything is urgent" chatter against the announced
+    escalation priority (`normal`), a draft 2027 price-book plan in Drive, and an earlier provisional Finance x
+    Support meeting that disagrees with the recorded decision. 11 more look-alike pages land in the same spaces.
+    New is not the same as current.
+11. **Near-miss facts.** The Free-tier quota error is named on the pricing page, but only the 2027 API error
+    reference gives its code (`402 quota_exceeded`); `429`, the per-minute rate limit, is right there beside it.
+    The billing month is now counted in the account's `billing_timezone`, but the format page only defines the field;
+    the rule is in Finance's close calendar. An agent that stops at the first plausible answer gives the wrong one.
+12. **New data, new source of truth.** R1 adds a `credit_ledger` table, and a Finance x Support decision says
+    balances now come from it, not from credit grants. The old lookup still returns a number, just the wrong one.
+13. **A breaking console change with no policy change ("stale" cases).** R1 serves money as `{value, currency}`,
+    renames the account field on writable tables, adds `billing_timezone` and requires an escalation priority.
+    Cases whose rules never changed (an invoice mismatch, a goodwill request) now fail on A0's tools, so a builder
+    that only reads the new policy text and never re-tests its tools breaks working behaviour.
+14. **A procedure withdrawn.** The card-update procedure is retracted in place; card digits must never be repeated
+    (`never_say`), and the developer must be sent to their billing settings instead. Removing behaviour is
+    maintenance too.
+
+Measured together: Q01 grades the unmaintained A0 on the R1 cases (it passes 4 to 8 of 30), so `drift` shows how much
+of the change A1 absorbed and `regression` shows what it broke. *Opus absorbs most of it (drift 0.80 and 0.82) and
+misses the parts that need judgment: the date scope, and the retry date that no single record states.*
 
 **Applying them in a conversation (graded)**
 
-11. **Twins.** Five cases per release have a near-identical twin whose correct result is the opposite: only 20
+15. **Twins.** Five cases per release have a near-identical twin whose correct result is the opposite: only 20
     minutes have passed, a self-serve account has no SLA, the duplicate is exactly at the $250 limit, the developer
     counted only user messages. Matching the ask instead of checking the facts fails one half.
-12. **Developers who make it harder.** Each non-twin case has three variants: the deciding facts are missing, the
+16. **Developers who make it harder.** Each non-twin case has three variants: the deciding facts are missing, the
     ask is ambiguous, or the developer asserts a false policy. Facts come only through the `ask_developer` form,
     never in chat, so the agent must ask the right question. *Opus never asked when a runaway script ran (a1-07),
     so it could not separate its tokens.*
-13. **Consent and forbidden values.** Credits are graded on order: no credit before the developer's yes. The stale
+17. **Consent and forbidden values.** Credits are graded on order: no credit before the developer's yes. The stale
     answer is itself checked (`never_say`): the calendar-day retry date, the UTC-month token total.
-14. **The conversation's own clock.** Each conversation runs on its own date and time (libfaketime), so "has it been
+18. **The conversation's own clock.** Each conversation runs on its own date and time (libfaketime), so "has it been
     30 minutes?" and "which month is this?" depend on reading the clock, not the host's.
 
 **Verification has to be designed, not borrowed**
 
-15. **Five practice conversations per release.** The builder can test its agent on the real deployed model and a
+19. **Five practice conversations per release.** The builder can test its agent on the real deployed model and a
     practice console, but only five times, and the example scripts cover only the practice accounts. Testing the
     hard rules means writing scripts for them. *Run 5 practised mostly on the provided examples; none touched a
     tokenizer gap, a retry date or a scoped limit.*
-16. **One session, two deadlines.** Two hours to build, then one hour, in the same Claude Code session, to
+20. **One session, two deadlines.** Two hours to build, then one hour, in the same Claude Code session, to
     understand a 3,547-record change to its own system. A0 is frozen and graded as delivered.
 
 ## 5. Fairness audit against the assignment rubric
