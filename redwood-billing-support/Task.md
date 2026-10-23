@@ -109,7 +109,7 @@ are design choices.
   verifier also accepts a Pi session, which the oracle writes.
 - Deployed agent: the run's `SUPPORT_MODEL` (a LiteLLM id, default `openai/gpt-6-luna`, reasoning effort
   `SUPPORT_REASONING_EFFORT`, default high). The image writes it into the manifest and the starter agent, and the
-  instructions name the parameter; practice and grading serve it through `tests/run/gateway.py`, so the builder
+  instructions name the parameter; practice and grading serve it through `environment/redwood_kit/gateway.py` (re-exported as `tests/run/gateway.py`), so the builder
   practises on the model that is graded. Embeddings:
   `sentence-transformers/all-MiniLM-L6-v2` run locally (fastembed/ONNX, weights baked into the image).
 - Developer: a script per scenario (`customer` in `tests/data/billing_scenarios.json`): code decides the order of
@@ -396,7 +396,7 @@ and call log remain recorded. This does not claim to capture every internal Pyth
 ### Twins, behaviour variants and difficulty (60 cases)
 
 Each release adds 15 behaviour variants of its 5 non-twin base cases (R0 a0-01, 02, 06, 07, 10; R1 a1-04, 05, 07,
-09, 10), one per behaviour, following observe-bench's customer behaviours: `-M` missing_info (the opening drops the
+09, 10), one per behaviour, following common customer-behaviour patterns: `-M` missing_info (the opening drops the
 deciding facts; they come only from the form; their case-01/02), `-A` ambiguous (the opening fits several
 readings; the form or console settles it; their case-06/10), `-C` conflict (the developer asserts something the
 console or a published rule refutes: a wrong total or plan, a promised refund, a nonexistent counting or refund
@@ -413,7 +413,7 @@ account so a dispute; a1-02-T exactly the $250 limit; a1-06-T 75 minutes; a1-08-
 the exception by design: a second inside-window payment failure (dunmore-systems) so the retry-date inference
 appears twice per run.
 
-`info_type` follows agent-maintain-bench's `sources`: 1 every deciding fact is in the opening; 2 a deciding fact
+`info_type` records where the deciding facts come from: 1 every deciding fact is in the opening; 2 a deciding fact
 comes only from the customer when asked; 3 opening facts plus console lookups; 4 facts given only when asked plus
 console lookups. Each release's 15 base cases are 8 / 1 / 5 / 1 (type 4 / 3 / 2 / 1), enforced by a test; variants carry their own type. Type-4 cases need at
 least four console operations (account, invoices, lines, usage, ledger or contracts, plus writes), and every extra

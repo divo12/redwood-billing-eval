@@ -86,13 +86,31 @@ Failures across the three Opus runs, grouped by what went wrong (each conversati
 asked" in every run; the scoped-limit regression in two of four; the retry-date inference in two of four (and in
 every earlier build).
 
+## Verifier design
+
+`steps/maintain_r1/tests/test.sh` grades both agents after the builder's last step (full design in `DESIGN_DOC.md`
+section 5):
+- **Deliverable checks** on each workspace (`artifact_quality`): prompt size limits, a real skill, subagent and
+  `@hook`, all reachable, and the builder's session resumed across steps.
+- **120 conversations**: A0 and A1, each on the 30 R0 and the 30 R1 cases (Q00, Q01, Q10, Q11). The developer is a
+  script in code (facts only through the `ask_developer` form, a fixed consent answer); a model only rewords its
+  lines. The agent runs sandboxed as `nobody` on its frozen workspace, on the conversation's own date.
+- **Five code checks per conversation, no LLM judge**: the console's end state against the gold trace (`db`),
+  required console actions (`action`), required values said (`communicate`), forbidden values not said
+  (`never_say`), and consent before any credit or dispute (`consent`).
+- **Provider failures are invalid, not failed**, and are regradable.
+- **The verifier is itself tested** (183 tests): a do-nothing agent fails all 60 cases, each twin's gold fails its
+  pair, and each R1 case fails the write its old R0 rule would make.
+
 ## Oracle
 
-`steps/*/solution/solve.sh` installs a reference workspace (hybrid retrieval over embedded billing records, a
-billing-investigation skill and `billing_rules.py` that state each rule, a policy subagent, hooks), builds its
-index with the same local embedder, and on R1 embeds only the new and revised records. It runs through the same
-conversation loop, sandbox and console as the builder's agent, with no shortcut. Five runs, reward 1.0 each (the last on exactly the submitted version); it
-misses at most two cases per run, a different one each time (the support model is sampled).
+`steps/*/solution/solve.sh` installs a reference workspace and runs it through exactly the same conversation loop,
+sandbox, console, support model and checks as the builder's agent, with no shortcut (full description in
+`DESIGN_DOC.md` section 6). Its R0 build has hybrid retrieval, a `billing-investigation` skill, a `policy-researcher`
+subagent, hooks, and `billing_rules.py`; its R1 maintenance changes only what R1 changed, notably scoping the
+duplicate-credit limit by invoice date (`duplicate_credit_limit_cents(period_start)`), and embeds only the new and
+revised records. Five runs, reward 1.0 each (the last on exactly the submitted version); it misses at most a case or
+two per run to the support model's sampling, a different one each time.
 
 ## Fairness audit
 
@@ -115,7 +133,7 @@ a needed fact never asked for (a1-07 family, a0-05-T, a0-02-A). In each, the dec
 published (or, for the retry date, uniquely determined by published status cards).
 
 **Reproducible.** Runtime, resources, credentials, network and rate limits are declared (`DESIGN_DOC.md` section
-6). Fixed: LiteLLM's retry dependency (`tenacity`) was missing, so a retried call crashed the agent (1 of 450
+8). Fixed: LiteLLM's retry dependency (`tenacity`) was missing, so a retried call crashed the agent (1 of 450
 conversations, none in runs 6-8); now pinned and tested. Provider failures are marked invalid, never scored.
 
 **Non-brittle.** Four verifier defects were found and fixed, each with a test:

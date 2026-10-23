@@ -1,5 +1,5 @@
-"""Failures of a model provider, shared by the gateways."""
+"""Failures of a model provider (defined with the shared gateway in redwood_kit)."""
 
+from redwood_kit.gateway import ProviderError
 
-class ProviderError(RuntimeError):
-    """The model provider failed (credentials, billing, limits, outage): an invalid run, never a score."""
+__all__ = ["ProviderError"]

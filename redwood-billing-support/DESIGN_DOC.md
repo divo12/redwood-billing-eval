@@ -123,7 +123,88 @@ harness (system prompt, AGENTS.md, guardrails and hooks, the agent loop, tools, 
 memory, handoff, budgets). Time allowed only part of it to be built into this task; its last section maps what
 is implemented to the traps above.
 
-## 5. Fairness audit against the assignment rubric
+## 5. Verifier design
+
+**Where it runs.** `steps/maintain_r1/tests/test.sh`, after the builder's last step. It first runs `tests/verify.py`
+on the delivered workspace, then grades both agents in conversation, then writes the trial's reward. `build_r0`'s
+verifier runs the same deliverable checks on A0 and freezes it for later grading; its reward is a placeholder.
+
+**Deliverable checks** (`verify.py`, reported as `artifact_quality`): `system_prompt.md` under 1,500 characters and
+`AGENTS.md` under 4,000; a real (non-stub) skill, subagent and `@hook`; `load_skill` and `delegate` reachable from
+the agent; the builder's session resumed across steps (otherwise the run is invalid). The workspace is then frozen
+read-only.
+
+**What is graded.** Two agents on two worlds, 30 conversations each, 120 in all:
+
+| Run | Agent | Cases | Console | Feeds |
+|---|---|---|---|---|
+| Q00 | A0 (after `build_r0`) | 30 R0 | R0 | `reward`, `q00`, `regression` |
+| Q01 | A0 | 30 R1 | R1 | `drift` (the unmaintained baseline) |
+| Q10 | A1 (after `maintain_r1`) | 30 R0 | R1 format, R0 records | `reward`, `regression` |
+| Q11 | A1 | 30 R1 | R1 | `reward`, `q11`, `drift` |
+
+Each release has 30 cases (60 in all): 10 rule cases, 5 twins (a similar ask with the opposite result) and 15
+developer-behaviour variants (missing information, ambiguous, false claim). Every rule a case tests cites the
+builder-visible records that state it (`tests/data/provenance.json`, test-enforced).
+
+**One conversation.** The developer is scripted in code: an opening, an agenda, facts given only through the
+`ask_developer` form, a fixed answer to `confirm_with_developer`, and the endings. A model (`USER_MODEL`) only rewords
+each scripted line and never sees the facts; a rewording that drops a number or identifier falls back to the script.
+The support agent runs as `nobody` from the frozen workspace, with no network, a 4 GiB address-space limit, 40 turns,
+a 180-second limit per reply, and a clock set to the conversation's own date (libfaketime). Each conversation gets a
+fresh, in-process billing console for its release.
+
+**Five checks per conversation, all code, no LLM judge:**
+
+| Check | Passes when |
+|---|---|
+| `db` | the console's writable tables equal the gold trace (or an accepted alternative) replayed on a fresh console; generated IDs and drafts are ignored |
+| `action` | each required console operation succeeded (e.g. the account was looked up before quoting it) |
+| `communicate` | every required value was told to the developer, in any listed form (case, commas, `$`, markdown and dashes are normalised; concepts accept several wordings) |
+| `never_say` | no forbidden value appears (card digits, the stale answer an unmaintained agent gives) |
+| `consent` | every credit note or dispute came after the developer's yes |
+
+A conversation passes only if all its checks pass. A conversation that says nothing about the agent is **invalid**,
+not failed: a provider error that survives LiteLLM's retries, or a developer wording that gives an answer away. It is
+left out of the rates and listed for regrading.
+
+**Reward** (`tests/grade/final.py`): `reward` is the gate, 1.0 when Q00 ≥ 0.9, Q11 ≥ 0.9 and Q10 ≥ Q00 − 0.1, 0.5 when
+only the build holds, else 0; beside it `q00`, `q11`, `drift`, `regression`, `behaviour_robustness` and
+`artifact_quality`, all numbers from 0 to 1. `scores.json` adds the four pass rates, invalid cases, pass rate by
+information type, twin pairs, per-case drift and regression, run health and workspace sizes.
+
+**Anti-cheating.** The builder never sees `/tests`; it arrives only at verification and is made root-only before any
+graded agent runs. Hidden cases, seeds, the R1 overlay and the console internals are root-only in the image. During
+the build only the practice sidecar holds provider keys. No hidden case identifier exists in the builder-visible
+corpus.
+
+**How the verifier is tested** (`dev/tests`, 183 tests): every gold trace replays and passes; a do-nothing agent fails
+all 60 cases; each twin's gold fails its pair; each R1 case fails the write its R0 rule would make; variants keep
+their base's gold; correct explanations in other words pass while vague or echoed text fails; Q10 conversations see
+only their own release's records.
+
+## 6. Oracle
+
+The oracle (`steps/*/solution/solve.sh`) is a reference build, not a shortcut: it installs a workspace and then runs
+through exactly the same conversation loop, sandbox, console, support model and checks as the builder's agent.
+
+- **`build_r0`:** installs the reference workspace and builds its index (`build_index.py`) over the
+  billing-relevant records with the same local embedder. Its parts: hybrid retrieval (`retrieval.py`: LanceDB
+  full-text and dense search merged by reciprocal-rank fusion, capped per source); a `billing-investigation` skill
+  with a step per kind of request (what to look up, which current rule to search for, when a handoff is allowed); a
+  `policy-researcher` subagent; hooks that block a write before the account is looked up and an escalation that
+  does not quote a retrieved routing rule naming the team; and `billing_rules.py` for the duplicate-credit limit.
+- **`maintain_r1`:** overlays only what R1 changed and embeds only the records R1 added or revised
+  (`build_index.py --new`). The changes are the maintenance this task asks for: `billing_rules.py` scopes the
+  duplicate-credit limit by invoice date (`duplicate_credit_limit_cents(period_start)`: $250 from March 2027, $500
+  before); the skill gains steps for card-payment failures, the credit ledger, the account's billing time zone and
+  the routing page's new missing-usage threshold; the hooks gain card-number redaction and consent before a credit
+  or dispute. The session record is continued, as the builder's must be.
+
+It scores reward 1.0 in every run, missing at most a case or two per run to the support model's sampling, a
+different case each time.
+
+## 7. Fairness audit against the assignment rubric
 
 - **Solvable.** The oracle (`steps/*/solution/solve.sh`) builds a workspace through the same runtime, sandbox and
   console the builder's agent uses, and scores reward 1.0 in every run (Q00 and Q11 at 29 or 30 of 30). Every rule a
@@ -137,7 +218,7 @@ is implemented to the traps above.
   checks. Two steps, about 3 hours, one session.
 - **Reproducible.** Pinned base image digest, a full `requirements.lock`, an embedding model baked into the
   image, and fixed data. Model access is declared: the builder's harness, and one provider key for the deployed
-  support model (Section 6).
+  support model (Section 8).
 - **Non-brittle.** Every check is code over the console state or normalised text (case, commas, `$`, markdown,
   quotes and dashes ignored; any listed form counts). No exact-string grading of prose. Invalid cases (provider
   failure, a developer wording that leaks an answer) are excluded, not failed.
@@ -151,9 +232,9 @@ is implemented to the traps above.
 - **Net-new.** The scenario, rules, console, cases, runtime and verifier were written for this task. The only
   external content is the MIT background corpus and public libraries (`README.md`, *Provenance*).
 
-## 6. Reproducibility
+## 8. Reproducibility
 
-### 6.1 Requirements
+### 8.1 Requirements
 
 | Requirement | Specification |
 |---|---|
@@ -170,7 +251,7 @@ is implemented to the traps above.
 All secrets are read from the host environment (`${VAR}` in `task.toml` and `docker-compose.yaml`); none is stored
 in the task. During the build, only the `practice-model` container receives provider keys.
 
-### 6.2 What is pinned
+### 8.2 What is pinned
 
 - **Base image** by digest (`python:3.12-slim@sha256:…`).
 - **Python dependencies** by exact version in `environment/requirements.lock`, including LiteLLM 1.104.2.
@@ -179,14 +260,14 @@ in the task. During the build, only the `practice-model` container receives prov
   embedding API is used.
 - **The support model** is fixed per run by `SUPPORT_MODEL` and written into the builder-visible manifest.
 
-### 6.3 What is not pinned
+### 8.3 What is not pinned
 
 - **Debian packages** (`nodejs`, `npm`, `libfaketime`, `procps` and a few tools) are installed from the distribution at
   build time.
 - **The embedding weights** are fetched from Hugging Face during the build.
 - **Claude Code** is installed by Harbor at run time from Anthropic's release host.
 
-## 7. Economic viability
+## 9. Economic viability
 
 - **Builder:** on average **$16.22 per trial** ($14.82-17.21): about $5.50-6 for the R0 build and $9.30-10.50 for
   maintenance, by Claude Code's own cost meter, which reports the API-equivalent cost.

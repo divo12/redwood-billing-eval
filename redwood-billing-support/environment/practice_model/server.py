@@ -3,7 +3,7 @@
 Runs in its own container (environment/docker-compose.yaml) with the provider credentials, which never
 enter the builder's container. The builder's practice runner (`redwood_kit.practice`) reaches it over
 a Unix socket on a volume both containers mount. It serves two calls, each through the grading code
-itself (`run/gateway.py`, copied into this image), so practice answers come
+itself (`redwood_kit.gateway`, which grading also uses), so practice answers come
 from the same model, settings and request shape as graded conversations:
 
     {"op": "open", "release"}
@@ -23,20 +23,17 @@ from __future__ import annotations
 import json
 import os
 import socketserver
-import sys
 import threading
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))  # the copied grading `run` package
-
+from redwood_kit import gateway  # noqa: E402
 from redwood_kit.agent_context import resolve_call  # noqa: E402
 from redwood_kit.conversation import ModelRequest  # noqa: E402
 from redwood_kit.customer import instructions  # noqa: E402
+from redwood_kit.gateway import ProviderError  # noqa: E402
 from redwood_kit.jsontypes import JsonObject  # noqa: E402
 from redwood_kit.messages import from_dict, to_dict  # noqa: E402
-from run import gateway  # noqa: E402
-from run.provider import ProviderError  # noqa: E402
 
 SOCKET = Path(os.environ.get("REDWOOD_PRACTICE_SOCKET", "/run/redwood-model/practice-model.sock"))
 LOG = SOCKET.with_name("practice-model.log")

@@ -151,7 +151,7 @@ class Scenario(BaseModel):
     never_say: tuple[tuple[str, ...], ...] = ()  # values no agent message may contain, in any listed form
     tougher_by: str = ""
     tags: tuple[str, ...] = ()
-    # Where the deciding facts come from (agent-maintain-bench's scale): 1 the opening, 2 the customer when asked,
+    # Where the deciding facts come from: 1 the opening, 2 the customer when asked,
     # 3 the opening plus console lookups, 4 the customer when asked plus console lookups. 0: unrated.
     info_type: Literal[0, 1, 2, 3, 4] = 0
     twin: str = ""  # the case with the same or near-same opening and the opposite result

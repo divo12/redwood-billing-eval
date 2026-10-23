@@ -20,9 +20,8 @@ RUN apt-get update \
 
 COPY environment/redwood_kit/ /opt/redwood_kit/
 # The practice model service (its own compose service; it alone gets the provider key). It answers through the
-# grading gateway code itself, so practice calls are made exactly as graded ones are.
+# shared gateway (redwood_kit.gateway) that grading uses, so practice calls are made exactly as graded ones are.
 COPY environment/practice_model/server.py /opt/redwood-practice/server.py
-COPY tests/run/gateway.py tests/run/provider.py /opt/redwood-practice/run/
 COPY environment/advance.py /usr/local/libexec/redwood-advance
 COPY environment/entrypoint.sh /usr/local/bin/redwood-entrypoint
 # Starting workspace: the verifier's baseline for what the builder changed in build_r0.

@@ -18,6 +18,22 @@ share their spaces, and R1 changes some rules by date (a $500 credit limit becom
 on the 2027 price book). The builder must find the rules, turn them into behaviour the agent acts on, and then
 change them in exactly the right places. See `RUN_REPORT.md` for how Opus 5.5 fails.
 
+## Where the required files are
+
+This is a two-step Harbor task, so Harbor's multi-step layout places the per-step files under `steps/<step>/`
+(Harbor ignores top-level copies when `task.toml` declares `[[steps]]`).
+
+| Brief's requirement | In this task |
+|---|---|
+| `instruction.md` | `steps/build_r0/instruction.md` and `steps/maintain_r1/instruction.md` |
+| `task.toml` | `task.toml` (metadata, timeouts, resources, network policy, authorship, category, both steps) |
+| `environment/Dockerfile` / `docker-compose.yaml` | `environment/Dockerfile` (base image pinned by digest, Python pinned in `requirements.lock`) and `environment/docker-compose.yaml` |
+| `tests/test.sh` writing `reward.json` | `steps/build_r0/tests/test.sh` and `steps/maintain_r1/tests/test.sh`; the latter writes the trial's `/logs/verifier/reward.json` |
+| `tests/test_*.py` or grader files | `tests/` (the verifier and grader: `verify.py`, `run/`, `grade/`, `data/`) and the task's own unit tests in `dev/tests/` |
+| `solution/solve.sh` | `steps/build_r0/solution/solve.sh` and `steps/maintain_r1/solution/solve.sh` |
+| Seed files | `environment/corpus/` (R0, R1), `data/` (billing console seeds), `environment/app/` (starter agent and builder docs) |
+| `README.md` / `RUN_REPORT.md` | this file, `RUN_REPORT.md`, `DESIGN_DOC.md` |
+
 ## Run
 
 Secrets come from your shell (Harbor resolves `${VAR}` from the host). Keep them in a gitignored `.env` and load it

@@ -144,7 +144,7 @@ def service(monkeypatch, tmp_path):
 
 
 def test_the_service_checks_calls_like_grading_and_caps_conversations_per_release(service, monkeypatch):
-    monkeypatch.setattr(gateway, "generate", lambda *a, **k: AssistantMessage(content="ok"))
+    monkeypatch.setattr(server.gateway, "generate", lambda *a, **k: AssistantMessage(content="ok"))
     call = {"op": "generate", "release": "R0", "model": "openai/gpt-6-luna", "messages": [], "kwargs": {}}
     assert service.answer(call)["kind"] == "request"  # no conversation opened
     first = service.answer({"op": "open", "release": "R0"})["conversation"]
@@ -200,7 +200,7 @@ def test_a_provider_failure_gives_the_practice_conversation_back(service, monkey
     def rate_limited(*args, **kwargs):
         raise server.ProviderError("RateLimitError: 429")
 
-    monkeypatch.setattr(gateway, "generate", rate_limited)
+    monkeypatch.setattr(server.gateway, "generate", rate_limited)
     for _ in range(3):  # more failures than the 2-conversation budget: none of them count
         conversation = service.answer({"op": "open", "release": "R0"})["conversation"]
         reply = service.answer({"op": "generate", "release": "R0", "conversation": conversation,

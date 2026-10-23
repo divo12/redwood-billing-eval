@@ -35,7 +35,7 @@ run/                     one conversation
 │                        evidence (`Result`), the case's clock; the loop itself is redwood_kit.conversation
 ├── customer.py          the scripted developer (re-exports redwood_kit.customer, shared with practice)
 ├── written_customer.py  USER_MODEL words each scripted line; cached per run for regrading
-└── gateway.py           SUPPORT_MODEL / USER_MODEL calls through LiteLLM, embeddings on the local MiniLM
+└── gateway.py           re-exports redwood_kit.gateway: SUPPORT_MODEL / USER_MODEL through LiteLLM, local MiniLM embeddings
 grade/
 ├── grade.py             the code-decided checks; `python -m grade.grade` grades one Q run
 ├── final.py             the reward gate and scores.json (invalid, info, behavior) from the four Q runs
