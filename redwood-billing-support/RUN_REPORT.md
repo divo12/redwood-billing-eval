@@ -137,23 +137,34 @@ all three.**
 
 ## Realism and economic value
 
-Support agents grounded in company knowledge are among the most deployed LLM applications, and their cost is not
-the first build but keeping them right as pricing, policy and data formats change. This task is that job: a noisy
-multi-platform export, rules owned by Finance, Security and Support, drafts and superseded pages, a breaking
-console change, and a six-month gap. A wrong answer here is a real cost (an unneeded engineering ticket, a credit
-over the approval limit, a customer told the wrong retry date).
+Every deployed support agent has an owner, and most of the owner's work is not the first build: it is keeping the
+agent right as the company changes underneath it. Prices are revised, a limit changes for new invoices but not old
+ones, a procedure is withdrawn, a back-end changes its record format, and the documents that say so arrive as edits
+to existing pages, mixed with drafts and chatter. This
+task is that job: the builder evolves an agent it built six months earlier from a revised, noisy company export, and
+is graded on whether the maintained agent absorbs the change (`drift`), keeps what still applies (`regression`) and
+handles the new world (`q11`). A maintenance mistake here is a real cost that nobody notices until a customer does:
+a credit refused that policy allows, a case opened that policy says not to, a customer told the wrong retry date.
 
-Cost per trial: the builder averages $16.22 (runs 5-7, by Claude Code's meter), and grading 120 conversations on
-gpt-6-luna averages $0.67 (measured from recorded tokens; 70-82% of input tokens are cache hits). Grading takes 60-90 minutes at 2-4
-workers and needs a provider rate limit of 500K-1M tokens per minute.
+Cost per trial: the builder averages $16.22 by Claude Code's meter, and grading 120 conversations on gpt-6-luna
+averages $0.67 (measured from recorded tokens; 70-82% of input tokens are cache hits). Grading takes 60-90 minutes at
+2-4 workers and needs a provider rate limit of 500K-1M tokens per minute.
 
 ## Limitations
 
-- Three target-model trials. 30 cases per release, so one case moves a rate by 0.033; the gate allows three misses
-  and one case of regression slack. The support model is sampled, so a case can flip between runs.
-- The support model is gpt-6-luna for cost; results with a Claude support model are not reported.
-- A full trial takes about 4.5 h and needs a provider key for the support model.
-- The audit fixes above landed after runs 5-7; their scores are reported as graded and as rescored.
+- **One change cycle.** The task measures one evolution step (R0 to R1); repeated maintenance over several
+  releases, where errors could compound, is not tested.
+- **Few trials.** Three target-model trials; the evolution failures appear in two of three, the build failure in
+  all three. With 30 cases per release one case moves a rate by 0.033, and the gate allows three misses and one case
+  of regression slack. The support model is sampled, so a case can flip between runs.
+- **Old conversations, old dates.** `regression` replays the R0 conversations on the maintained agent with their
+  original 2026 dates, while its knowledge is from 2027. One agent reasoned that a page revised in 2027 was not yet
+  valid on that date; the regression evidence that depends on this is weighted less.
+- **The support model is gpt-6-luna**, for cost. Maintenance is judged through how that model uses the maintained
+  agent; results with a Claude support model are not reported.
+- **Weight.** A full trial takes about 4.5 h and needs a provider key for the support model.
+- **Fixes after the runs.** The audit fixes above landed after these runs; their scores are reported as graded and
+  as rescored.
 
 ## Reproduce
 
