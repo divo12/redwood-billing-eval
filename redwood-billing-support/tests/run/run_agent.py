@@ -198,10 +198,13 @@ def with_replay_hint(messages: list[Message]) -> list[Message]:
 
 
 class World(NamedTuple):
-    """Where and when a graded conversation happens: the console release, and the agent's clock (empty: the host's)."""
+    """Where and when a graded conversation happens: the console release (its format), the release whose records
+    it holds (the case's own: an R0 conversation never sees what R1 added later), and the agent's clock (empty:
+    the host's)."""
 
     release: Release = Release.R0
     clock: str = ""
+    records: Release | None = None
 
 
 class Candidate(AgentProcess):
@@ -210,11 +213,11 @@ class Candidate(AgentProcess):
 
     def __init__(self, workspace: Path, log: Path, home: Path, world: World,
                  developer: Callable[[JsonObject, int], JsonObject] | None = None) -> None:
-        release, clock = world
+        release, clock, records = world
         self.developer = developer
         self.model_calls: list[ModelCall] = []
         self.embedding_calls: list[EmbeddingCall] = []
-        self.billing = Billing(load_db(release), release=Release(release).value)
+        self.billing = Billing(load_db(records or release), release=Release(release).value)
         # The verifier runs as root: drop to nobody, with the resource limits. Local runs stay unprivileged.
         nobody = pwd.getpwnam("nobody") if os.geteuid() == 0 else None
         super().__init__(workspace, log, home, self._dispatch,
@@ -279,6 +282,7 @@ class Conversation(Session):
         self.workspace = workspace
         self.log_dir = log_dir
         self.release = Release(release)
+        self.records = Release(case.step.release)
         self.candidate: Candidate | None = None
         self.home = Path(tempfile.mkdtemp(prefix="redwood-case-"))  # private scratch, deleted after
         if os.geteuid() == 0:
@@ -286,8 +290,9 @@ class Conversation(Session):
             os.chown(self.home, nobody.pw_uid, nobody.pw_gid)
 
     def start(self) -> Candidate:
+        world = World(self.release, self.clock, self.records)
         self.candidate = Candidate(self.workspace, self.log_dir / f"agent_{self.result.case_id}.log",
-                                   self.home, World(self.release, self.clock), developer=self.customer.handle)
+                                   self.home, world, developer=self.customer.handle)
         return self.candidate
 
     def models(self) -> tuple[tuple[ModelConfig, ...], tuple[ModelConfig, ...]]:

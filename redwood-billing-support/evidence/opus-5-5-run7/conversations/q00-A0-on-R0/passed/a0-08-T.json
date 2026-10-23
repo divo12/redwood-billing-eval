@@ -1,0 +1,313 @@
+{
+ "id": "a0-08-T",
+ "grade": {
+  "id": "a0-08-T",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:cases",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 9,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 11,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 15,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 15,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 15,
+      "ok": true
+     },
+     {
+      "op": "insert:credit_notes",
+      "at": 15,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "confirm_with_developer",
+   "get_invoice",
+   "get_usage",
+   "issue_credit_note",
+   "load_skill",
+   "lookup_account",
+   "search_knowledge"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 41.48901667299924,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hello, I think we were billed twice on our August invoice because one usage line appears twice. Your old help article says duplicate charges are removed in full, so please credit it back and flag the article if that\u2019s incorrect. Org copperleaf-ai."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_KwVVwuPmJzsfJId8StnUMpD5",
+     "name": "load_skill",
+     "arguments": {
+      "name": "charge-review"
+     }
+    },
+    {
+     "id": "call_g4HaRUeRnhUp71fadrCkEw2I",
+     "name": "lookup_account",
+     "arguments": {
+      "org": "copperleaf-ai"
+     }
+    },
+    {
+     "id": "call_M8CQ6ANH6rtbdLDyVUOHIiDn",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "current Finance Billing Adjustments Approval Matrix duplicate-charge credit per duplicated line limit Support"
+     }
+    },
+    {
+     "id": "call_BkPWF1dKszI5sTsUVxgBC0bZ",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "report incorrect archived help center article flag correction owner process"
+     }
+    },
+    {
+     "id": "call_iBZhhMpi2el0fealbjS6Dni8",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "duplicate charge billing dispute routing current support procedure invoice same request IDs"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"charge-review\", \"steps\": \"Inputs: the developer's org or account id, the invoice (id or month), the lines and amounts they mean, request ids if they have them.\\n\\n1. Identify the account. If you have neither org nor account id, ask_developer for org_id (plus invoice_id/invoice_month and line_items/amounts/request_ids in the same call if not given). lookup_account.\\n2. Check the billing channel and plan on the account.\\n   - Not billed directly by Redwood: search_knowledge for the procedure for that exact channel. A cloud marketplace (aws_marketplace, gcp_marketplace) and a reseller are different channels with different pages; apply only the one matching the console's billing_channel and don't borrow steps from the other. Support usually cannot credit or dispute these; tell the developer who bills them and where adjustments go. Do not open a credit or dispute.\\n3. Find the invoice: get_invoice (use lookup_account's invoice list to map a month to an id). Read console_confirmed_duplicates and same_amount_but_different_requests. If the developer gave request ids, get_usage them.\\n4. Classify:\\n   a. Console-confirmed duplicate: two lines on the same direct invoice billing the identical request ids. The duplicated line is the later line (duplicated_lines); credit that one, never the original.\\n   b. Look-alike: same amount/description but different request ids, or no second line. NOT a confirmed duplicate: say so plainly, with the console evidence (each line's request ids and times).\\n   c. Wrong rate/quantity/product, usage they don't recognize, retries/cancelled streams, token-count mismatch: search the token/usage pages first; if they explain it, explain and stop.\\n   d. Request to waive or reduce a correct charge (goodwill, exception, SLA credit): not Support's to issue. Load team-handoff.\\n5. For (a), search_knowledge for Support's current credit limit for duplicate charges and how it applies (per line, full line amount, no splitting). Read the approving document's status/date; drafts and proposals do not change the limit. If sources disagree on the limit (e.g. a draft, a thread or the developer cites a different figure), delegate to policy-researcher with the question and the dates before deciding. Compare the duplicated line's full amount with the limit.\\n   - Within limit: confirm_with_developer \\\"Issue a credit note of $X (reason duplicate) on line L of invoice I\\\". If yes: issue_credit_note for the full line amount with that reason, memo naming the request ids. Tell the developer the credit note id and amount. No handoff needed.\\n   - Over limit: do not credit and do not split. confirm_with_developer that you will open a dispute on line L and hand it to the owning team. If yes: open_dispute (reason duplicate_charge, the line, the request ids, submit=true), then load team-handoff and escalate with the dispute id.\\n6. For (b) and unexplained (c): gather intake (invoice, lines, UTC window, request ids, what they checked) with ask_developer, then load team-handoff for the owning team named in the routing policy.\\n7. Never promise a refund date or dispute outcome. If a write is rejected, read get_invoice to see the state before saying anything.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"account\": {\"account_id\": \"copperleaf-ai\", \"org\": \"copperleaf-ai\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\"}, \"contracts\": [], \"credit_grants\": [], \"invoices\": [{\"invoice_id\": \"INV-2026-0831-207\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total_cents\": 280000, \"total\": \"$2,800.00\"}, {\"invoice_id\": \"INV-BG-202603-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total_cents\": 284432, \"total\": \"$2,844.32\"}, {\"invoice_id\": \"INV-BG-202604-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total_cents\": 232659, \"total\": \"$2,326.59\"}, {\"invoice_id\": \"INV-BG-202605-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total_cents\": 328199, \"total\": \"$3,281.99\"}, {\"invoice_id\": \"INV-BG-202606-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total_cents\": 258904, \"total\": \"$2,589.04\"}, {\"invoice_id\": \"INV-BG-202607-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total_cents\": 305704, \"total\": \"$3,057.04\"}], \"credit_notes\": [], \"disputes\": [], \"cases\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"current Finance Billing Adjustments Approval Matrix duplicate-charge credit per duplicated line limit Support\", \"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"chunk\": \"3/4\", \"kind\": \"Confluence page\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"(continued) ## Duplicate charges: what Support may credit\\n| Situation | What Support does |\\n|---|---|\\n| Confirmed duplicate, duplicated line over the limit | Don't credit. Open a dispute on the duplicated line (reason `duplicate_charge`, with the request IDs) and hand the case to Billing Ops with the invoice number, the line and the dispute id. |\\n| Duplicate the console doesn't confirm (different request IDs, or no second line) | Don't credit. Collect the intake details and hand the case to Billing Ops as the routing page describes. |\\nSupport's limit is set by Finance in the Billing Adjustments Approval Matrix (Finance shared drive) (the duplicate-charge credit row). It is per duplicated line and applies to the line's full amount. Don't split a larger duplicate into several smaller credits.\"}, {\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"chunk\": \"6/6\", \"kind\": \"Drive doc\", \"title\": \"Billing Adjustments Approval Matrix\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"## Reviewing this matrix\\nFP&A reviews the limits each quarter against adjustment volume and error rates. Changes are announced in #support and #billing-ops and logged below. A limit change applies from the date or period stated in the log; earlier adjustments keep the limit in force when they were issued.\\n## Contacts\\n- FP&A: Rishi Malhotra\\n- Controller: Emily Stone\\n- CFO: Laura Bennett\\n## Change log\\n| Date | Change | By |\\n|---|---|---|\\n| 2026-02-03 | Support issues duplicate-charge credits itself, up to the per-line limit above, instead of routing every duplicate to Billing Ops | Rishi Malhotra |\\n| 2025-09-08 | First version | Rishi Malhotra |\"}, {\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"chunk\": \"4/6\", \"kind\": \"Drive doc\", \"title\": \"Billing Adjustments Approval Matrix\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"(continued) ## Approval matrix\\n| Adjustment | Who issues it | Limit and approver |\\n|---|---|---|\\n| Promotional or campaign credits | Growth marketing | Within the campaign budget FP&A approved |\\n| Partner program funds (MDF) | Partnerships | Per the partner agreement; never applied to invoices |\\n| Write-off of an uncollectible balance | Controller | Up to $10,000; above that, the CFO |\\n| Re-issued invoice (address, PO number, tax ID) | Billing Ops | No limit; no change to amounts |\\n## Evidence each adjustment needs\\n- **Duplicate-charge credit**: the invoice number, both line IDs and the request IDs they bill. The console confirms the duplicate; a matching description or amount alone is not evidence.\\n- **Billing-error correction**: the line, the expected rate or quantity and where it comes from (price book, order form).\\n- **Goodwill and SLA credits**: the customer's ask, the amount if given, and the reason. The account team adds contract references for SLA claims.\\n- **Write-offs**: collections history and the Controller's note.\"}, {\"source\": \"sources/google_drive/shared_drives/finance/support-credit-limit-increase-proposal.json\", \"chunk\": \"1/1\", \"kind\": \"Drive doc\", \"title\": \"Proposal: raise Support's duplicate-credit limit to $1,500 (DRAFT)\", \"status\": \"draft\", \"date\": \"2026-06-05\", \"text\": \"title: Proposal: raise Support's duplicate-credit limit to $1,500 (DRAFT)\\nowner: Miguel Santos\\ndoc_type: doc\\ncreated_at: 2026-06-03\\nlast_modified: 2026-06-05\\nteam: finance\\nstatus: draft\\ncontent: DRAFT for discussion - not approved\\nIdea: let Support credit duplicated lines up to $1,500 so fewer duplicates need a dispute.\\nOpen questions:\\n- FP&A hasn't reviewed this.\\n- Would need a change to the approvals matrix to take effect.\\nStatus: parked.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"chunk\": \"4/4\", \"kind\": \"Confluence page\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"## What Support never credits\\n- Goodwill, exceptions, SLA credits, or any credit someone says a manager, sales rep or Redwood engineer already approved. These stay with Finance, per the #support guidance from FP&A. Route the request; don't issue anything from the console.\\n- Marketplace purchases, which are billed by the marketplace.\\n## Telling the customer\\n- Say what you did: the credit note and its amount, or that a dispute is open and Billing Ops has the case. Don't promise the outcome of a dispute or a date.\\n_Last reviewed 2026-02-05._\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/duplicate-charges-and-refunds-help-2025.json\", \"chunk\": \"1/1\", \"kind\": \"Confluence page\", \"title\": \"Help Center: Duplicate Charges and Refunds (archived)\", \"status\": \"published ARCHIVED\", \"date\": \"2026-01-21\", \"text\": \"title: Help Center: Duplicate Charges and Refunds (archived)\\nspace: product-docs\\nauthor: Dev Patel\\nowner_team: customer-success\\nstatus: published\\ncreated_at: 2025-06-10\\nlast_updated: 2026-01-21\\nbody: > Archived 2026-01-21. This help-center article is no longer current. Support handles duplicate charges as described on \\\"Support Console: Duplicate-Charge Credits and Billing Disputes\\\".\\n## Duplicate charges\\nIf your invoice bills the same usage twice, contact Support with the invoice number. Support refunds a duplicated line in full on request.\\n## Refund timing\\nRefunds reach your card within 5-10 business days.\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/usage-credit-and-quota-guidelines-2026.json\", \"chunk\": \"5/9\", \"kind\": \"Confluence page\", \"title\": \"Usage Credits and Quota Assignment Guidelines for Hosted Inference (2026)\", \"status\": \"in_review\", \"date\": \"2026-02-03\", \"text\": \"2) Charge estimated CR from burst_pool or monthly_budget based on current state.\\n3) If estimated charge exceeds available in both buckets, return block response with suggested remedial steps.\\n4) After request completes, reconcile actual CR consumed and adjust buckets; if actual > estimated, reconciliation can result in negative-balance grace (up to 5% of monthly_budget) before hard-block.\\nMigration story for legacy customers (timeline & steps):\\n- Objective: Migrate customers currently on the \\\\\\\"token-minute\\\\\\\" plans to CR model with minimal disruption and clear audit trail.\\n- Migration window: Q1 2026 (target).\\n- Steps: 1) Export legacy usage logs and compute equivalent CR using the Conversion matrix (generate per-account migration report). 2) Apply one-time migration credit equal to the account's trailing-3-month median monthly consumption + 10% buffer. 3) Flag accounts for manual review if trailing usage shows >3x variance month-to-month. 4) Notify customers 30 days in advance with migration report and sandboxed preview of post-migration invoice.\\nEdge cases and dispute handling:\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"report incorrect archived help center article flag correction owner process\", \"results\": [{\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/adr-014-status-page-component-mapping-source-of-truth.json\", \"chunk\": \"12/14\", \"kind\": \"Confluence page\", \"title\": \"ADR-014: Status page component mapping \\u2013 source of truth and change management\", \"status\": \"published\", \"date\": \"2025-12-06\", \"text\": \"### B) incident-bot repository as the canonical source\\nRejected because the registry is cross-cutting (dashboards, SLOs, gateway metrics). Anchoring it in incident-bot would bias ownership and make observability alignment harder.\\n### C) Status provider (e.g., Statuspage) as the canonical source\\nRejected because provider-side configuration does not encode our internal mapping logic, review process, or safety checks, and is hard to test.\\n## Consequences\\n### Positive\\n- A single, versioned, testable source of truth\\n- Safer rollouts with staged validation\\n- Clear ownership and approval paths\\n- Easier automation (incident-bot drafts, audit jobs, dashboards)\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/saved-replies-style-guide-2026.json\", \"chunk\": \"2/2\", \"kind\": \"Confluence page\", \"title\": \"Support Console: Saved Replies Style Guide\", \"status\": \"published\", \"date\": \"2026-03-09\", \"text\": \"## Examples\\n- \\\"Thanks for flagging the two lines. I'm checking them in the console now.\\\"\\n- \\\"Usage can take a short while to show in the Console. I'll tell you when to check again.\\\"\\n_Last reviewed 2026-03-09._\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/adr-014-status-page-component-mapping-source-of-truth.json\", \"chunk\": \"10/14\", \"kind\": \"Confluence page\", \"title\": \"ADR-014: Status page component mapping \\u2013 source of truth and change management\", \"status\": \"published\", \"date\": \"2025-12-06\", \"text\": \"### Runtime safety checks\\n- incident-bot will refuse to publish status updates for unknown `component_id` values.\\n- A weekly \\u201cstatus accuracy audit\\u201d job will compare incident tags vs status updates and open follow-up tasks for mismatches.\\n### Deprecation policy\\nWe will not delete a component that is visible publicly without:\\n- Marking it `deprecated=true` for at least **30 days**\\n- Providing a `replaced_by_component_id` (if applicable)\\n- Ensuring existing post-incident summaries and historical references remain understandable\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/post-incident-summary-template.json\", \"chunk\": \"12/12\", \"kind\": \"Confluence page\", \"title\": \"Post-incident summary template (publishable)\", \"status\": \"published\", \"date\": \"2025-12-03\", \"text\": \"## Common wording blocks (optional)\\nUse these to stay consistent across summaries:\\n**No customer action required**\\n\\u201cNo customer action is required. If you continue to see issues, please contact Support with timestamps and the affected region.\\u201d\\n**Uncertainty acknowledgement**\\n\\u201cWe have identified the contributing factors and are continuing to investigate the underlying conditions that made this failure possible. We will update this summary if materially new information becomes available.\\u201d\\n**Status page + Console linking**\\n\\u201cIncident updates were posted to our status page during the event. This summary is provided as a follow-up with additional context and prevention steps.\\u201d\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/post-incident-summary-template.json\", \"chunk\": \"11/12\", \"kind\": \"Confluence page\", \"title\": \"Post-incident summary template (publishable)\", \"status\": \"published\", \"date\": \"2025-12-03\", \"text\": \"### If you are unsure\\nEscalate to:\\n- Support lead (for customer sensitivity)\\n- Legal (Michael Grant)\\n- Security/Compliance (Naomi Feldman)\\n---\\n## Quality checklist (before publishing)\\n- [ ] Impact describes **what customers experienced** (not internal-only symptoms)\\n- [ ] Components and regions match the status page component taxonomy\\n- [ ] Timeline is in **UTC** and includes start/mitigation/resolution\\n- [ ] Root cause is framed as a **class** with a clear explanation\\n- [ ] Follow-ups are specific and have owners + target dates\\n- [ ] No sensitive internal details, customer-identifying info, or over-promising language\\n- [ ] Support/CS has reviewed the wording\\n---\"}, {\"source\": \"sources/confluence/finance-and-legal/contracts-and-legal-process/benchmark-claims-legal-review-guidelines.json\", \"chunk\": \"17/17\", \"kind\": \"Confluence page\", \"title\": \"Benchmark Claims: Legal Review Guidelines (Latency/$ Report)\", \"status\": \"published\", \"date\": \"2025-07-09\", \"text\": \"## Contacts\\n- Legal owners: Michael Grant, Sofia Mendes\\n- PMM owner: Soojin Lee\\n- Benchmark leads: Jonas Weber, Claire Dubois\\n- Security review: Naomi Feldman\\n(If unsure whether something is a comparative claim, assume it is and request Legal review early.)\"}, {\"source\": \"sources/confluence/customer-success-and-support/known-issues-and-workarounds/private-observability-known-issues.json\", \"chunk\": \"19/19\", \"kind\": \"Confluence page\", \"title\": \"Private Observability Minimum Pack \\u2014 Known Issues & Workarounds\", \"status\": \"published\", \"date\": \"2025-09-03\", \"text\": \"## Change log\\n- 2025-09-03: Added backpressure/dropping guidance and clarified Splunk HEC error collection.\\n- 2025-08-12: Added NetworkPolicy scrape failure workflow.\\n- 2025-07-15: Initial publication.\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"duplicate charge billing dispute routing current support procedure invoice same request IDs\", \"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"chunk\": \"3/4\", \"kind\": \"Confluence page\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"(continued) ## Duplicate charges: what Support may credit\\n| Situation | What Support does |\\n|---|---|\\n| Confirmed duplicate, duplicated line over the limit | Don't credit. Open a dispute on the duplicated line (reason `duplicate_charge`, with the request IDs) and hand the case to Billing Ops with the invoice number, the line and the dispute id. |\\n| Duplicate the console doesn't confirm (different request IDs, or no second line) | Don't credit. Collect the intake details and hand the case to Billing Ops as the routing page describes. |\\nSupport's limit is set by Finance in the Billing Adjustments Approval Matrix (Finance shared drive) (the duplicate-charge credit row). It is per duplicated line and applies to the line's full amount. Don't split a larger duplicate into several smaller credits.\"}, {\"source\": \"sources/confluence/product-docs/pricing-and-packaging/duplicate-charges-and-refunds-help-2025.json\", \"chunk\": \"1/1\", \"kind\": \"Confluence page\", \"title\": \"Help Center: Duplicate Charges and Refunds (archived)\", \"status\": \"published ARCHIVED\", \"date\": \"2026-01-21\", \"text\": \"title: Help Center: Duplicate Charges and Refunds (archived)\\nspace: product-docs\\nauthor: Dev Patel\\nowner_team: customer-success\\nstatus: published\\ncreated_at: 2025-06-10\\nlast_updated: 2026-01-21\\nbody: > Archived 2026-01-21. This help-center article is no longer current. Support handles duplicate charges as described on \\\"Support Console: Duplicate-Charge Credits and Billing Disputes\\\".\\n## Duplicate charges\\nIf your invoice bills the same usage twice, contact Support with the invoice number. Support refunds a duplicated line in full on request.\\n## Refund timing\\nRefunds reach your card within 5-10 business days.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"chunk\": \"1/4\", \"kind\": \"Confluence page\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"title: Support Console: Duplicate-Charge Credits and Billing Disputes\\nspace: customer-success-and-support\\nauthor: Dev Patel\\nowner_team: customer-success\\nstatus: published\\ncreated_at: 2026-01-27\\nlast_updated: 2026-02-05\\nbody: ## Purpose\\nThe support console can look up a customer's billing account, issue a credit note against invoice lines, and open a billing dispute. This page defines when Support uses each one. It amends the billing routing page for duplicate charges only; everything else on that page still applies.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/reseller-billed-invoice-disputes-2026.json\", \"chunk\": \"1/2\", \"kind\": \"Confluence page\", \"title\": \"Reseller-Billed Invoices: Disputes and Credits\", \"status\": \"published\", \"date\": \"2026-04-02\", \"text\": \"title: Reseller-Billed Invoices: Disputes and Credits\\nspace: customer-success-and-support\\nauthor: Rachel Kim\\nowner_team: go-to-market\\nstatus: published\\ncreated_at: 2026-03-16\\nlast_updated: 2026-04-02\\nbody: ## Scope\\nCustomers who buy Redwood through a reseller receive the reseller's invoice, not Redwood's. This page covers disputes and credits on those invoices only. It is not the procedure for duplicate charges on a direct Redwood invoice; for those, use the support console credits and disputes page.\"}, {\"source\": \"sources/google_drive/shared_drives/finance/billing-adjustments-approval-matrix.json\", \"chunk\": \"3/6\", \"kind\": \"Drive doc\", \"title\": \"Billing Adjustments Approval Matrix\", \"status\": \"final\", \"date\": \"2026-02-03\", \"text\": \"## Approval matrix\\n| Adjustment | Who issues it | Limit and approver |\\n|---|---|---|\\n| Duplicate-charge credit (console-confirmed duplicate line on a direct invoice) | Support, from the support console | Up to $500 per duplicated line. Over that, Support opens a dispute and Billing Ops takes it |\\n| Billing-error correction other than a duplicate (wrong rate, quantity or product) | Billing Ops | Up to $2,000 per invoice; above that, the Controller |\\n| Refund of a paid invoice line after an approved adjustment | Billing Ops | Up to $5,000; above that, the Controller |\\n| Goodwill credit, waiver, or exception to a billing rule | Finance (FP&A) | Any amount, decided in FP&A's review. Support and Billing Ops route these requests and never issue them |\\n| SLA credit on a self-serve account | Finance (FP&A) | Self-serve plans carry no SLA. FP&A reviews any request as goodwill |\\n| SLA credit under a signed contract | Account team files the claim; Finance approves | Per the contract's SLA terms. No amount is promised before Finance's review |\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"chunk\": \"3/6\", \"kind\": \"Confluence page\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"(continued) ## When a case is needed\\n- Ask for the intake details before handing off. The receiving team works from the case and the conversation so far, so put everything the customer gave you in the case.\\n- If the customer doesn't have some of the details, hand off with what you have and note what's missing. Don't hold the case until they find them.\\n## Routing table\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Disputed or duplicated line on a direct Redwood invoice | Billing Ops | Invoice number, the line(s), UTC window, request IDs |\\n| Refund request on a direct invoice line the customer says was billed in error | Billing Ops | Billing Ops confirms the charge and requests approval where needed |\\n| Invoice total doesn't match the customer's usage export | Billing Ops | Note the export's timezone and filters |\\n| Payment failures, holds, receipts | Billing Ops | |\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"chunk\": \"4/6\", \"kind\": \"Confluence page\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"(continued) ## Routing table\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Meter discrepancy the related pages don't explain: request IDs whose billed tokens still don't match after the tokenizer, payload and retry rules are applied | Billing Engineering | Billing Eng checks meter correctness and hands any correction to Billing Ops |\\n| Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why. Applies even when Support has just explained that the charge is correct |\\n| SLA credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_Z6QehwCdDhf2CByxq4G5FVTO",
+     "name": "get_invoice",
+     "arguments": {
+      "invoice_id": "INV-2026-0831-207"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"invoice\": {\"invoice_id\": \"INV-2026-0831-207\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total_cents\": 280000, \"total\": \"$2,800.00\"}, \"lines\": [{\"line_id\": \"INV-2026-0831-207/L1\", \"invoice_id\": \"INV-2026-0831-207\", \"description\": \"Hosted API usage, Aug 1-31\", \"product\": \"hosted_api\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"amount_cents\": 212000, \"request_ids\": [\"req_e40\"], \"amount\": \"$2,120.00\", \"credited_cents\": 0, \"uncredited_cents\": 212000}, {\"line_id\": \"INV-2026-0831-207/L2\", \"invoice_id\": \"INV-2026-0831-207\", \"description\": \"Embeddings, Aug 3-9\", \"product\": \"embeddings\", \"period_start\": \"2026-08-03\", \"period_end\": \"2026-08-09\", \"amount_cents\": 34000, \"request_ids\": [\"req_e55\"], \"amount\": \"$340.00\", \"credited_cents\": 0, \"uncredited_cents\": 34000}, {\"line_id\": \"INV-2026-0831-207/L3\", \"invoice_id\": \"INV-2026-0831-207\", \"description\": \"Embeddings, Aug 3-9\", \"product\": \"embeddings\", \"period_start\": \"2026-08-03\", \"period_end\": \"2026-08-09\", \"amount_cents\": 34000, \"request_ids\": [\"req_e55\"], \"amount\": \"$340.00\", \"credited_cents\": 0, \"uncredited_cents\": 34000}], \"credit_notes\": [], \"console_confirmed_duplicates\": [{\"request_ids\": [\"req_e55\"], \"line_ids\": [\"INV-2026-0831-207/L2\", \"INV-2026-0831-207/L3\"], \"original_line\": \"INV-2026-0831-207/L2\", \"duplicated_lines\": [\"INV-2026-0831-207/L3\"], \"amount_cents_each\": [34000, 34000]}], \"same_amount_but_different_requests\": [], \"note\": \"A console-confirmed duplicate is two lines on this invoice billing the same request ids. Lines with the same amount/description but different request ids are NOT confirmed duplicates.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_Q5vgnxRY9LB6o0holpA4sjiP",
+     "name": "get_usage",
+     "arguments": {
+      "request_ids": [
+       "req_e55"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"usage\": [{\"request_id\": \"req_e55\", \"account_id\": \"copperleaf-ai\", \"at\": \"2026-08-06T16:55:21Z\", \"http_status\": 200, \"billed_tokens\": 27200000, \"cached_tokens\": 0, \"line_id\": \"INV-2026-0831-207/L2\"}], \"not_found\": []}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_UleozMXVK3MsqhOHaqqs0CaU",
+     "name": "confirm_with_developer",
+     "arguments": {
+      "proposal": "Issue one $340.00 credit note (reason `duplicate`) against the duplicated line INV-2026-0831-207/L3 on invoice INV-2026-0831-207 for request ID req_e55."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answer\": \"yes\", \"message\": \"Yes, go ahead.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_69JpDHQXBKKntctI4wUJN0g7",
+     "name": "issue_credit_note",
+     "arguments": {
+      "account_id": "copperleaf-ai",
+      "invoice_id": "INV-2026-0831-207",
+      "line_id": "INV-2026-0831-207/L3",
+      "amount_cents": 34000,
+      "reason": "duplicate",
+      "memo": "Duplicate charge for request ID req_e55; credited duplicated line L3."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"issued\": true, \"credit_note\": {\"account_id\": \"copperleaf-ai\", \"invoice_id\": \"INV-2026-0831-207\", \"line_ids\": [\"INV-2026-0831-207/L3\"], \"amount_cents\": 34000, \"reason\": \"duplicate\", \"memo\": \"Duplicate charge for request ID req_e55; credited duplicated line L3.\", \"status\": \"issued\", \"credit_note_id\": \"CN-1\", \"at\": 15}, \"amount\": \"$340.00\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_IbmosA34pUCFlZlMfvVBBjcc",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "customer-facing help center article outdated inaccurate content correction reporting owner customer success documentation"
+     }
+    },
+    {
+     "id": "call_svWF0A50hC9XKtpBXCnoyESk",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "help center documentation bug content feedback escalation case team product docs owner process"
+     }
+    },
+    {
+     "id": "call_LL2R5oChbBYCdpku8QUP2QYS",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "current billing case routing archived help article correction content owner"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"customer-facing help center article outdated inaccurate content correction reporting owner customer success documentation\", \"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/token-accounting-discrepancy-intake-and-triage.json\", \"chunk\": \"1/4\", \"kind\": \"Confluence page\", \"title\": \"Support Ops: Reconciling token accounting discrepancy reports (intake + triage)\", \"status\": \"published\", \"date\": \"2025-04-22\", \"text\": \"title: Support Ops: Reconciling token accounting discrepancy reports (intake + triage)\\nspace: customer-success-and-support\\nauthor: Naomi Feldman\\nowner_team: customer-success\\nstatus: published\\ncreated_at: 2024-11-19\\nlast_updated: 2025-04-22\\nbody: ## Purpose\\nThis page documents how Support should handle and count reports of a **token accounting discrepancy** across intake channels. These cases frequently arrive via Slack, email, or Jira, and can be double-counted unless we normalize to a single canonical support record.\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/post-incident-summary-template.json\", \"chunk\": \"12/12\", \"kind\": \"Confluence page\", \"title\": \"Post-incident summary template (publishable)\", \"status\": \"published\", \"date\": \"2025-12-03\", \"text\": \"## Common wording blocks (optional)\\nUse these to stay consistent across summaries:\\n**No customer action required**\\n\\u201cNo customer action is required. If you continue to see issues, please contact Support with timestamps and the affected region.\\u201d\\n**Uncertainty acknowledgement**\\n\\u201cWe have identified the contributing factors and are continuing to investigate the underlying conditions that made this failure possible. We will update this summary if materially new information becomes available.\\u201d\\n**Status page + Console linking**\\n\\u201cIncident updates were posted to our status page during the event. This summary is provided as a follow-up with additional context and prevention steps.\\u201d\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/post-incident-summary-template.json\", \"chunk\": \"11/12\", \"kind\": \"Confluence page\", \"title\": \"Post-incident summary template (publishable)\", \"status\": \"published\", \"date\": \"2025-12-03\", \"text\": \"### If you are unsure\\nEscalate to:\\n- Support lead (for customer sensitivity)\\n- Legal (Michael Grant)\\n- Security/Compliance (Naomi Feldman)\\n---\\n## Quality checklist (before publishing)\\n- [ ] Impact describes **what customers experienced** (not internal-only symptoms)\\n- [ ] Components and regions match the status page component taxonomy\\n- [ ] Timeline is in **UTC** and includes start/mitigation/resolution\\n- [ ] Root cause is framed as a **class** with a clear explanation\\n- [ ] Follow-ups are specific and have owners + target dates\\n- [ ] No sensitive internal details, customer-identifying info, or over-promising language\\n- [ ] Support/CS has reviewed the wording\\n---\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/incident-communication-templates.json\", \"chunk\": \"1/17\", \"kind\": \"Confluence page\", \"title\": \"Incident Communication Templates (Status Page + Customer-Facing Updates)\", \"status\": \"published\", \"date\": \"2026-01-09\", \"text\": \"title: Incident Communication Templates (Status Page + Customer-Facing Updates)\\nspace: oncall-and-incident-response\\nauthor: Wei Chen\\nowner_team: engineering\\nstatus: published\\ncreated_at: 2025-11-12\\nlast_updated: 2026-01-09\\nbody: ## Purpose\\nThis page provides standardized, copy/paste templates for public status page updates. The goals are:\\n- Reduce time-to-first-update (TTFU) without sacrificing accuracy.\\n- Keep language consistent across Hosted, Dedicated, and Private contexts.\\n- Share useful, actionable info (what\\u2019s impacted, where, what customers can do) without leaking sensitive details.\\nThese templates are designed for the public status page update field and can be reused in Support macros and Console incident linking.\\n---\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/incident-communication-templates.json\", \"chunk\": \"16/17\", \"kind\": \"Confluence page\", \"title\": \"Incident Communication Templates (Status Page + Customer-Facing Updates)\", \"status\": \"published\", \"date\": \"2026-01-09\", \"text\": \"## Checklist before you hit \\u201cPublish\\u201d\\n- Component(s) and region(s) match the taxonomy exactly.\\n- The symptom matches what dashboards show (errors vs latency vs disconnects).\\n- No internal names, customer identifiers, or sensitive details.\\n- No promises on resolution time.\\n- Next update time is included for Investigating/Identified/Mitigating.\\n- If Sev0/Sev1: confirm approval requirements (see incident comms roles doc) and notify #support.\\n---\\n## Approval + coordination (summary)\\n- **Sev0/Sev1:** Comms Lead owns draft; IC approves content accuracy; Support Lead approval may be required before publishing depending on incident type and customer impact.\\n- **Sev2+:** Comms Lead or IC can publish, but still coordinate with Support if there is meaningful customer confusion.\\nAlways paste the final posted text into the incident channel thread for auditability.\\n---\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/status-page-comms-templates.json\", \"chunk\": \"4/4\", \"kind\": \"Confluence page\", \"title\": \"Status page + customer comms templates (failover / regional outage)\", \"status\": \"published\", \"date\": \"2026-01-07\", \"text\": \"h1. Support handoff notes\\n- Comms lead should post the chosen template in the incident channel for IC approval before publishing.\\n- If specific customers are heavily impacted, Support should reference their observed error rates from dashboards (avoid internal metric names in external emails).\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/runtime-incident-customer-comms.json\", \"chunk\": \"4/4\", \"kind\": \"Confluence page\", \"title\": \"Runtime incident customer communications (status page + direct customer updates)\", \"status\": \"published\", \"date\": \"2025-02-14\", \"text\": \"## Update when rollback begins\\n\\\"We identified a regression in a recent Serving Runtime release and have started an emergency rollback. We are monitoring recovery metrics across regions and will provide an update within 30 minutes.\\\"\\n## Resolved\\n\\\"The issue has been mitigated and service metrics have returned to normal following a rollback. We will publish a post-incident review.\\\"\\nh1. Approval checklist\\nBefore sending customer-facing comms:\\n* IC has reviewed the wording\\n* Do not speculate root cause\\n* Do not share internal release tags or cluster names unless customer-specific and approved\\n* If security is suspected, follow the security incident process instead\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"help center documentation bug content feedback escalation case team product docs owner process\", \"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/support-process-model-rollout-customer-comms-requirements.json\", \"chunk\": \"3/4\", \"kind\": \"Confluence page\", \"title\": \"Support Process: Customer Communications Requirements for Model Rollouts\", \"status\": \"published\", \"date\": \"2025-09-06\", \"text\": \"h1. Required message content\\nAll customer communications MUST include:\\n* What is changing (model alias and new version id if customer pins versions)\\n* Why we are changing (benefit statement)\\n* When (date/time + timezone + duration)\\n* Impact assessment (best-case and worst-case)\\n* How to opt out or pin a version\\n* How to get help (support channel and escalation path)\\n* Rollback posture (we can roll back during window if thresholds violated)\\nh1. Channels\\n* Dedicated/Private: email to customer technical contacts + a support ticket for tracking\\n* Hosted: release notes; optionally email to top impacted orgs\\n* If the change triggers an incident or wide impact, use the status page rules\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/post-incident-summary-template.json\", \"chunk\": \"11/12\", \"kind\": \"Confluence page\", \"title\": \"Post-incident summary template (publishable)\", \"status\": \"published\", \"date\": \"2025-12-03\", \"text\": \"### If you are unsure\\nEscalate to:\\n- Support lead (for customer sensitivity)\\n- Legal (Michael Grant)\\n- Security/Compliance (Naomi Feldman)\\n---\\n## Quality checklist (before publishing)\\n- [ ] Impact describes **what customers experienced** (not internal-only symptoms)\\n- [ ] Components and regions match the status page component taxonomy\\n- [ ] Timeline is in **UTC** and includes start/mitigation/resolution\\n- [ ] Root cause is framed as a **class** with a clear explanation\\n- [ ] Follow-ups are specific and have owners + target dates\\n- [ ] No sensitive internal details, customer-identifying info, or over-promising language\\n- [ ] Support/CS has reviewed the wording\\n---\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/adr-014-status-page-component-mapping-source-of-truth.json\", \"chunk\": \"11/14\", \"kind\": \"Confluence page\", \"title\": \"ADR-014: Status page component mapping \\u2013 source of truth and change management\", \"status\": \"published\", \"date\": \"2025-12-06\", \"text\": \"## Operational impacts\\n- **On-call impact**: Reduced manual decision-making; incidents require selecting from a validated list of components.\\n- **Support impact**: More accurate public reporting reduces ticket volume for \\u201cstatus page says OK but X is failing.\\u201d\\n- **Engineering impact**: Teams must emit correct component tags and maintain mappings when services change.\\n## Alternatives considered\\n### A) Confluence as the canonical source\\nRejected because Confluence is not easily validated, lacks strong CI hooks, and creates drift between documentation and automation.\"}, {\"source\": \"sources/confluence/customer-success-and-support/known-issues-and-workarounds/runtime-lts-support-playbook.json\", \"chunk\": \"13/21\", \"kind\": \"Confluence page\", \"title\": \"Runtime LTS Support Playbook (Support + Customer Success)\", \"status\": \"published\", \"date\": \"2025-04-08\", \"text\": \"# Templates\\nCopy/paste and customize. Keep language factual and avoid over-committing.\\n## Template A \\u2014 Initial acknowledgment (LTS customer)\\nSubject: Update on Runtime LTS issue investigation (Case <CASE_ID>)\\nHi <NAME>,\\nThanks for the detailed report. We\\u2019re investigating the behavior you\\u2019re seeing on **Runtime <VERSION>-lts** in <ENVIRONMENT>. We\\u2019re currently reviewing logs/metrics and attempting to reproduce under similar workload conditions.\\nTo ensure we move quickly, could you confirm the following:\\n- Exact runtime image tag/digest:\\n- Model(s) + serving profile (quantization/TP/context):\\n- Time window of impact (with timezone):\\n- A few example request IDs/trace IDs from failures:\\nNext update: we\\u2019ll follow up by <TIME> with either a mitigation, an upgrade/rollback recommendation, or a request for additional data.\\nBest,\\n<AGENT>\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/saved-replies-style-guide-2026.json\", \"chunk\": \"1/2\", \"kind\": \"Confluence page\", \"title\": \"Support Console: Saved Replies Style Guide\", \"status\": \"published\", \"date\": \"2026-03-09\", \"text\": \"title: Support Console: Saved Replies Style Guide\\nspace: customer-success-and-support\\nauthor: Owen Phillips\\nowner_team: customer-success\\nstatus: published\\ncreated_at: 2026-03-02\\nlast_updated: 2026-03-09\\nbody: ## Purpose\\nSaved replies keep common answers consistent. This guide covers how to write one; it doesn't set policy.\\n## Rules\\n- Lead with the answer, then the detail.\\n- Name the next step and who takes it.\\n- Never put an amount, a date or a limit in a saved reply: they change, and the policy pages are the source.\\n- Review each saved reply when the page it summarizes changes.\"}, {\"source\": \"sources/confluence/oncall-and-incident-response/status-page-and-comms/adr-014-status-page-component-mapping-source-of-truth.json\", \"chunk\": \"7/14\", \"kind\": \"Confluence page\", \"title\": \"ADR-014: Status page component mapping \\u2013 source of truth and change management\", \"status\": \"published\", \"date\": \"2025-12-06\", \"text\": \"## Review and ownership model\\n### CODEOWNERS / required reviewers\\nChanges to `config/statuspage/**` require approval from:\\n- **SRE**: Rafael Mendes (delivery lead) or delegate\\n- **Observability**: Allison Grant (or on-call observability delegate)\\n- **Support/CS** (for externally visible naming / grouping impacts): Dev Patel (or support ops delegate)\\n- **Docs/DevEx** (for public-facing wording changes): Elliot Price (or delegate)\\nAdditional approvals required:\\n- **Legal/Security review** (Michael Grant / Naomi Feldman) for changes that materially alter what we publish (e.g., new post-incident summary fields surfaced in Console, changes that could imply SLAs).\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"chunk\": \"2/6\", \"kind\": \"Confluence page\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"## When a case is needed\\nOpen a case only when the customer asks for something Support can't do in the conversation, or reports a problem the related pages don't explain. Answering a question needs no case.\\n- Answer, don't hand off: how billed tokens are counted (model-native tokenizer, full request payload), why retries and cancelled streams are billed, and why the Console lags a few minutes are covered in the related pages. If one of them explains what the customer sees, explain it and stop there, even if the customer calls it a bug or double billing.\\n- If an older page says something different from the current one, explain the current behaviour and which page is current. That needs no case, even if the customer asks to report the old page as a bug.\\n- Questions about typical credit amounts, with no credit asked for, get the answer that there is no standard amount and that any amount is decided in Finance's review. No case.\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"current billing case routing archived help article correction content owner\", \"results\": [{\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"chunk\": \"1/6\", \"kind\": \"Confluence page\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"title: Billing Support: Case Routing and Handoffs\\nspace: customer-success-and-support\\nauthor: Dev Patel\\nowner_team: customer-success\\nstatus: published\\ncreated_at: 2026-01-20\\nlast_updated: 2026-02-06\\nbody: ## Purpose\\nThis page defines when Support opens a billing case, where it goes, and what the receiving team needs to act on it. It replaces the v0.3 billing escalations RACI draft in the customer-success shared drive, which predates the Billing Ops and Billing Engineering rotations and should not be used.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs.json\", \"chunk\": \"2/6\", \"kind\": \"Confluence page\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"status\": \"published\", \"date\": \"2026-02-06\", \"text\": \"## When a case is needed\\nOpen a case only when the customer asks for something Support can't do in the conversation, or reports a problem the related pages don't explain. Answering a question needs no case.\\n- Answer, don't hand off: how billed tokens are counted (model-native tokenizer, full request payload), why retries and cancelled streams are billed, and why the Console lags a few minutes are covered in the related pages. If one of them explains what the customer sees, explain it and stop there, even if the customer calls it a bug or double billing.\\n- If an older page says something different from the current one, explain the current behaviour and which page is current. That needs no case, even if the customer asks to report the old page as a bug.\\n- Questions about typical credit amounts, with no credit asked for, get the answer that there is no standard amount and that any amount is decided in Finance's review. No case.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/payment-failures-and-card-updates-2026.json\", \"chunk\": \"1/2\", \"kind\": \"Confluence page\", \"title\": \"Billing Support: Failed Card Payments and Card Updates\", \"status\": \"published\", \"date\": \"2026-04-20\", \"text\": \"title: Billing Support: Failed Card Payments and Card Updates\\nspace: customer-success-and-support\\nauthor: Dev Patel\\nowner_team: customer-success\\nstatus: published\\ncreated_at: 2026-04-14\\nlast_updated: 2026-04-20\\nbody: ## Purpose\\nHow Support handles a card payment that failed and a request to change the card used for autopay. Invoice disputes and usage questions are covered on the billing case routing page.\\n## Failed card payments\\nWhen a customer's card payment fails, open a Billing Ops case with the invoice number, the decline code and the time the payment failed. Billing Ops retries the payment or contacts the customer. Tell the customer Billing Ops has it; don't promise a date.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"chunk\": \"1/4\", \"kind\": \"Confluence page\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"title: Support Console: Duplicate-Charge Credits and Billing Disputes\\nspace: customer-success-and-support\\nauthor: Dev Patel\\nowner_team: customer-success\\nstatus: published\\ncreated_at: 2026-01-27\\nlast_updated: 2026-02-05\\nbody: ## Purpose\\nThe support console can look up a customer's billing account, issue a credit note against invoice lines, and open a billing dispute. This page defines when Support uses each one. It amends the billing routing page for duplicate charges only; everything else on that page still applies.\"}, {\"source\": \"sources/confluence/finance-and-legal/billing-controls/collections-and-dunning-schedule-2026.json\", \"chunk\": \"1/1\", \"kind\": \"Confluence page\", \"title\": \"Collections: Dunning Schedule for Overdue Invoices\", \"status\": \"published\", \"date\": \"2026-01-19\", \"text\": \"title: Collections: Dunning Schedule for Overdue Invoices\\nspace: finance-and-legal\\nauthor: Emily Stone\\nowner_team: finance-legal\\nstatus: published\\ncreated_at: 2026-01-12\\nlast_updated: 2026-01-19\\nbody: ## Scope\\nInvoices still unpaid after their due date, once any automatic payment retries have finished.\\n## Schedule\\n| Days past due | Step |\\n|---|---|\\n| 3 | Reminder email to the billing contact |\\n| 10 | Second reminder; account team copied |\\n| 30 | Final notice |\\n| 45 | Hosted API access suspended until paid |\\n_Last reviewed 2026-01-19._\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes.json\", \"chunk\": \"3/4\", \"kind\": \"Confluence page\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes\", \"status\": \"published\", \"date\": \"2026-02-05\", \"text\": \"(continued) ## Duplicate charges: what Support may credit\\n| Situation | What Support does |\\n|---|---|\\n| Confirmed duplicate, duplicated line over the limit | Don't credit. Open a dispute on the duplicated line (reason `duplicate_charge`, with the request IDs) and hand the case to Billing Ops with the invoice number, the line and the dispute id. |\\n| Duplicate the console doesn't confirm (different request IDs, or no second line) | Don't credit. Collect the intake details and hand the case to Billing Ops as the routing page describes. |\\nSupport's limit is set by Finance in the Billing Adjustments Approval Matrix (Finance shared drive) (the duplicate-charge credit row). It is per duplicated line and applies to the line's full amount. Don't split a larger duplicate into several smaller credits.\"}, {\"source\": \"sources/confluence/customer-success-and-support/support-process/reseller-billed-invoice-disputes-2026.json\", \"chunk\": \"1/2\", \"kind\": \"Confluence page\", \"title\": \"Reseller-Billed Invoices: Disputes and Credits\", \"status\": \"published\", \"date\": \"2026-04-02\", \"text\": \"title: Reseller-Billed Invoices: Disputes and Credits\\nspace: customer-success-and-support\\nauthor: Rachel Kim\\nowner_team: go-to-market\\nstatus: published\\ncreated_at: 2026-03-16\\nlast_updated: 2026-04-02\\nbody: ## Scope\\nCustomers who buy Redwood through a reseller receive the reseller's invoice, not Redwood's. This page covers disputes and credits on those invoices only. It is not the procedure for duplicate charges on a direct Redwood invoice; for those, use the support console credits and disputes page.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "content": "I confirmed the duplicate on your August invoice and issued a **$340.00 credit note (CN-1)** against the duplicated line **INV-2026-0831-207/L3** for request `req_e55`.\n\nThe article you found is already marked **archived** and says it is no longer current. Its blanket promise of a full refund on request doesn\u2019t reflect the current process, so I didn\u2019t open a separate case to flag it."
+  },
+  {
+   "role": "user",
+   "content": "Thanks for confirming the $340.00 credit note (CN-1) against INV-2026-0831-207/L3 for request req_e55, and that the article is archived. Is that done now?"
+  },
+  {
+   "role": "assistant",
+   "content": "Yes\u2014the **$340.00 credit note (CN-1)** has been issued against the duplicated line. The article is already archived, so no separate flag or case was opened. This was a credit note, not a card refund."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

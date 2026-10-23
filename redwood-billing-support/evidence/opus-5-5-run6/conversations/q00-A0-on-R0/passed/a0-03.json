@@ -1,0 +1,254 @@
+{
+ "id": "a0-03",
+ "grade": {
+  "id": "a0-03",
+  "category": "normal",
+  "termination": "customer_transfer",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contacts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:cases",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "insert:cases",
+      "at": 15,
+      "ok": true
+     }
+    ]
+   }
+  ],
+  "tools_called": [
+   "account_overview",
+   "confirm_with_developer",
+   "escalate_case",
+   "load_skill",
+   "search_knowledge",
+   "usage_lookup"
+  ]
+ },
+ "termination": "customer_transfer",
+ "invalid": null,
+ "seconds": 25.764341007999974,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Two requests returned 200 today, 15 September 2026, at 13:00 UTC (req_7f31a, req_7f31b), but still aren't on the usage page 45 minutes later. I checked the workspace, filters, and timezone. Org halcyon-data."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_NB4ldOw8GH8jJ7QL4MzSxeLE",
+     "name": "load_skill",
+     "arguments": {
+      "name": "usage-reconciliation"
+     }
+    },
+    {
+     "id": "call_8rWPNepStTsX7prCKYyE1bAv",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-handoff"
+     }
+    },
+    {
+     "id": "call_kpd7EIuUrLNMCXekXkVK0BhZ",
+     "name": "account_overview",
+     "arguments": {
+      "org": "halcyon-data"
+     }
+    },
+    {
+     "id": "call_qiZOQFjK9MXiLh4FK0Gh9k4T",
+     "name": "usage_lookup",
+     "arguments": {
+      "request_ids": [
+       "req_7f31a",
+       "req_7f31b"
+      ]
+     }
+    },
+    {
+     "id": "call_8fnmOUQnY05JHRPnBa4YmAKf",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "usage dashboard missing delayed ingestion telemetry freshness more than 30 minutes successful requests routing owning team escalate evidence request IDs",
+      "top_k": 8
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"usage-reconciliation\", \"steps\": \"1. Collect: org, the request ids, their HTTP status, when it happened and the timezone they used, and how they counted (`checks_done`: filters, tokenizer, retries, timeouts). Ask in one `ask_developer` call for what's missing.\\n2. Read in one round: `account_overview`, `usage_lookup` for the request ids, and `search_knowledge` for how billed tokens are counted and how retries, cancellation, caching, console delay and exports work.\\n3. Compare console facts with what they report: UTC time vs their timezone, `http_status`, `billed_tokens`, `cached_tokens`, and `line_id`/`invoice_id` (null = not on a Redwood invoice line yet, or billed elsewhere, e.g. by a marketplace; check the account's billing channel and the policy for that channel).\\n4. If a current page explains the difference (counting method, retries, cancellations, timezone or filter cut, delay), explain it with their numbers. No case.\\n5. If the difference remains after those rules, or successful usage is still missing after the delay policy states, route it with `billing-handoff` to the team the routing passage names, with request ids, statuses, UTC window and what was checked.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-handoff\", \"steps\": \"1. Decide whether a case is needed. Search the routing policy (`search_knowledge`, e.g. \\\"billing case routing <topic>\\\"). If a current page explains what the developer sees, or they only asked a question (how something is billed, what their contract says, typical amounts), answer it and stop: no case. Open a case only when they ask for something Support can't do in the conversation, or report a problem the pages don't explain.\\n2. Pick the owning team from the current routing passage for this exact situation. Watch for the distinguishing condition in each row: billing channel (direct vs marketplace/reseller), plan (self-serve vs contract), whether the charge is an error or correct, whether the console confirms the problem. If the developer claims something the console doesn't show (e.g. a contract), follow the policy row for that.\\n3. Collect the intake that row lists. Use what the developer already wrote and the console; call `ask_developer` once for the rest (e.g. invoice_id, line_items, request_ids, time_of_issue + timezone, error_code, checks_done, contract). If they don't have something, proceed and record it as missing.\\n4. Answer everything you can first: escalation closes the console for the rest of the conversation.\\n5. `confirm_with_developer`: \\\"I'll hand this to <team> with <key facts>.\\\" If they decline, don't escalate; tell them how to come back.\\n6. `escalate_case` once: team, a summary (what they asked, what the console shows, what policy says, what you already did), details (account_id, invoice_id, line_ids, request_ids, amounts, UTC window, error code, plan/contract, missing items, policy source ids), and the dispute id if any.\\n7. Tell the developer the team that has it, the case id, what that team does next per policy, and that you can't promise an outcome, amount or date.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"account\": {\"account_id\": \"halcyon-data\", \"org\": \"halcyon-data\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\"}, \"contacts\": [{\"name\": \"halcyon-data Owner\", \"role\": \"owner\"}, {\"name\": \"halcyon-data Billing Admin\", \"role\": \"billing_admin\"}], \"contracts\": [], \"credit_grants\": [], \"credit_balance_cents\": 0, \"invoices\": [{\"invoice_id\": \"INV-BG-202603-011\", \"account_id\": \"halcyon-data\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total_cents\": 184914}, {\"invoice_id\": \"INV-BG-202604-011\", \"account_id\": \"halcyon-data\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total_cents\": 115693}, {\"invoice_id\": \"INV-BG-202605-011\", \"account_id\": \"halcyon-data\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total_cents\": 350660}, {\"invoice_id\": \"INV-BG-202606-011\", \"account_id\": \"halcyon-data\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total_cents\": 241772}, {\"invoice_id\": \"INV-BG-202607-011\", \"account_id\": \"halcyon-data\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total_cents\": 206230}, {\"invoice_id\": \"INV-BG-202608-011\", \"account_id\": \"halcyon-data\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total_cents\": 240613}], \"credit_notes\": [], \"disputes\": [], \"cases\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"usage\": [], \"not_found\": [\"req_7f31a\", \"req_7f31b\"]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"usage dashboard missing delayed ingestion telemetry freshness more than 30 minutes successful requests routing owning team escalate evidence request IDs\", \"results\": [{\"source\": \"confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook\", \"kind\": \"policy/procedure page\", \"title\": \"Onboarding Checklist: Support Escalation and Triage Playbook\", \"status\": \"published\", \"updated\": \"2025-04-08\", \"text\": \"### Macro: Usage dashboard freshness\\n\\u201cUsage can take a short time to appear in the dashboard depending on ingestion. Please confirm you\\u2019re viewing the correct workspace and time range. If it\\u2019s been >30 minutes since your last successful requests and usage still shows 0, we\\u2019ll investigate telemetry freshness.\\u201d\\n### Macro: 429 guidance\\n\\u201cA 429 indicates you\\u2019re hitting a rate/concurrency limit. The recommended approach is exponential backoff with jitter, plus configuring quotas/budgets in Console to match expected traffic. If you share your approximate concurrency and request rate, we can recommend a safe configuration.\\u201d\\n---\\n## Change log\\n- 2025-04-08: Added escalation evidence checklist; clarified override rules; updated routing owners.\\n- 2025-03-18: Initial version for checklist cohort rollout.\"}, {\"source\": \"confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook\", \"kind\": \"policy/procedure page\", \"title\": \"Onboarding Checklist: Support Escalation and Triage Playbook\", \"status\": \"published\", \"updated\": \"2025-04-08\", \"text\": \"### 5) Quotas, budgets, and rate limits\\n**What completion means:** They viewed quota settings and/or configured an alert/budget.\\nTriage steps for 429:\\n1. Confirm the quota limits visible in Console.\\n2. Ask for peak RPS and concurrency.\\n3. Check whether 429s align with bursts.\\n4. Ensure they have backoff configured.\\nEscalation criteria:\\n- 429 occurs below configured quota or quota changes not applying.\\nEscalate to: **Metering/Quotas** (Cole Summers) and **Telemetry** if enforcement vs reporting mismatch.\\n### 6) Usage dashboard and billing alignment\\n**What completion means:** They visited usage dashboards; does not guarantee they understand freshness windows.\\nKey guidance to provide:\\n- Usage dashboards are near-real-time but can lag (communicate current freshness SLA displayed in Console).\\n- Ensure correct workspace, time range, and environment filters.\\nEscalation criteria:\\n- Freshness lag exceeds SLA or discrepancy persists beyond normal windows.\"}, {\"source\": \"confluence/customer-success-and-support/escalation-playbook/status-page-customer-escalation-playbook\", \"kind\": \"policy/procedure page\", \"title\": \"Status Page Customer Escalation Playbook (Disputed Status Accuracy)\", \"status\": \"published\", \"updated\": \"2026-01-12\", \"text\": \"- Approximate failure rate if known (e.g., 10\\u201320% of requests)\\n- Business impact (optional, customer-provided)\\n## Step 2 \\u2014 Quick self-validation (Support/CS)\\nBefore escalating, do a 3\\u20135 minute check to avoid false alarms:\\n1) Check https://status.redwoodinference.com for active incidents and impacted components/regions.\\n2) Check internal dashboards for the relevant component/region (links in \\\"Internal validation links\\\").\\n3) Verify whether the symptom aligns with a component-specific failure mode (e.g., streaming disconnects may not show in generic API error rate).\\n4) If there is a mismatch, proceed to escalation.\\nIf dashboards are fully green and evidence is weak (no request IDs, no timestamps), ask the customer for the missing items using the template in \\\"Customer follow-up for missing data\\\".\"}, {\"source\": \"confluence/customer-success-and-support/escalation-playbook/status-page-customer-escalation-playbook\", \"kind\": \"policy/procedure page\", \"title\": \"Status Page Customer Escalation Playbook (Disputed Status Accuracy)\", \"status\": \"published\", \"updated\": \"2026-01-12\", \"text\": \"## Escalation criteria (when to page SRE)\\nEscalate to SRE On-call immediately if ANY are true:\\n- Multiple customers report similar symptoms in the same region within 30 minutes.\\n- Customer provides request IDs showing elevated 5xx/timeouts and internal dashboards show any correlated increase.\\n- Streaming disconnect spikes are reported (these are historically under-represented in generic error views).\\n- Enterprise customer indicates material production impact and the status page remains green.\\n- The customer disputes an active incident\\u2019s scope (wrong region/component) with evidence.\\nEscalate to SRE during business hours (non-page) if:\\n- Customer reports mild latency regression with no errors, and internal latency is elevated but below incident thresholds.\\n- Customer requests a retro/post-incident summary formatting change (route to Comms Lead + PM, not on-call).\\n## Step 3 \\u2014 How to escalate (Slack + ticket)\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/private-observability-known-issues\", \"kind\": \"policy/procedure page\", \"title\": \"Private Observability Minimum Pack \\u2014 Known Issues & Workarounds\", \"status\": \"published\", \"updated\": \"2025-09-03\", \"text\": \"- Dashboard catalog: `eng-platform/dashboards-and-alerts/private-minimum-pack-dashboard-catalog`\\n---\\n## B) Grafana: Dashboards present but panels are empty / \\u201cNo data\\u201d\\n**Symptoms**\\n- Dashboards exist but show \\u201cNo data\\u201d for latency, QPS, GPU utilization, or control plane health.\\n- Some panels show errors: datasource not found, auth failure, or query errors.\\n**Most common causes**\\n- Grafana datasource points to the wrong Prometheus URL/service.\\n- Prometheus is running but not scraping Redwood targets (see issue C).\\n- Prometheus is scraping but label migrations changed metric names across an upgrade.\\n- Time range too narrow or customer\\u2019s retention too short.\"}, {\"source\": \"slack/support/1709005432-noon-utc-export-lines-missing\", \"kind\": \"case record or discussion\", \"title\": \"#support thread 1709005432\", \"status\": \"n/a\", \"updated\": \"2024-02-27\", \"text\": \"lina_billing: Invoice delta is +1,362 tokens compared to CSV (14,812 - 13,450 = 1,362). That's consistent with ~20-30 short requests. Could be delayed ingestion from the app. Customer claim: their app logs show traffic at 12:32 UTC. Can we search for those request IDs?\\ncustomer_acct_rep: Customer forwarded an app log showing a batch of requests around 12:32:14Z with request id prefix `req-32x`. They attached a sample request id `req-32x-7a`. They want confirmation whether those requests made it to our backend.\\nsre_tai: I'll grep the ingress/ingest logs now: `grep \\\"req-32x-7a\\\" /var/log/ingest/*2024-06-15* || true` \\u2014 if present we'll have the raw_event. Also check consumer lag around that time: `kafka-consumer-groups --describe --group aggregator --bootstrap-server kafka:9092` to see if any partitions had lag spikes ~12:30. If ingestion was delayed >10m, events could have been backfilled to billing later.\"}, {\"source\": \"slack/docs/1738529055\", \"kind\": \"case record or discussion\", \"title\": \"#docs thread 1738529055\", \"status\": \"n/a\", \"updated\": \"2025-02-02\", \"text\": \"3) Usage dashboard doc missing freshness/lag FAQ\\n4) Retries/timeouts doc missing TS/Go + idempotency guidance\\nWei Chen: :thumbsup: I\\u2019ll start on quickstart today and will ping for review.\\nPriya Shah: usage lag macro: \\u201cUsage dashboard can lag by up to ~15 minutes depending on region and aggregation window. Token counts are still metered in real time for billing/quota enforcement. If you don\\u2019t see usage after 30 minutes, share request ids and we\\u2019ll investigate.\\u201d\\nElliot Price: perfect. will incorporate.\\nSabrina James: one more: we should ensure every page linked from checklist has a \\u201cLast updated\\u201d footer + minimal jargon. checklist users are brand new.\\nElliot Price: agreed. I\\u2019ll add a sweep for tone/verbosity once content lands.\\nElliot Price: I\\u2019m going to turn this mapping into a table doc + link it in the checklist template + console spec. will post draft for async comments.\\nWei Chen: pls include anchor links in the table so Console deep links land in the right section.\"}, {\"source\": \"jira/customer-support/SUP-1616161-explain-differential-throttle-behavior-between-background-probes-and-interactive-requests\", \"kind\": \"case record or discussion\", \"title\": \"SUP-1616161: Clarify why low-volume healthcheck/background probes are triggering tenant 429s for interactive requests\", \"status\": \"Triage\", \"updated\": \"2026-03-03\", \"text\": \"[description]\\nIssue summary:\\nSoraAnalytics reports intermittent 429s for interactive chat endpoints during their nightly background telemetry sweep (low-volume healthcheck + probe jobs). The probes are light (single small request every 10s per host) but when the telemetry sweep runs across hundreds of workers it appears to push the tenant over a short-window burst and interactive chat calls receive 429s.\\nImpact:\\n- ~15% of interactive requests from SoraAnalytics in prod-us-west returning 429s during their nightly sweep window (23:30\\u201300:15 PST).\\n- Customer-facing application shows degraded UX (stalling and retries).\\nEnvironment:\\n- Dedicated pool, prod-us-west, tenant id: t-sora-019 (provided on secure channel).\\n- Traffic mix: 70% interactive chat, 20% small background probes, 10% bulk embeddings (off-peak).\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_dNusLI1wR77f4WnBNc7uadXy",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "usage dashboard freshness lag missing successful request ids telemetry team owns usage ingestion visibility escalate dashboard reporting discrepancy",
+      "top_k": 8
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"usage dashboard freshness lag missing successful request ids telemetry team owns usage ingestion visibility escalate dashboard reporting discrepancy\", \"results\": [{\"source\": \"confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook\", \"kind\": \"policy/procedure page\", \"title\": \"Onboarding Checklist: Support Escalation and Triage Playbook\", \"status\": \"published\", \"updated\": \"2025-04-08\", \"text\": \"### Macro: Usage dashboard freshness\\n\\u201cUsage can take a short time to appear in the dashboard depending on ingestion. Please confirm you\\u2019re viewing the correct workspace and time range. If it\\u2019s been >30 minutes since your last successful requests and usage still shows 0, we\\u2019ll investigate telemetry freshness.\\u201d\\n### Macro: 429 guidance\\n\\u201cA 429 indicates you\\u2019re hitting a rate/concurrency limit. The recommended approach is exponential backoff with jitter, plus configuring quotas/budgets in Console to match expected traffic. If you share your approximate concurrency and request rate, we can recommend a safe configuration.\\u201d\\n---\\n## Change log\\n- 2025-04-08: Added escalation evidence checklist; clarified override rules; updated routing owners.\\n- 2025-03-18: Initial version for checklist cohort rollout.\"}, {\"source\": \"confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook\", \"kind\": \"policy/procedure page\", \"title\": \"Onboarding Checklist: Support Escalation and Triage Playbook\", \"status\": \"published\", \"updated\": \"2025-04-08\", \"text\": \"### 5) Quotas, budgets, and rate limits\\n**What completion means:** They viewed quota settings and/or configured an alert/budget.\\nTriage steps for 429:\\n1. Confirm the quota limits visible in Console.\\n2. Ask for peak RPS and concurrency.\\n3. Check whether 429s align with bursts.\\n4. Ensure they have backoff configured.\\nEscalation criteria:\\n- 429 occurs below configured quota or quota changes not applying.\\nEscalate to: **Metering/Quotas** (Cole Summers) and **Telemetry** if enforcement vs reporting mismatch.\\n### 6) Usage dashboard and billing alignment\\n**What completion means:** They visited usage dashboards; does not guarantee they understand freshness windows.\\nKey guidance to provide:\\n- Usage dashboards are near-real-time but can lag (communicate current freshness SLA displayed in Console).\\n- Ensure correct workspace, time range, and environment filters.\\nEscalation criteria:\\n- Freshness lag exceeds SLA or discrepancy persists beyond normal windows.\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/private-observability-known-issues\", \"kind\": \"policy/procedure page\", \"title\": \"Private Observability Minimum Pack \\u2014 Known Issues & Workarounds\", \"status\": \"published\", \"updated\": \"2025-09-03\", \"text\": \"- Dashboard catalog: `eng-platform/dashboards-and-alerts/private-minimum-pack-dashboard-catalog`\\n---\\n## B) Grafana: Dashboards present but panels are empty / \\u201cNo data\\u201d\\n**Symptoms**\\n- Dashboards exist but show \\u201cNo data\\u201d for latency, QPS, GPU utilization, or control plane health.\\n- Some panels show errors: datasource not found, auth failure, or query errors.\\n**Most common causes**\\n- Grafana datasource points to the wrong Prometheus URL/service.\\n- Prometheus is running but not scraping Redwood targets (see issue C).\\n- Prometheus is scraping but label migrations changed metric names across an upgrade.\\n- Time range too narrow or customer\\u2019s retention too short.\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/streaming-responses-premature-end\", \"kind\": \"policy/procedure page\", \"title\": \"Known issue: Streaming responses may end prematurely on OpenAI-compatible API\", \"status\": \"published\", \"updated\": \"2025-02-14\", \"text\": \"- Partial assistant output surfaced to end users\\n- Retries can cause duplicate token usage if not guarded\\n## Affected surfaces\\n- Endpoint: `/v1/chat/completions` with `stream=true` (OpenAI-compatible)\\n- Transport: SSE over HTTP/1.1\\n- Highest volume of reports: **eu-west**\\n## Customers with confirmed reports\\nThe following customers have provided request IDs and confirmed occurrence:\\n- **AsterixPay** (see SUP-2481)\\n- **OrchidCRM** (see SUP-2490)\\n- **BluePeak Analytics** (tracked in SUP-2490 comms)\\n## Workarounds (customer-facing)\\n1. Treat streams that do not end with `[DONE]` as failed and retry the request.\\n2. If possible, include an idempotency key on retries to reduce the risk of double processing.\\n3. Log `x-request-id`, region, and the last SSE event received for any truncated stream and share with Redwood Support.\"}, {\"source\": \"confluence/customer-success-and-support/support-process/token-accounting-discrepancy-intake-and-triage\", \"kind\": \"policy/procedure page\", \"title\": \"Support Ops: Reconciling token accounting discrepancy reports (intake + triage)\", \"status\": \"published\", \"updated\": \"2025-04-22\", \"text\": \"meta: author=Naomi Feldman; owner_team=customer-success; created_at=2024-11-19; labels=billing, token-accounting, support-process, triage\\n[body]\\n## Purpose\\nThis page documents how Support should handle and count reports of a **token accounting discrepancy** across intake channels. These cases frequently arrive via Slack, email, or Jira, and can be double-counted unless we normalize to a single canonical support record.\\n## Definition (use this phrase)\\nWe classify a case as a *token accounting discrepancy* when a customer claims that billed token totals (Console Usage and/or invoice export) do not match their own calculation from application logs or local tokenization.\"}, {\"source\": \"slack/docs/1738529055\", \"kind\": \"case record or discussion\", \"title\": \"#docs thread 1738529055\", \"status\": \"n/a\", \"updated\": \"2025-02-02\", \"text\": \"3) Usage dashboard doc missing freshness/lag FAQ\\n4) Retries/timeouts doc missing TS/Go + idempotency guidance\\nWei Chen: :thumbsup: I\\u2019ll start on quickstart today and will ping for review.\\nPriya Shah: usage lag macro: \\u201cUsage dashboard can lag by up to ~15 minutes depending on region and aggregation window. Token counts are still metered in real time for billing/quota enforcement. If you don\\u2019t see usage after 30 minutes, share request ids and we\\u2019ll investigate.\\u201d\\nElliot Price: perfect. will incorporate.\\nSabrina James: one more: we should ensure every page linked from checklist has a \\u201cLast updated\\u201d footer + minimal jargon. checklist users are brand new.\\nElliot Price: agreed. I\\u2019ll add a sweep for tone/verbosity once content lands.\\nElliot Price: I\\u2019m going to turn this mapping into a table doc + link it in the checklist template + console spec. will post draft for async comments.\\nWei Chen: pls include anchor links in the table so Console deep links land in the right section.\"}, {\"source\": \"jira/customer-support/SUP-9642-usage-export-mismatch-in-raw-events\", \"kind\": \"case record or discussion\", \"title\": \"SUP-9642: Discrepancy between Console \\\"raw event\\\" export and dashboard aggregate for usage window\", \"status\": \"In Progress\", \"updated\": \"2026-03-03\", \"text\": \"[description]\\nIssue summary:\\nCustomer reports that the Console 'raw events' CSV export for a 24-hour window is missing ~18% of events compared to the dashboard aggregate for the same period. Missing rows appear correlated with streaming responses and function call events.\\nImpact:\\n- Under-reported usage in LyricStream's analytics and billing reconciliation process.\\n- Potentially incorrect invoice estimates for the current billing cycle.\\n- Customer has paused automated reporting to downstream accounting systems.\\nEnvironment:\\n- Redwood Console (hosted) production, region us-east-1.\\n- Customer account id: acct-lyric-01 (provided in private metadata).\"}, {\"source\": \"jira/customer-support/SUP-9642-usage-export-mismatch-in-raw-events\", \"kind\": \"case record or discussion\", \"title\": \"SUP-9642: Discrepancy between Console \\\"raw event\\\" export and dashboard aggregate for usage window\", \"status\": \"In Progress\", \"updated\": \"2026-03-03\", \"text\": \"Attachments:\\n- Customer attached two CSVs (dashboard-snapshot.csv, export-raw.csv) and a console HAR.\\n[comments]\\n2026-03-01 12:05 - Maya Chen (Support): Acknowledged receipt and requested full export file + timestamp range and account ID. Escalated to Analytics team. SLA initial response sent.\\n2026-03-01 12:22 - Customer (LyricStream - Jenna Ortiz): Provided export CSV and dashboard screenshot. Notes that the discrepancy started around 2026-02-21 after a high-throughput campaign.\\n2026-03-01 13:10 - Diego Alvarez (Analytics Eng): Reproduced locally with customer data sample. Observed that export-job returned truncated result set when streaming events are present; suspect pagination/stream-unwinding bug in export-service.\\n2026-03-02 09:47 - Diego Alvarez: Opened preliminary investigation. Added related GH PR for a logging change to export-service (see related_github_prs).\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_1r2wKHRT5cY63IpZS7xpVzmE",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "\"freshness lag exceeds SLA\" usage dashboard escalate Telemetry team ownership missing usage page",
+      "top_k": 6
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"\\\"freshness lag exceeds SLA\\\" usage dashboard escalate Telemetry team ownership missing usage page\", \"results\": [{\"source\": \"confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook\", \"kind\": \"policy/procedure page\", \"title\": \"Onboarding Checklist: Support Escalation and Triage Playbook\", \"status\": \"published\", \"updated\": \"2025-04-08\", \"text\": \"### 5) Quotas, budgets, and rate limits\\n**What completion means:** They viewed quota settings and/or configured an alert/budget.\\nTriage steps for 429:\\n1. Confirm the quota limits visible in Console.\\n2. Ask for peak RPS and concurrency.\\n3. Check whether 429s align with bursts.\\n4. Ensure they have backoff configured.\\nEscalation criteria:\\n- 429 occurs below configured quota or quota changes not applying.\\nEscalate to: **Metering/Quotas** (Cole Summers) and **Telemetry** if enforcement vs reporting mismatch.\\n### 6) Usage dashboard and billing alignment\\n**What completion means:** They visited usage dashboards; does not guarantee they understand freshness windows.\\nKey guidance to provide:\\n- Usage dashboards are near-real-time but can lag (communicate current freshness SLA displayed in Console).\\n- Ensure correct workspace, time range, and environment filters.\\nEscalation criteria:\\n- Freshness lag exceeds SLA or discrepancy persists beyond normal windows.\"}, {\"source\": \"confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook\", \"kind\": \"policy/procedure page\", \"title\": \"Onboarding Checklist: Support Escalation and Triage Playbook\", \"status\": \"published\", \"updated\": \"2025-04-08\", \"text\": \"### Macro: Usage dashboard freshness\\n\\u201cUsage can take a short time to appear in the dashboard depending on ingestion. Please confirm you\\u2019re viewing the correct workspace and time range. If it\\u2019s been >30 minutes since your last successful requests and usage still shows 0, we\\u2019ll investigate telemetry freshness.\\u201d\\n### Macro: 429 guidance\\n\\u201cA 429 indicates you\\u2019re hitting a rate/concurrency limit. The recommended approach is exponential backoff with jitter, plus configuring quotas/budgets in Console to match expected traffic. If you share your approximate concurrency and request rate, we can recommend a safe configuration.\\u201d\\n---\\n## Change log\\n- 2025-04-08: Added escalation evidence checklist; clarified override rules; updated routing owners.\\n- 2025-03-18: Initial version for checklist cohort rollout.\"}, {\"source\": \"confluence/customer-success-and-support/escalation-playbook/rapid-sla-triage-runbook-and-external-briefing-templates-2026\", \"kind\": \"policy/procedure page\", \"title\": \"Rapid SLA Triage Runbook and External Briefing Templates\", \"status\": \"published\", \"updated\": \"2025-06-12\", \"text\": \"| Error rate (5m)           | < 0.1%        | > 0.5%                        | Sev 1              |\\nOwnership matrix (quick):\\n- Triage Owner: fix-forward actions, log collection, scope.\\n- Bridge Lead: status cadence, external messages.\\n- Model/Serving Owner: kernel/quantization teams for model regressions.\\n- CS Liaison: customer notices and ticket updates.\"}, {\"source\": \"confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation\", \"kind\": \"policy/procedure page\", \"title\": \"Dedicated Throughput SLO Escalation Playbook\", \"status\": \"published\", \"updated\": \"2025-05-02\", \"text\": \"---\\n## Post-incident expectations\\nFor confirmed Premium-tier breaches (and significant Plus-tier events), request:\\n- SRE-written incident summary within 5 business days.\\n- Follow-up action items tagged to owning teams (SRE/Infra/Observability/Routing).\\n- If credits were issued: ensure the billing/metering record reflects committed vs burst usage correctly.\\n---\\n## Appendix: Minimal internal handoff note (for paging)\\nWhen paging SRE/Infra, include:\\n- \\u201cDedicated Throughput SLO: suspected/confirmed\\u201d\\n- Deployment ID\\n- Tier + region\\n- Time window and whether ongoing\\n- Customer-confirmed load/concurrency (if available)\\n- Dashboard link\\n- Any correlated symptoms (timeouts, 5xx, queue depth)\\nThis reduces back-and-forth and speeds mitigation.\"}, {\"source\": \"slack/docs/1738529055\", \"kind\": \"case record or discussion\", \"title\": \"#docs thread 1738529055\", \"status\": \"n/a\", \"updated\": \"2025-02-02\", \"text\": \"3) Usage dashboard doc missing freshness/lag FAQ\\n4) Retries/timeouts doc missing TS/Go + idempotency guidance\\nWei Chen: :thumbsup: I\\u2019ll start on quickstart today and will ping for review.\\nPriya Shah: usage lag macro: \\u201cUsage dashboard can lag by up to ~15 minutes depending on region and aggregation window. Token counts are still metered in real time for billing/quota enforcement. If you don\\u2019t see usage after 30 minutes, share request ids and we\\u2019ll investigate.\\u201d\\nElliot Price: perfect. will incorporate.\\nSabrina James: one more: we should ensure every page linked from checklist has a \\u201cLast updated\\u201d footer + minimal jargon. checklist users are brand new.\\nElliot Price: agreed. I\\u2019ll add a sweep for tone/verbosity once content lands.\\nElliot Price: I\\u2019m going to turn this mapping into a table doc + link it in the checklist template + console spec. will post draft for async comments.\\nWei Chen: pls include anchor links in the table so Console deep links land in the right section.\"}, {\"source\": \"confluence/eng-sre/slo-and-error-budgets/unit-economics-pipeline-slo\", \"kind\": \"policy/procedure page\", \"title\": \"Unit Economics Pipeline SLO (Freshness, Completeness, Correctness)\", \"status\": \"published\", \"updated\": \"2025-02-24\", \"text\": \"- **Freshness lag:** `published_at - hour_end_ts`.\\n### Required dimensions (v1)\\nThese dimensions are required for the dashboard and must meet coverage thresholds:\\n- `model_id` (canonical) + `model_version`\\n- `region` (normalized)\\n- `customer_tier` (self_serve | dedicated | private | enterprise)\\n- `quantization_profile` (allowed values per model metadata)\\n- `streaming` (true/false)\\n## SLOs (what we promise)\\nThe Unit Economics Pipeline SLOs are defined per calendar month.\\n### SLO 1 \\u2014 Freshness (hourly availability)\\n**User intent:** Finance and Engineering can trust that the dashboard reflects recent hours without manual checking.\\n**SLI:** For each publishing hour H, compute whether aggregates are available within the freshness target.\\n**Targets (monthly):**\\n- **SLO 1A (standard freshness):** 99.0% of hours are available within **120 minutes** of hour end.\\n- **SLO 1B (extended freshness):** 99.9% of hours are available within **360 minutes** of hour end.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_Vx4Ka9qvS9tJ2MMkk07WOaW0",
+     "name": "confirm_with_developer",
+     "arguments": {
+      "proposal": "I'll hand this to Telemetry to investigate usage freshness for halcyon-data. I\u2019ll include request IDs req_7f31a and req_7f31b, your reported HTTP 200 responses at 2026-09-15 13:00 UTC, that they were still missing 45 minutes later despite checking the workspace, filters, and timezone, and that our usage lookup returned no records for either ID."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answer\": \"yes\", \"message\": \"Yes, go ahead.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_mhCEeg5NACNZ2wTDAU1o2Gxw",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "halcyon-data",
+      "team": "telemetry",
+      "summary": "Developer reports two successful API requests are still absent from the usage page 45 minutes later. The usage freshness guidance says to investigate telemetry freshness after more than 30 minutes with usage still showing 0. Usage lookup returned no records for either supplied request ID; developer says workspace, filters, and timezone were checked.",
+      "details": {
+       "account_id": "halcyon-data",
+       "org": "halcyon-data",
+       "plan": "Hosted Self-Serve",
+       "billing_channel": "direct",
+       "request_ids": "req_7f31a, req_7f31b",
+       "response_status": "Developer reports HTTP 200 for both",
+       "utc_window": "2026-09-15 13:00 UTC; still missing at 13:45 UTC",
+       "checks_done": "Developer checked workspace, filters, and timezone",
+       "usage_lookup": "No usage records found for either ID",
+       "policy_source": "confluence/customer-success-and-support/support-process/onboarding-escalation-and-triage-playbook",
+       "missing": "Specific environment/region and current usage page zero/count not provided"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"case\": {\"case_id\": \"CASE-1\", \"team\": \"telemetry\", \"status\": \"escalated\", \"dispute_id\": null}}"
+  },
+  {
+   "role": "assistant",
+   "content": "I\u2019ve sent this to **Telemetry** as case **CASE-1** to investigate the usage-page freshness issue. You reported HTTP 200 responses for both requests at 13:00 UTC and that they were still missing at 13:45 UTC after checking the workspace, filters, and timezone. Our usage lookup also found no records for either request ID.\n\nTelemetry will investigate; I can\u2019t promise an outcome or resolution time. They have the details you provided, including the missing usage lookup results."
+  },
+  {
+   "role": "user",
+   "content": "Thanks for passing it on. ###TRANSFER###"
+  }
+ ]
+}

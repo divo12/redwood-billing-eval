@@ -1,0 +1,347 @@
+{
+ "id": "a0-02-C",
+ "grade": {
+  "id": "a0-02-C",
+  "category": "normal",
+  "termination": "customer_transfer",
+  "error": null,
+  "passed": false,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": false,
+    "problem": "cases: extra [{'account_id': 'acme-analytics', 'team': 'billing_ops', 'status': 'escalated', 'dispute_id': None}], missing []",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contacts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:cases",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 8,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 8,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 8,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 8,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 8,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 12,
+      "ok": true
+     },
+     {
+      "op": "insert:cases",
+      "at": 18,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "account_overview",
+   "ask_developer",
+   "confirm_with_developer",
+   "escalate_case",
+   "invoice_details",
+   "load_skill",
+   "search_knowledge",
+   "usage_lookup"
+  ]
+ },
+ "termination": "customer_transfer",
+ "invalid": null,
+ "seconds": 38.04997763500023,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hi, our Aug 1-15, 2026 Hosted API usage line is billed far above the $980 our own dashboard showed for that period. What did it actually cost, and why would it be higher? Org is acme-analytics."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_ZXdZMXL9R75torLv04Z9bhin",
+     "name": "load_skill",
+     "arguments": {
+      "name": "usage-reconciliation"
+     }
+    },
+    {
+     "id": "call_BptI3WhqXzRA7WDWDqB3Guf9",
+     "name": "load_skill",
+     "arguments": {
+      "name": "charge-review"
+     }
+    },
+    {
+     "id": "call_Oe5dWi9ZNHm8hZ9YYUaNdIAz",
+     "name": "account_overview",
+     "arguments": {
+      "org": "acme-analytics"
+     }
+    },
+    {
+     "id": "call_aue1MSAYhlfuvL6eB3vRYCpa",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "Hosted API invoice billed usage higher than customer dashboard Aug billing period pricing usage reconciliation why billed cost tokens dashboard request counts cached retries UTC invoice line breakdown",
+      "top_k": 8
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"usage-reconciliation\", \"steps\": \"1. Collect: org, the request ids, their HTTP status, when it happened and the timezone they used, and how they counted (`checks_done`: filters, tokenizer, retries, timeouts). Ask in one `ask_developer` call for what's missing.\\n2. Read in one round: `account_overview`, `usage_lookup` for the request ids, and `search_knowledge` for how billed tokens are counted and how retries, cancellation, caching, console delay and exports work.\\n3. Compare console facts with what they report: UTC time vs their timezone, `http_status`, `billed_tokens`, `cached_tokens`, and `line_id`/`invoice_id` (null = not on a Redwood invoice line yet, or billed elsewhere, e.g. by a marketplace; check the account's billing channel and the policy for that channel).\\n4. If a current page explains the difference (counting method, retries, cancellations, timezone or filter cut, delay), explain it with their numbers. No case.\\n5. If the difference remains after those rules, or successful usage is still missing after the delay policy states, route it with `billing-handoff` to the team the routing passage names, with request ids, statuses, UTC window and what was checked.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"charge-review\", \"steps\": \"Goal: decide from console evidence and current policy what Support may do about a charge, do it with approval, and tell the developer.\\n\\n1. Gather. If the developer has not given them, call `ask_developer` once for the org (or account id), the invoice id or month, and the lines/amounts in question; add request ids if they say specific requests were mis-billed.\\n2. Read, in one round: `account_overview` (org or account id) and `search_knowledge` for the policy on this kind of request (e.g. \\\"duplicate charge credit Support limit\\\", \\\"refund request billed in error\\\", \\\"goodwill credit request\\\", \\\"SLA credit request contract\\\"). Then `invoice_details` for the invoice. If the developer gave only a month, pick the invoice whose period covers it.\\n3. Check the billing channel first. If the account is billed by a marketplace or reseller, Support does not credit or dispute that invoice: find the policy for that channel and tell the developer who handles it.\\n4. Classify with console evidence only:\\n   - Duplicate: `console_confirmed_duplicates` lists the lines (same request ids on the same invoice). Same description or amount alone is not a duplicate; lines in `lookalike_lines` bill different requests and are separate charges: explain that with the request ids and times, then follow the policy row for a duplicate the console does not confirm.\\n   - Already credited: the line shows `credited_cents` or a credit note exists; say so, don't credit again.\\n   - Correct charge the developer wants removed or reduced (goodwill, waiver, SLA/service credit, exception, retries): Support explains why it is billed and routes the request per policy; it issues nothing.\\n   - Wrong rate, quantity or unexplained amount: route per policy with the evidence.\\n5. For a confirmed duplicate, find Support's current per-line limit in the retrieved policy (check it is the authoritative, current source; drafts and proposals don't count). If the duplicated line is within the limit: `confirm_with_developer` (\\\"credit note of $X on line L of invoice I, reason duplicate\\\"), then `issue_credit_note` for the full line amount on that one line with reason `duplicate`, citing `policy_source` and `policy_limit`. If over the limit: don't credit; confirm, `open_dispute` on the duplicated line (reason `duplicate_charge`, with its request ids), then `escalate_case` to the team policy names with the dispute id.\\n6. Routing without a write: load the `billing-handoff` skill.\\n7. Reply: what the console shows (lines, request ids, amounts), what you did (credit note id and amount, or dispute/case and team), and what happens next. Don't promise outcomes, refund timing or amounts the policy doesn't state.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"account\": {\"account_id\": \"acme-analytics\", \"org\": \"acme-analytics\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\"}, \"contacts\": [{\"name\": \"acme-analytics Owner\", \"role\": \"owner\"}], \"contracts\": [], \"credit_grants\": [], \"credit_balance_cents\": 0, \"invoices\": [{\"invoice_id\": \"INV-BG-202603-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total_cents\": 231281}, {\"invoice_id\": \"INV-BG-202604-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total_cents\": 298125}, {\"invoice_id\": \"INV-BG-202605-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total_cents\": 319870}, {\"invoice_id\": \"INV-BG-202606-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total_cents\": 209100}, {\"invoice_id\": \"INV-BG-202607-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total_cents\": 168017}, {\"invoice_id\": \"INV-BG-202608-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total_cents\": 259588}], \"credit_notes\": [], \"disputes\": [], \"cases\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"Hosted API invoice billed usage higher than customer dashboard Aug billing period pricing usage reconciliation why billed cost tokens dashboard request counts cached retries UTC invoice line breakdown\", \"results\": [{\"source\": \"confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs\", \"kind\": \"policy/procedure page\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"status\": \"published\", \"updated\": \"2026-02-06\", \"text\": \"- If the customer doesn't have some of the details, hand off with what you have and note what's missing. Don't hold the case until they find them.\\n## Routing table\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Disputed or duplicated line on a direct Redwood invoice | Billing Ops | Invoice number, the line(s), UTC window, request IDs |\\n| Refund request on a direct invoice line the customer says was billed in error | Billing Ops | Billing Ops confirms the charge and requests approval where needed |\\n| Invoice total doesn't match the customer's usage export | Billing Ops | Note the export's timezone and filters |\\n| Payment failures, holds, receipts | Billing Ops | |\\n| Meter discrepancy the related pages don't explain: request IDs whose billed tokens still don't match after the tokenizer, payload and retry rules are applied | Billing Engineering | Billing Eng checks meter correctness and hands any correction to Billing Ops |\"}, {\"source\": \"confluence/product-docs/pricing-and-packaging/free-tier-limits-2025\", \"kind\": \"policy/procedure page\", \"title\": \"Free Tier Limits\", \"status\": \"published\", \"updated\": \"2025-11-10\", \"text\": \"meta: author=Soojin Lee; owner_team=product; created_at=2025-11-03; labels=pricing, free-tier, hosted-api, limits\\n[body]\\n## Purpose\\nWhat happens when a Free workspace uses up its monthly included usage.\\n## Limits\\n- Free includes a fixed monthly amount of billed tokens and requests.\\n- Free has no overage: nothing beyond the included usage is ever charged, and Free workspaces never get an invoice.\\n## At the limit\\nOnce a Free workspace reaches its monthly limit, further requests are rate-limited: the API returns HTTP `429` with error code `quota_exceeded` and a `Retry-After` header. Requests work again when the next month starts. To keep sending requests sooner, the customer upgrades to a paid plan.\\n_Last reviewed 2025-11-10._\"}, {\"source\": \"confluence/finance-and-legal/budgeting-and-forecasting/blended-cost-methodology-v1\", \"kind\": \"policy/procedure page\", \"title\": \"Blended Cost Methodology v1 (Unit Economics Dashboard)\", \"status\": \"published\", \"updated\": \"2025-02-11\", \"text\": \"- Expected variance: <= 0.5% for stable periods; investigate if > 1%.\\n2) **Cost numerator reconciliation**\\n   - Compare allocated GPU cost totals vs cost pool totals from the rate card * GPU-hours inputs.\\n   - Expected variance: 0% after deterministic allocation (any difference indicates missing rows or join/filter bugs).\\n3) **Spend-to-billing sanity check (monthly)**\\n   - Compare total allocated compute cost vs cloud billing exports/invoices for the month.\\n   - Tolerance: Finance-defined; typically within 2\\u20135% depending on invoice timing, credits, and accrual estimates.\\n4) **Customer-tier split reasonableness**\\n   - Validate that Hosted/Dedicated/Private pool totals align with internal tagging and contract schedules.\\n   - Spot check a sample of known Dedicated customers monthly.\\n5) **Outlier review**\\n   - Top-N segments by unit cost and by token volume.\\n   - Verify that spikes correspond to known events (rate changes, utilization drops, region incidents, model rollouts).\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/usage-accounting-retries-and-stream-cancellation\", \"kind\": \"policy/procedure page\", \"title\": \"Usage accounting: retries and streaming cancellation\", \"status\": \"published\", \"updated\": \"2025-02-18\", \"text\": \"- The Usage dashboard lists rows by **request_id** (attempt identifier).\\n### Streaming cancellation\\n- **Prompt tokens** are counted once the request is admitted (even if the client cancels the stream later).\\n- **Completion tokens** are counted based on tokens actually generated/streamed prior to cancellation.\\n## Common customer symptoms\\n- We only sent N requests but we see >N rows: retries created additional attempts.\\n- We timed out at 15s so we expected zero bill: prompt tokens + partial completion tokens may still be counted.\\n## Recommended mitigations\\n1) Avoid automatic retries on client-side timeouts for long generations.\\n2) Increase client timeout where possible (align to max expected generation time).\\n3) Reduce max_tokens / output length to meet latency budgets.\\n4) For troubleshooting, ask for a small set of request_ids + the customers retry/cancel metrics.\"}, {\"source\": \"confluence/finance-and-legal/budgeting-and-forecasting/blended-cost-methodology-v1\", \"kind\": \"policy/procedure page\", \"title\": \"Blended Cost Methodology v1 (Unit Economics Dashboard)\", \"status\": \"published\", \"updated\": \"2025-02-11\", \"text\": \"- Allow Finance to rerun historical periods using the version in effect at the time (reporting stability).\\n### Effective dates\\n- Monthly rate updates are effective at the start of the month in **UTC**, unless otherwise specified in the release note.\\n- Finance reporting may use month boundaries in Pacific Time for close processes; where required, Finance will specify a \\u201creporting calendar\\u201d mapping. Default dashboard time boundaries remain UTC.\\n## Reconciliation methodology\\nFinance requires that the KPI is defensible and reconcilable to spend inputs and platform metering.\\n### Reconciliation checkpoints (v1)\\n1) **Token denominator reconciliation**\\n   - Compare aggregated output tokens from the unit economics tables vs the canonical metering totals for the same window.\\n   - Expected variance: <= 0.5% for stable periods; investigate if > 1%.\"}, {\"source\": \"gmail/monica_patel/20260219-unexpected-high-monthly-consumption-query\", \"kind\": \"case record or discussion\", \"title\": \"Email: Unexpected high consumption on Jan invoice \\u2014 request for usage breakdown\", \"status\": \"n/a\", \"updated\": \"2026-02-19\", \"text\": \"Cc: eng-ops@solargrid.com\\nDate: Sat, 14 Feb 2026 09:17:00 -0800\\nSubject: Unexpected high consumption on Jan invoice\\nHi Monica,\\nWe just received our January invoice and the token consumption is ~3.6x higher than our internal estimate. I attached the invoice and our internal usage export for Jan. Can you help explain where the extra cost came from?\\nQuick context: we have a DPA model pinned to rwd-large-v1 and a baseline of ~120M tokens/mo. January shows 430M tokens billed. There were no product changes on our side that we\\u2019re aware of.\\nWe\\u2019d like:\\n- A line-item breakdown by route/model and time window (UTC)\\n- Confirmation whether any fallback to larger models occurred or if streaming retries doubled counts\\n- Temporary hold on collections for the disputed portion while we investigate (PO/AR team email is finance@solargrid.com)\\nThanks,\\nLisa Chen\\nHead of Product Engineering\\nSolarGrid Inc.\"}, {\"source\": \"jira/customer-support/SUP-556901-cache-hit-invoice-line-explanation-and-provisional-credit\", \"kind\": \"case record or discussion\", \"title\": \"SUP-556901: Invoice shows separate 'cache-hit tokens' line plus 'generated tokens' for same time window \\u2014 clarification and potential adjustment requested\", \"status\": \"In Progress\", \"updated\": \"2026-03-03\", \"text\": \"5) Share artifacts: runtime metrics links, raw CSV, and the invoice PDF.\\n[observed_behavior]\\nInvoice shows two line items for the same hour ranges: one with 1,245,320 generated tokens and a second labeled 'cache-hit tokens' with 812,450 tokens. The customer sees in the runtime console that ~810k tokens were served from KV cache and expected these to be excluded from billable generated token usage or be discounted under their dedicated contract. The invoice's unit price for 'cache-hit tokens' matches the standard per-token generation price, producing a ~40% higher charge than expected.\\n[expected_behavior]\\nCustomer expected billing to only show 'generated tokens' (tokens actually produced by the model) and for cache hits to either be unbilled or billed at a clearly documented reduced rate per the dedicated contract. At minimum, they expected the billing UI to explain why cache-hit tokens are appearing as a separate charged meter.\"}, {\"source\": \"jira/customer-support/SUP-110999-unaccounted-tool-invoke-tokens-led-to-retro-charge-explainer\", \"kind\": \"case record or discussion\", \"title\": \"SUP-110999: Unexpected retroactive invoice increase after tool-calling tokens not reflected in meter \\u2014 request explanation and provisional credit\", \"status\": \"In Progress\", \"updated\": \"2026-03-04\", \"text\": \"summary: Unexpected retroactive invoice increase after tool-calling tokens not reflected in meter \\u2014 request explanation and provisional credit\\n[description]\\nIssue summary:\\nCustomer BrightServe reports a retroactive invoice increase of $7,400 for the period 2026-02-12 to 2026-02-18 after our billing system applied a catch-up charge. They assert the usage spike corresponds to ramped production traffic that heavily used our function-calling / tool invocation feature.\\nImpact:\\n- Customer saw a finalized invoice line item labeled 'Retroactive API usage adjustment' representing tokens that were not present in near-real-time usage dashboards.\\n- Invoice adjustment triggered finance hold and internal escalation for their procurement team. Customer is asking for a detailed breakdown of the retroactive tokens and a provisional credit while we investigate.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_FrcFPXbiYUA4EQKstEgfFr5j",
+     "name": "invoice_details",
+     "arguments": {
+      "invoice_id": "INV-BG-202608-009"
+     }
+    },
+    {
+     "id": "call_qAPv8uLQm5mgRlYsgZzJefWq",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "Hosted Self-Serve invoice pricing billed tokens input output cached tokens hosted API rates how billed token usage dashboard Aug 2026",
+      "top_k": 8
+     }
+    },
+    {
+     "id": "call_IPNWQC5Nuy3y6ol1ouiLMByo",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-handoff"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"invoice\": {\"invoice_id\": \"INV-BG-202608-009\", \"account_id\": \"acme-analytics\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total_cents\": 259588}, \"account\": {\"account_id\": \"acme-analytics\", \"org\": \"acme-analytics\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"payment_method\": \"card\", \"status\": \"active\"}, \"lines\": [{\"line_id\": \"INV-BG-202608-009/L1\", \"invoice_id\": \"INV-BG-202608-009\", \"description\": \"Hosted API usage, Aug 1-15\", \"product\": \"hosted_api\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-15\", \"amount_cents\": 130146, \"request_ids\": [\"req_f5edecd9d1\", \"req_94f7e3e17e\", \"req_8e56afef63\"], \"credited_cents\": 0, \"uncredited_cents\": 130146}, {\"line_id\": \"INV-BG-202608-009/L2\", \"invoice_id\": \"INV-BG-202608-009\", \"description\": \"Hosted API usage, Aug 16-31\", \"product\": \"hosted_api\", \"period_start\": \"2026-08-16\", \"period_end\": \"2026-08-31\", \"amount_cents\": 86280, \"request_ids\": [\"req_10869169de\", \"req_4b1675a88c\", \"req_ed8cc8d9de\"], \"credited_cents\": 0, \"uncredited_cents\": 86280}, {\"line_id\": \"INV-BG-202608-009/L3\", \"invoice_id\": \"INV-BG-202608-009\", \"description\": \"Embeddings, Aug 1-31\", \"product\": \"embeddings\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"amount_cents\": 43162, \"request_ids\": [\"req_45469f6225\", \"req_70b6949abd\"], \"credited_cents\": 0, \"uncredited_cents\": 43162}], \"console_confirmed_duplicates\": [], \"lookalike_lines\": [], \"credit_notes\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"Hosted Self-Serve invoice pricing billed tokens input output cached tokens hosted API rates how billed token usage dashboard Aug 2026\", \"results\": [{\"source\": \"confluence/product-docs/pricing-and-packaging/usage-credit-and-quota-guidelines-2026\", \"kind\": \"policy/procedure page\", \"title\": \"Usage Credits and Quota Assignment Guidelines for Hosted Inference (2026)\", \"status\": \"in_review\", \"updated\": \"2026-02-03\", \"text\": \"Buckets are of three kinds: monthly_budget, concurrency, and burst_pool.\\\\n- Burst pool: a rolling window credit allotment (24h) intended to absorb unexpected traffic spikes without immediate hard-throttling.\\\\n\\\\nConversion matrix (high level):\\\\n| Request-class | Metric consumed | Baseline CR rate | Notes |\\\\n|---------------|-----------------|------------------|-------|\\\\n| Generation | output_tokens + prompt_weighted_input_tokens | 1.0 CR per 1k output tokens + 0.4 CR per 1k input tokens | Streaming prorated per token as emitted |\\\\n| Chat | message_tokens + context_window_amortized | 1.2 CR per 1k tokens | System messages treated as input at 0.4 CR/1k |\\\\n| Embedding | vector_units | 0.25 CR per 1k tokens equivalent | Small fixed cost floor of 0.01 CR to prevent zero-cost queries |\\\\n| Rerank | candidate_eval_units | 0.6 CR per candidate per 1k tokens | Multiply by #candidates |\\\\n\\\\nNote: the matrix above is normative for assigning credits during billing cycles.\"}, {\"source\": \"confluence/product-docs/pricing-and-packaging/free-tier-limits-2025\", \"kind\": \"policy/procedure page\", \"title\": \"Free Tier Limits\", \"status\": \"published\", \"updated\": \"2025-11-10\", \"text\": \"meta: author=Soojin Lee; owner_team=product; created_at=2025-11-03; labels=pricing, free-tier, hosted-api, limits\\n[body]\\n## Purpose\\nWhat happens when a Free workspace uses up its monthly included usage.\\n## Limits\\n- Free includes a fixed monthly amount of billed tokens and requests.\\n- Free has no overage: nothing beyond the included usage is ever charged, and Free workspaces never get an invoice.\\n## At the limit\\nOnce a Free workspace reaches its monthly limit, further requests are rate-limited: the API returns HTTP `429` with error code `quota_exceeded` and a `Retry-After` header. Requests work again when the next month starts. To keep sending requests sooner, the customer upgrades to a paid plan.\\n_Last reviewed 2025-11-10._\"}, {\"source\": \"confluence/finance-and-legal/budgeting-and-forecasting/blended-cost-methodology-v1\", \"kind\": \"policy/procedure page\", \"title\": \"Blended Cost Methodology v1 (Unit Economics Dashboard)\", \"status\": \"published\", \"updated\": \"2025-02-11\", \"text\": \"Token measurement source:\\n- Platform metering pipeline (token counters emitted by gateway/runtime) aggregated hourly.\\n### Scope of \\u201callocated cost\\u201d\\nIncluded costs (v1):\\n- GPU compute cost applied via standardized hourly **GPU rate card** (provider/region/capacity type).\\n- Approved, explicitly enumerated \\u201cserving overhead\\u201d adders applied as a percentage of GPU compute (see Overhead policy).\\nExcluded costs (v1):\\n- Corporate overhead not attributable to serving (e.g., G&A).\\n- R&D/training spend.\\n- One-time incident costs unless explicitly incorporated into the rate card for the month/quarter.\\n## Segmentation and rollups\\nThe dashboard supports drilldowns by:\\n- **Model** (and version / quantization profile)\\n- **Region** (normalized canonical region)\\n- **Customer tier** (self-serve / dedicated / private / enterprise)\\nFinance reporting commonly requires rollups:\\n- Company-wide (all tiers)\\n- Hosted vs Dedicated vs Private separation\\n- Region rollup (e.g., NA/EU) for exec narratives\"}, {\"source\": \"confluence/finance-and-legal/budgeting-and-forecasting/blended-cost-methodology-v1\", \"kind\": \"policy/procedure page\", \"title\": \"Blended Cost Methodology v1 (Unit Economics Dashboard)\", \"status\": \"published\", \"updated\": \"2025-02-11\", \"text\": \"- Timezone boundary mismatches: Dashboard defaults to UTC hourly rollups; Finance month-close may require alternate boundaries.\\n## Change control\\nAny changes to:\\n- inclusion/exclusion rules\\n- idle capacity treatment\\n- overhead adders\\n- rate card provenance or versioning\\nmust be documented as a methodology update and, where material, accompanied by an ADR and a backtest showing impact on prior periods.\\n## Appendix A: Glossary\\n- **Output tokens:** Tokens returned to the caller as part of model output.\\n- **Blended cost:** Average cost including idle and shared overhead allocations.\\n- **Pool:** A grouping of capacity/cost that shares an allocation rule (hosted shared, dedicated, private).\\n- **Rate card:** Finance-maintained table mapping capacity inputs to hourly USD cost assumptions.\"}, {\"source\": \"confluence/architecture-and-standards/decision-records/adr-034-unit-economics-cost-attribution-model\", \"kind\": \"policy/procedure page\", \"title\": \"ADR-034: Unit Economics Cost Attribution Model (Blended $/1M Output Tokens)\", \"status\": \"published\", \"updated\": \"2025-02-11\", \"text\": \"## Tier handling (self-serve vs dedicated vs private)\\n### Self-serve (Hosted API)\\n- Uses **shared regional pools**.\\n- Allocate **total provisioned GPU-hours cost** for the pool to self-serve token buckets in that region.\\n- Result: self-serve unit cost rises with lower utilization; this is expected and desired.\\n### Dedicated\\n- Uses customer-isolated capacity pools with contractual commits.\\n- Allocate **full provisioned GPU-hours** cost for the pool to the **Dedicated tier**.\\n- Within Dedicated, allocate down to model/version/quant profile by token share (see \\u201cModel-level allocation within a pool\\u201d).\\n- Result: Dedicated unit cost reflects customer-specific utilization; this aligns with how Dedicated is sold and operated.\"}, {\"source\": \"jira/customer-support/SUP-556901-cache-hit-invoice-line-explanation-and-provisional-credit\", \"kind\": \"case record or discussion\", \"title\": \"SUP-556901: Invoice shows separate 'cache-hit tokens' line plus 'generated tokens' for same time window \\u2014 clarification and potential adjustment requested\", \"status\": \"In Progress\", \"updated\": \"2026-03-03\", \"text\": \"5) Share artifacts: runtime metrics links, raw CSV, and the invoice PDF.\\n[observed_behavior]\\nInvoice shows two line items for the same hour ranges: one with 1,245,320 generated tokens and a second labeled 'cache-hit tokens' with 812,450 tokens. The customer sees in the runtime console that ~810k tokens were served from KV cache and expected these to be excluded from billable generated token usage or be discounted under their dedicated contract. The invoice's unit price for 'cache-hit tokens' matches the standard per-token generation price, producing a ~40% higher charge than expected.\\n[expected_behavior]\\nCustomer expected billing to only show 'generated tokens' (tokens actually produced by the model) and for cache hits to either be unbilled or billed at a clearly documented reduced rate per the dedicated contract. At minimum, they expected the billing UI to explain why cache-hit tokens are appearing as a separate charged meter.\"}, {\"source\": \"linear/product-management/PM-586401-api-ingress-egress-differential-and-burst-minimums\", \"kind\": \"case record or discussion\", \"title\": \"PM-586401: Ingress/Egress Differential + Burst Minimums: Pilot Design for Hosted API Pricing\", \"status\": \"In Progress\", \"updated\": \"2025-02-24\", \"text\": \"[hypothesis]\\nIf we bill hosted API calls with asymmetric per-token rates (higher for egress/output tokens, lower for ingress/input tokens) and apply a short burst minimum for streamed sessions (to avoid per-connection metering noise), then (1) high-input, low-output eval workloads will see clearer unit economics and (2) average hosted revenue per active developer will increase without significant churn among mid-volume customers.\\nprimary_metrics: revenue_per_active_developer_week, average_tokens_per_call_input, average_tokens_per_call_output, pct_requests_with_streaming_burst_minimum_applied, churn_30d_post_experiment, support_tickets_related_to_billing\"}, {\"source\": \"gmail/jasmine_liu/20260822-payflow-choice-and-contract-ops-for-hosted-api\", \"kind\": \"case record or discussion\", \"title\": \"Email: Billing & payment paths for Hosted API \\u2014 monthly invoicing vs card and net terms\", \"status\": \"n/a\", \"updated\": \"2026-08-22\", \"text\": \"\\u2014Jane\\nJane Howell\\nVP, Platform Strategy | FintechCo\\nprocurement@fintechco.com\\n[Attachment: internal-questionnaire.pdf (PDF, 40KB)]\\nFrom: jasmine.liu@redwoodinference.com\\nTo: Jane Howell <jane.howell@fintechco.com>\\nCc: procurement@fintechco.com\\nDate: Mon, 17 Aug 2026 09:04:00 -0700\\nSubject: Re: Hosted API billing options & PO process\\nHi Jane \\u2014 great to meet you too. Short answers up front: yes, we support both card and monthly invoicing; standard invoice terms are Net 30 for self-serve/credit-approved customers, Net 45 available by request for larger committed contracts; and we can accept POs \\u2014 we typically need a copy of the PO, billing/legal contact, tax ID (W-9 for US), and an executed MSA for invoiced accounts.\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-handoff\", \"steps\": \"1. Decide whether a case is needed. Search the routing policy (`search_knowledge`, e.g. \\\"billing case routing <topic>\\\"). If a current page explains what the developer sees, or they only asked a question (how something is billed, what their contract says, typical amounts), answer it and stop: no case. Open a case only when they ask for something Support can't do in the conversation, or report a problem the pages don't explain.\\n2. Pick the owning team from the current routing passage for this exact situation. Watch for the distinguishing condition in each row: billing channel (direct vs marketplace/reseller), plan (self-serve vs contract), whether the charge is an error or correct, whether the console confirms the problem. If the developer claims something the console doesn't show (e.g. a contract), follow the policy row for that.\\n3. Collect the intake that row lists. Use what the developer already wrote and the console; call `ask_developer` once for the rest (e.g. invoice_id, line_items, request_ids, time_of_issue + timezone, error_code, checks_done, contract). If they don't have something, proceed and record it as missing.\\n4. Answer everything you can first: escalation closes the console for the rest of the conversation.\\n5. `confirm_with_developer`: \\\"I'll hand this to <team> with <key facts>.\\\" If they decline, don't escalate; tell them how to come back.\\n6. `escalate_case` once: team, a summary (what they asked, what the console shows, what policy says, what you already did), details (account_id, invoice_id, line_ids, request_ids, amounts, UTC window, error code, plan/contract, missing items, policy source ids), and the dispute id if any.\\n7. Tell the developer the team that has it, the case id, what that team does next per policy, and that you can't promise an outcome, amount or date.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_dveqO1NiKBkXqhf11GZMwvGF",
+     "name": "usage_lookup",
+     "arguments": {
+      "request_ids": [
+       "req_f5edecd9d1",
+       "req_94f7e3e17e",
+       "req_8e56afef63"
+      ]
+     }
+    },
+    {
+     "id": "call_c3Icl31ynmSUhhVZ3VXgxdpv",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "Hosted API billed token counting tokenizer payload retries failed HTTP statuses usage dashboard billed tokens cached tokens streaming cancellation current policy",
+      "top_k": 8
+     }
+    },
+    {
+     "id": "call_fiuLezLOw6wwm0Q16P078OWV",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "timezone",
+       "checks_done"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"usage\": [{\"request_id\": \"req_f5edecd9d1\", \"account_id\": \"acme-analytics\", \"at\": \"2026-08-07T16:47:01Z\", \"http_status\": 200, \"billed_tokens\": 15067971, \"cached_tokens\": 4017843, \"line_id\": \"INV-BG-202608-009/L1\", \"invoice_id\": \"INV-BG-202608-009\"}, {\"request_id\": \"req_94f7e3e17e\", \"account_id\": \"acme-analytics\", \"at\": \"2026-08-13T14:11:37Z\", \"http_status\": 200, \"billed_tokens\": 18481967, \"cached_tokens\": 1494755, \"line_id\": \"INV-BG-202608-009/L1\", \"invoice_id\": \"INV-BG-202608-009\"}, {\"request_id\": \"req_8e56afef63\", \"account_id\": \"acme-analytics\", \"at\": \"2026-08-03T04:55:07Z\", \"http_status\": 200, \"billed_tokens\": 8015455, \"cached_tokens\": 780445, \"line_id\": \"INV-BG-202608-009/L1\", \"invoice_id\": \"INV-BG-202608-009\"}], \"not_found\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"Hosted API billed token counting tokenizer payload retries failed HTTP statuses usage dashboard billed tokens cached tokens streaming cancellation current policy\", \"results\": [{\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/usage-accounting-retries-and-stream-cancellation\", \"kind\": \"policy/procedure page\", \"title\": \"Usage accounting: retries and streaming cancellation\", \"status\": \"published\", \"updated\": \"2025-02-18\", \"text\": \"- The Usage dashboard lists rows by **request_id** (attempt identifier).\\n### Streaming cancellation\\n- **Prompt tokens** are counted once the request is admitted (even if the client cancels the stream later).\\n- **Completion tokens** are counted based on tokens actually generated/streamed prior to cancellation.\\n## Common customer symptoms\\n- We only sent N requests but we see >N rows: retries created additional attempts.\\n- We timed out at 15s so we expected zero bill: prompt tokens + partial completion tokens may still be counted.\\n## Recommended mitigations\\n1) Avoid automatic retries on client-side timeouts for long generations.\\n2) Increase client timeout where possible (align to max expected generation time).\\n3) Reduce max_tokens / output length to meet latency budgets.\\n4) For troubleshooting, ask for a small set of request_ids + the customers retry/cancel metrics.\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/usage-accounting-retries-and-stream-cancellation\", \"kind\": \"policy/procedure page\", \"title\": \"Usage accounting: retries and streaming cancellation\", \"status\": \"published\", \"updated\": \"2025-02-18\", \"text\": \"4) For troubleshooting, ask for a small set of request_ids + the customers retry/cancel metrics.\\n## Support playbook (quick response blurb)\\nWe record usage per server-admitted attempt. If your client retries after a timeout, each admitted attempt can appear separately in Usage and can be billable. For streaming, prompt tokens are counted once admitted; completion tokens reflect what was generated before cancellation.\\n## References\\n- SUP-1842 (Northwind AI escalation)\\n- INT-330 (UI helper text + KB link)\\n- Slack #support thread_ts=1739310605\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/streaming-responses-premature-end\", \"kind\": \"policy/procedure page\", \"title\": \"Known issue: Streaming responses may end prematurely on OpenAI-compatible API\", \"status\": \"published\", \"updated\": \"2025-02-14\", \"text\": \"- Partial assistant output surfaced to end users\\n- Retries can cause duplicate token usage if not guarded\\n## Affected surfaces\\n- Endpoint: `/v1/chat/completions` with `stream=true` (OpenAI-compatible)\\n- Transport: SSE over HTTP/1.1\\n- Highest volume of reports: **eu-west**\\n## Customers with confirmed reports\\nThe following customers have provided request IDs and confirmed occurrence:\\n- **AsterixPay** (see SUP-2481)\\n- **OrchidCRM** (see SUP-2490)\\n- **BluePeak Analytics** (tracked in SUP-2490 comms)\\n## Workarounds (customer-facing)\\n1. Treat streams that do not end with `[DONE]` as failed and retry the request.\\n2. If possible, include an idempotency key on retries to reduce the risk of double processing.\\n3. Log `x-request-id`, region, and the last SSE event received for any truncated stream and share with Redwood Support.\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/overload-errors-and-retry-guidance\", \"kind\": \"policy/procedure page\", \"title\": \"Hosted API overload errors: support guidance, retry/backoff, and escalation\", \"status\": \"published\", \"updated\": \"2025-12-05\", \"text\": \"Use this table to drive consistent customer guidance.\\n| HTTP | Typical meaning | What Support should say | Customer action |\\n|------|------------------|--------------------------|-----------------|\\n| 429 | Admission control / rate limiting / tier cap hit | \\u201cYour request was rejected to protect system stability. This is not a model failure; it indicates you are sending requests faster than the current allowed rate/concurrency.\\u201d | Respect Retry-After; implement exponential backoff + jitter; reduce concurrency; consider batching; if persistent, discuss tier/capacity options. |\\n| 503 | Regional/model breaker open or load shedding | \\u201cRedwood is temporarily overloaded in the requested region/model. We are rejecting early to avoid timeouts and protect overall reliability.\\u201d | Respect Retry-After; backoff + jitter; optionally route to another region/model if configured; reduce max_tokens/streaming concurrency; retry with bounded attempts. |\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/streaming-responses-premature-end\", \"kind\": \"policy/procedure page\", \"title\": \"Known issue: Streaming responses may end prematurely on OpenAI-compatible API\", \"status\": \"published\", \"updated\": \"2025-02-14\", \"text\": \"meta: author=Soojin Lee; owner_team=customer-success; created_at=2025-02-13; labels=known-issue, streaming, openai-compat, eu-west\\n[content]\\n## Summary\\nSome customers have reported that streaming responses on Redwood\\u2019s OpenAI-compatible API may end early (without the terminal `[DONE]` event). The HTTP status is frequently 200 and the client receives partial tokens before the stream disconnects.\\nThis is most frequently observed in **eu-west** and appears correlated with periods where upstream token generation is temporarily quiet long enough to trigger a gateway read/idle timeout.\\n## Symptoms\\n- Client sees partial SSE token events, then a stall (10\\u201320s reported), then connection closes\\n- Missing final SSE terminal event (`[DONE]`)\\n- Partial assistant output surfaced to end users\\n- Retries can cause duplicate token usage if not guarded\"}, {\"source\": \"slack/support/2468013579-ts-sdk-abort-retry-dupcharge-escalation\", \"kind\": \"case record or discussion\", \"title\": \"#support thread 2468013579\", \"status\": \"n/a\", \"updated\": \"n/a\", \"text\": \"[2026-03-15T20:12:07.320Z] auth: token refresh triggered (401) -> refresh start\\n[2026-03-15T20:12:07.450Z] POST /v1/charges req=req_A1B2C3D5 200 190ms\\nmel_sdk: note both requests returned 200-level responses but billing shows two captures. Likely flow: first request processed, auth middleware returned transient 401 during refresh, client retried and caused duplicate capture.\\nadrian_sre: are they rotating credentials mid-flight? Any short-lived tokens? That could explain auth-refresh races.\\nacme_support: they use short-lived tokens and an in-app refresh that races with requests. Token refresh logs show a 401 from our auth endpoint followed by successful refresh.\\njin_eng: reproduction plan:\\n1) local Node v20.5 + undici 5.16 + ts-sdk@2.4.1\\n2) simulate auth endpoint returning 401 for refresh while main API processes request\\n3) run with (a) reusing AbortController across retries and (b) creating fresh controller per attempt\\n4) run with single undici vs. mismatched vendored undici to see signal semantics\\nmel_sdk: immediate mitigations for customer:\"}, {\"source\": \"slack/support/1736543210-tokenheader-session-chop-repro\", \"kind\": \"case record or discussion\", \"title\": \"#support thread 1736543210\", \"status\": \"n/a\", \"updated\": \"2025-01-10\", \"text\": \"billing-bot: Invoice inv_004982 flagged for manual review by Billing Ops. Reason: token-count mismatch reported in support thread.\\ndevon: Short term workaround for customers \\u2014 call our debug tokenize endpoint with the final server response body before trusting SDK counts. Example:\\n```\\ncurl -X POST https://api.redwood.ai/v1/debug/tokenize \\\\\\n  -H \\\"Authorization: Bearer $REDACTED\\\" \\\\\\n  -H \\\"Content-Type: application/json\\\" \\\\\\n  -d '{\\\"model\\\":\\\"rwd-chrono-small\\\",\\\"text\\\":\\\"<paste final concatenated response>\\\"}'\\n```\\nalex: Filed PR to SDK: rwd/sdk#891 \\u2014 adds a post-stream reconciliation step to include any server-injected suffixes into the local token estimate (tests + opt-in flag). Link: https://github.com/rwd/sdk/pull/891\\nsam: I'll patch the runtime to always emit X-System-Injected-Tokens for affected model families. That should make future diagnostics simpler.\\nmia: Thanks \\u2014 I'll reply to the customer with repro steps and ETA for billing review. :thumbsup:\"}, {\"source\": \"slack/support/1736543210-tokenheader-session-chop-repro\", \"kind\": \"case record or discussion\", \"title\": \"#support thread 1736543210\", \"status\": \"n/a\", \"updated\": \"2025-01-10\", \"text\": \"```\\ndevon: Do we see any server side prefill or tool output in the response stream? Tool outputs can add many tokens after client stops counting.\\nalex: Customer recorded the full stream. Last chunk included a tool invocation and a follow-up \\\"system_metadata\\\" prefill the server inserted. Server billing header:\\n```\\nX-Total-Tokens: 6724\\nX-Model-Tokens: 6712\\nX-System-Injected-Tokens: 420\\n```\\nLocal SDK estimate printed by customer: 2140\\nsam: This smells like the streaming stop/framing bug we tracked. SDK v0.12's tokenizer stops when it sees the user-complete sentinel and doesn't account for async tool output appended by runtime on stream close. We added a header in prod to help debug but not surfaced in older SDKs.\\nmia: Can we ask billing to freeze/review the invoice while we confirm root cause? @billing-bot please flag.\\nbilling-bot: Invoice inv_004982 flagged for manual review by Billing Ops. Reason: token-count mismatch reported in support thread.\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"timezone\": \"I don't have that.\", \"checks_done\": \"Our client retried requests after 10-second timeouts during that period.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_gB0IpcN2IIw2lGdPekXEWvGL",
+     "name": "confirm_with_developer",
+     "arguments": {
+      "proposal": "I'll hand this to Billing Ops to reconcile the $1,301.46 Aug 1\u201315 invoice line (INV-BG-202608-009/L1) against your $980 dashboard figure, including its three billed request IDs and your report of retries after 10-second timeouts. You don't have the dashboard timezone; dashboard filters/export details are also not available, so I'll note those as missing."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answer\": \"yes\", \"message\": \"Yes, go ahead.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_m0H586T562HXEMCEnmrrgPKM",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "acme-analytics",
+      "team": "billing_ops",
+      "summary": "Developer asks what Aug 1\u201315, 2026 Hosted API usage actually cost and why the invoice line is far above their dashboard's $980. Console shows direct Hosted Self-Serve invoice INV-BG-202608-009, line L1 for Aug 1\u201315 at $1,301.46, open and uncredited. The three listed request IDs were all HTTP 200 and billed to this line; developer says their client retried after 10-second timeouts. Current published usage guidance explains each server-admitted retry attempt may be billable, and streaming cancellation can include admitted prompt and generated partial completion tokens, but does not establish that this fully accounts for the dashboard gap. Please reconcile the difference and explain the cost.",
+      "details": {
+       "account_id": "acme-analytics",
+       "invoice_id": "INV-BG-202608-009",
+       "line_ids": "INV-BG-202608-009/L1",
+       "line_item": "Hosted API usage, Aug 1-15",
+       "amount": "$1,301.46 (invoice open; $0 credited)",
+       "developer_dashboard_amount": "$980",
+       "request_ids": "req_f5edecd9d1, req_94f7e3e17e, req_8e56afef63",
+       "usage_records": "All HTTP 200; billed tokens respectively 15,067,971; 18,481,967; 8,015,455. UTC timestamps: 2026-08-07T16:47:01Z; 2026-08-13T14:11:37Z; 2026-08-03T04:55:07Z.",
+       "developer_report": "Client retried requests after 10-second timeouts during the period.",
+       "timezone": "Unknown; developer doesn't have dashboard timezone.",
+       "checks_done": "Developer checked its own dashboard at $980 and reports retries after 10-second timeouts. Dashboard filters/export details and timezone are missing.",
+       "plan": "Hosted Self-Serve; direct billing",
+       "policy_source": "confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs; confluence/customer-success-and-support/known-issues-and-workarounds/usage-accounting-retries-and-stream-cancellation",
+       "missing": "Dashboard timezone, filters/export details, and any dashboard request-level breakdown."
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"case\": {\"case_id\": \"CASE-1\", \"team\": \"billing_ops\", \"status\": \"escalated\", \"dispute_id\": null}}"
+  },
+  {
+   "role": "assistant",
+   "content": "The invoice shows **$1,301.46** for Hosted API usage from Aug 1\u201315\u2014**$321.46 above** the $980 in your dashboard. It\u2019s on invoice **INV-BG-202608-009**, which is open; the line has no credits.\n\nThe console lists three requests on that line. All returned HTTP 200 and were billed. You mentioned client retries after 10-second timeouts; Redwood\u2019s published guidance says each server-admitted retry can be billed, and a cancelled stream can include prompt tokens plus any completion tokens generated before cancellation. That could contribute to the difference, but the records available here don\u2019t establish that it explains the full gap. I don\u2019t have your dashboard timezone or filters to compare.\n\nI\u2019ve handed this to **Billing Ops** for reconciliation (**case CASE-1**), including the invoice line, request IDs, and your retry details. The dashboard timezone and filters/export details are missing; Billing Ops will review the discrepancy, but I can\u2019t promise an outcome or timeline."
+  },
+  {
+   "role": "user",
+   "content": "Thanks for passing it on. ###TRANSFER###"
+  }
+ ]
+}

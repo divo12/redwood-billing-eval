@@ -1,0 +1,312 @@
+{
+ "id": "a0-07-M",
+ "grade": {
+  "id": "a0-07-M",
+  "category": "normal",
+  "termination": "customer_stop",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 5,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 5,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 5,
+      "ok": true
+     },
+     {
+      "op": "query:contacts",
+      "at": 5,
+      "ok": true
+     },
+     {
+      "op": "query:credit_ledger",
+      "at": 5,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 5,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 5,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 5,
+      "ok": true
+     },
+     {
+      "op": "query:cases",
+      "at": 5,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 10,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 15,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 15,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 15,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 15,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 15,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 15,
+      "ok": true
+     },
+     {
+      "op": "insert:credit_notes",
+      "at": 15,
+      "ok": true
+     }
+    ]
+   }
+  ],
+  "tools_called": [
+   "account_overview",
+   "ask_developer",
+   "confirm_with_developer",
+   "invoice_details",
+   "issue_credit_note",
+   "load_skill",
+   "search_knowledge"
+  ]
+ },
+ "termination": "customer_stop",
+ "invalid": null,
+ "seconds": 24.28997149299994,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "One of our usage lines was billed twice. Could you credit the duplicate? Org copperleaf-ai."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_rkKkllqUOVyiGvfPaLSCkFGY",
+     "name": "load_skill",
+     "arguments": {
+      "name": "charge-review"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"charge-review\", \"steps\": \"Goal: decide from console evidence and current policy what Support may do about a charge, do it with approval, and tell the developer.\\n\\n1. Gather. If the developer has not given them, call `ask_developer` once for the org (or account id), the invoice id or month, and the lines/amounts in question; add request ids if they say specific requests were mis-billed.\\n2. Read, in one round: `account_overview` (org or account id) and `search_knowledge` for the policy on this kind of request (e.g. \\\"duplicate charge credit Support limit\\\", \\\"what Support may credit charter\\\", \\\"refund request billed in error\\\", \\\"goodwill credit request\\\", \\\"SLA credit request contract\\\"). Then `invoice_details` for the invoice. If the developer gave only a month, pick the invoice whose period covers it (periods follow the account's billing timezone where policy says so).\\n3. Check the billing channel first. If the account is billed by a marketplace or reseller, Support does not credit or dispute that invoice: find the policy for that channel and tell the developer who handles it.\\n4. Classify with console evidence only:\\n   - Duplicate: `console_confirmed_duplicates` lists the lines (same request ids on the same invoice) and names the original (the line the usage records point to) and the copy. Only the copy is ever credited or disputed. If no single original is identified, treat it as an unconfirmed duplicate. Same description or amount alone is not a duplicate; lines in `lookalike_lines` bill different requests and are separate charges: explain that with the request ids and times, then follow the policy row for a duplicate the console does not confirm.\\n   - Already credited: a credit note exists on the duplicate; say so, don't credit again.\\n   - Correct charge the developer wants removed or reduced (goodwill, waiver, SLA/service credit, exception, retries, refund): Support explains why it is billed and routes the request per policy; it issues nothing.\\n   - Wrong rate, quantity or unexplained amount: route per policy with the evidence.\\n5. For a confirmed duplicate, check Support's authority for this account in the current authority page (which plans/contract status Support may credit) and the limit for this invoice in Finance's current matrix. Limits can differ by price book or period: work out which applies to this invoice (follow the page the matrix cites, e.g. a close calendar). Drafts, proposals and Slack don't count.\\n   - Support may credit and the copy line is within the limit: `confirm_with_developer` (\\\"credit note of $X for the duplicated line L on invoice I\\\"), then `issue_credit_note` for the full amount of the copy line with reason `duplicate`, citing `policy_source` and the applicable `policy_limit`.\\n   - Over the limit, or an account Support may not credit: don't credit. Confirm, `open_dispute` on the copy line (reason `duplicate_charge`, with its request ids), then `escalate_case` to the team policy names with the invoice, both line ids, the dispute id and the window in the account's billing timezone.\\n6. Routing without a write: load the `billing-handoff` skill.\\n7. Reply: what the console shows (lines, request ids, amounts), what you did (credit note id and amount, or dispute/case and team), and what happens next per policy (e.g. when a credit is applied). Don't promise outcomes, refund timing or amounts the policy doesn't state.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_vlxN3MUDZFTUfqGEIpgwZWlJ",
+     "name": "account_overview",
+     "arguments": {
+      "org": "copperleaf-ai"
+     }
+    },
+    {
+     "id": "call_FTMPAmh8U0K7VZ2I1Mwn2GOr",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "current Support authority duplicate charge credit limits invoice Finance matrix direct Redwood invoice price book 2026",
+      "top_k": 8
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"account\": {\"account_id\": \"copperleaf-ai\", \"org\": \"copperleaf-ai\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\", \"billing_timezone\": \"UTC\"}, \"has_signed_contract\": false, \"contacts\": [{\"name\": \"copperleaf-ai Owner\", \"role\": \"owner\"}, {\"name\": \"copperleaf-ai Developer\", \"role\": \"developer\"}], \"contracts\": [], \"credits\": {\"source\": \"credit_ledger (sum of entries per grant; credit_grants is not quoted)\", \"total_balance\": \"0.00\", \"grants\": []}, \"invoices\": [{\"invoice_id\": \"INV-2026-0831-207\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total\": {\"value\": \"2800.00\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202603-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total\": {\"value\": \"2844.32\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202604-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total\": {\"value\": \"2326.59\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202605-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total\": {\"value\": \"3281.99\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202606-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total\": {\"value\": \"2589.04\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202607-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total\": {\"value\": \"3057.04\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202609-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-09-01\", \"period_end\": \"2026-09-30\", \"issued_on\": \"2026-10-01\", \"status\": \"paid\", \"total\": {\"value\": \"1625.20\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202610-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-10-01\", \"period_end\": \"2026-10-31\", \"issued_on\": \"2026-11-01\", \"status\": \"paid\", \"total\": {\"value\": \"1240.00\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202611-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-11-01\", \"period_end\": \"2026-11-30\", \"issued_on\": \"2026-12-01\", \"status\": \"paid\", \"total\": {\"value\": \"3125.33\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202612-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-12-01\", \"period_end\": \"2026-12-31\", \"issued_on\": \"2027-01-01\", \"status\": \"paid\", \"total\": {\"value\": \"2041.58\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202701-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2027-01-01\", \"period_end\": \"2027-01-31\", \"issued_on\": \"2027-02-01\", \"status\": \"paid\", \"total\": {\"value\": \"2426.05\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202702-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2027-02-01\", \"period_end\": \"2027-02-28\", \"issued_on\": \"2027-03-01\", \"status\": \"paid\", \"total\": {\"value\": \"2805.38\", \"currency\": \"USD\"}}, {\"invoice_id\": \"INV-BG-202703-022\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2027-03-01\", \"period_end\": \"2027-03-31\", \"issued_on\": \"2027-04-01\", \"status\": \"open\", \"total\": {\"value\": \"1155.05\", \"currency\": \"USD\"}}], \"credit_notes\": [], \"disputes\": [], \"cases\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"current Support authority duplicate charge credit limits invoice Finance matrix direct Redwood invoice price book 2026\", \"results\": [{\"source\": \"google_drive/shared_drives/finance/billing-adjustments-approval-matrix\", \"kind\": \"policy/procedure page\", \"title\": \"Billing Adjustments Approval Matrix\", \"status\": \"final\", \"updated\": \"2027-02-26\", \"text\": \"- **Goodwill**: any reduction of a correct charge, for any reason.\\n## Approval matrix\\n| Adjustment | Who issues it | Limit and approver |\\n|---|---|---|\\n| Duplicate-charge credit (console-confirmed duplicate line on a direct invoice) | Support, from the support console | Invoices rated on the 2027 price book: up to $250 per duplicated line. Invoices rated on an earlier price book: up to $500 per duplicated line (Finance's 2027 Close Calendar and Invoice Periods gives the usage each price book applies to). Over the limit, Support opens a dispute and Billing Ops takes it |\\n| Billing-error correction other than a duplicate (wrong rate, quantity or product) | Billing Ops | Up to $2,000 per invoice; above that, the Controller |\\n| Refund of a paid invoice line after an approved adjustment | Billing Ops | Up to $5,000; above that, the Controller |\\n| Goodwill credit, waiver, or exception to a billing rule | Finance (FP&A) | Any amount, decided in FP&A's review. Support and Billing Ops route these requests and never issue them |\"}, {\"source\": \"confluence/customer-success-and-support/support-process/support-console-duplicate-charges-and-disputes-2027\", \"kind\": \"policy/procedure page\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes (v2)\", \"status\": \"published\", \"updated\": \"2027-02-26\", \"text\": \"meta: author=Dev Patel; owner_team=customer-success; labels=billing, credits, disputes, support-console, support-process, policy-change; created_at=2027-02-24\\n[body]\\n## Purpose\\nThe support console can look up a customer's billing account, issue a credit note against invoice lines, and open a billing dispute. This page defines when Support uses each one. It amends the billing routing page for duplicate charges only; everything else on that page still applies. This version is effective from 26 February 2027 and adds how to tell the copy from the original. Support's per-line limit is set in Finance's Billing Adjustments Approval Matrix (Finance shared drive), which FP&A revised in February 2027; check the matrix for the limit that applies to the invoice in front of you.\"}, {\"source\": \"google_drive/shared_drives/finance/billing-adjustments-approval-matrix\", \"kind\": \"policy/procedure page\", \"title\": \"Billing Adjustments Approval Matrix\", \"status\": \"final\", \"updated\": \"2027-02-26\", \"text\": \"## Contacts\\n- FP&A: Rishi Malhotra\\n- Controller: Emily Stone\\n- CFO: Laura Bennett\\n## Change log\\n| Date | Change | By |\\n|---|---|---|\\n| 2027-02-26 | Support duplicate-charge limit lowered to $250 per duplicated line for invoices rated on the 2027 price book. Invoices on earlier price books keep $500 | Rishi Malhotra |\\n| 2026-02-03 | Support issues duplicate-charge credits itself, up to the per-line limit above, instead of routing every duplicate to Billing Ops | Rishi Malhotra |\\n| 2025-09-08 | First version | Rishi Malhotra |\"}, {\"source\": \"confluence/finance-and-legal/billing-controls/marketplace-credit-memo-limits-2027\", \"kind\": \"policy/procedure page\", \"title\": \"Marketplace Credit Memos: Approval Limits (2027)\", \"status\": \"published\", \"updated\": \"2027-02-04\", \"text\": \"meta: author=Rishi Malhotra; owner_team=finance-legal; created_at=2027-02-01; labels=marketplace, credits, approvals\\n[body]\\n## Scope\\nCredit memos that Partnerships raises through the AWS or GCP marketplace for marketplace-billed customers. They are not Support console credit notes, and they don't apply to direct Redwood invoices; Support's own limit is in the Billing Adjustments Approval Matrix.\\n## Limits\\n- Up to $1,000 per memo: Partnerships.\\n- Above $1,000: FP&A.\\n_Last reviewed 2027-02-04._\"}, {\"source\": \"confluence/customer-success-and-support/support-process/reseller-billed-invoice-disputes-2026\", \"kind\": \"policy/procedure page\", \"title\": \"Reseller-Billed Invoices: Disputes and Credits\", \"status\": \"published\", \"updated\": \"2026-04-02\", \"text\": \"meta: author=Rachel Kim; owner_team=go-to-market; created_at=2026-03-16; labels=partners, resellers, disputes, credits\\n[body]\\n## Scope\\nCustomers who buy Redwood through a reseller receive the reseller's invoice, not Redwood's. This page covers disputes and credits on those invoices only. It is not the procedure for duplicate charges on a direct Redwood invoice; for those, use the support console credits and disputes page.\\n## What Support does\\n- Confirm in the console that the account is reseller-billed. A direct Redwood invoice in the console means this page does not apply.\\n- Point the customer to their reseller, who raises the dispute with Partnerships.\\n- Support issues no credit note and opens no dispute for a reseller-billed account: the reseller's invoice isn't in the console.\\n## Partnerships limits\\nPartnerships may credit a reseller up to $2,500 per invoice under the partner agreement. That limit has nothing to do with Support's own limits.\\n_Last reviewed 2026-04-02._\"}, {\"source\": \"confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes\", \"kind\": \"policy/procedure page\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes\", \"status\": \"published\", \"updated\": \"2026-02-05\", \"text\": \"| Situation | What Support does |\\n|---|---|\\n| Confirmed duplicate, duplicated line within Support's limit | Issue one credit note with reason `duplicate` for the full amount of the duplicated line, against that line. No handoff is needed. Tell the customer the amount credited. |\\n| Confirmed duplicate, duplicated line over the limit | Don't credit. Open a dispute on the duplicated line (reason `duplicate_charge`, with the request IDs) and hand the case to Billing Ops with the invoice number, the line and the dispute id. |\\n| Duplicate the console doesn't confirm (different request IDs, or no second line) | Don't credit. Collect the intake details and hand the case to Billing Ops as the routing page describes. |\\nSupport's limit is set by Finance in the Billing Adjustments Approval Matrix (Finance shared drive) (the duplicate-charge credit row). It is per duplicated line and applies to the line's full amount. Don't split a larger duplicate into several smaller credits.\"}, {\"source\": \"confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes\", \"kind\": \"policy/procedure page\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes\", \"status\": \"published\", \"updated\": \"2026-02-05\", \"text\": \"- Quote amounts as the console shows them. Don't restate a figure the customer gives you as fact.\\n## Duplicate charges: what Support may credit\\nA charge is a confirmed duplicate only when the console shows two lines on the same direct Redwood invoice that bill the same request IDs. A similar description or the same amount on its own is not enough.\\n| Situation | What Support does |\"}, {\"source\": \"confluence/product-docs/pricing-and-packaging/duplicate-charges-and-refunds-help-2025\", \"kind\": \"policy/procedure page\", \"title\": \"Help Center: Duplicate Charges and Refunds (archived)\", \"status\": \"published (archived)\", \"updated\": \"2026-01-21\", \"text\": \"meta: author=Dev Patel; owner_team=customer-success; created_at=2025-06-10; labels=help-center, billing, refunds, archived\\n[body]\\n> Archived 2026-01-21. This help-center article is no longer current. Support handles duplicate charges as described on \\\"Support Console: Duplicate-Charge Credits and Billing Disputes\\\".\\n## Duplicate charges\\nIf your invoice bills the same usage twice, contact Support with the invoice number. Support refunds a duplicated line in full on request.\\n## Refund timing\\nRefunds reach your card within 5-10 business days.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_zWAAFzpHkiQQnmQdzNPTWhcv",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "invoice_id",
+       "invoice_month",
+       "line_items",
+       "request_ids"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"invoice_id\": \"INV-2026-0831-207\", \"invoice_month\": \"August 2026\", \"line_items\": \"Two lines both reading 'Embeddings, Aug 3-9'.\", \"request_ids\": \"I don't have that.\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_kvKhMzGBPaMyb9nuGzeZ4ojW",
+     "name": "invoice_details",
+     "arguments": {
+      "invoice_id": "INV-2026-0831-207"
+     }
+    },
+    {
+     "id": "call_5tcpTF7cOxRZ3jBZ7jVnbgnh",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "Finance 2027 Close Calendar and Invoice Periods which price book applies invoice usage period August 2026 cutoff",
+      "top_k": 6
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"invoice\": {\"invoice_id\": \"INV-2026-0831-207\", \"account_id\": \"copperleaf-ai\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total\": {\"value\": \"2800.00\", \"currency\": \"USD\"}}, \"account\": {\"account_id\": \"copperleaf-ai\", \"org\": \"copperleaf-ai\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"payment_method\": \"card\", \"status\": \"active\", \"billing_timezone\": \"UTC\"}, \"has_signed_contract\": false, \"lines\": [{\"line_id\": \"INV-2026-0831-207/L1\", \"invoice_id\": \"INV-2026-0831-207\", \"description\": \"Hosted API usage, Aug 1-31\", \"product\": \"hosted_api\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"amount\": {\"value\": \"2120.00\", \"currency\": \"USD\"}, \"request_ids\": [\"req_e40\"], \"credited\": \"0.00\", \"uncredited\": \"2120.00\"}, {\"line_id\": \"INV-2026-0831-207/L2\", \"invoice_id\": \"INV-2026-0831-207\", \"description\": \"Embeddings, Aug 3-9\", \"product\": \"embeddings\", \"period_start\": \"2026-08-03\", \"period_end\": \"2026-08-09\", \"amount\": {\"value\": \"340.00\", \"currency\": \"USD\"}, \"request_ids\": [\"req_e55\"], \"credited\": \"0.00\", \"uncredited\": \"340.00\"}, {\"line_id\": \"INV-2026-0831-207/L3\", \"invoice_id\": \"INV-2026-0831-207\", \"description\": \"Embeddings, Aug 3-9\", \"product\": \"embeddings\", \"period_start\": \"2026-08-03\", \"period_end\": \"2026-08-09\", \"amount\": {\"value\": \"340.00\", \"currency\": \"USD\"}, \"request_ids\": [\"req_e55\"], \"credited\": \"0.00\", \"uncredited\": \"340.00\"}], \"console_confirmed_duplicates\": [{\"line_ids\": [\"INV-2026-0831-207/L2\", \"INV-2026-0831-207/L3\"], \"shared_request_ids\": [\"req_e55\"], \"amounts\": [\"340.00\", \"340.00\"], \"original_line\": \"INV-2026-0831-207/L2\", \"copy_lines\": [\"INV-2026-0831-207/L3\"], \"note\": \"Credit or dispute only the copy line(s); leave the original alone.\"}], \"lookalike_lines\": [], \"credit_notes\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"Finance 2027 Close Calendar and Invoice Periods which price book applies invoice usage period August 2026 cutoff\", \"results\": [{\"source\": \"google_drive/shared_drives/finance/2027-close-calendar-and-invoice-periods\", \"kind\": \"policy/procedure page\", \"title\": \"2027 Close Calendar and Invoice Periods\", \"status\": \"final\", \"updated\": \"2027-02-22\", \"text\": \"meta: owner=Emily Stone; created_at=2027-01-12; team=finance; tags=finance, close, invoicing, price-book, calendar\\n[content]\\n## Purpose\\nThis page sets the 2027 monthly close for usage-based invoices: when each month's invoices are cut, which usage lands in which invoice period, and how late usage is handled. Billing Ops, Telemetry and Support use it when a customer asks what a month's invoice covers.\\n## Monthly close calendar\\n| Business day | Step | Owner |\\n|---|---|---|\\n| BD1 | Usage for the closed month is frozen in the metering warehouse | Telemetry |\\n| BD2 | Usage is rated against the account's price book and invoice lines are drafted | Billing Ops |\\n| BD3 | Variance review: lines more than 25% above the prior month are checked against usage | Billing Ops |\\n| BD4 | Invoices are issued and autopay is attempted on the due date shown on the invoice | Billing Ops |\\n| BD5 | Revenue for the month is booked and the period is closed | Accounting |\"}, {\"source\": \"google_drive/shared_drives/finance/2027-close-calendar-and-invoice-periods\", \"kind\": \"policy/procedure page\", \"title\": \"2027 Close Calendar and Invoice Periods\", \"status\": \"final\", \"updated\": \"2027-02-22\", \"text\": \"## Late usage\\nUsage that reaches the warehouse after BD1 is not added to an issued invoice. It is billed on the next month's invoice as a separate line marked \\\"prior-period usage\\\" with the original dates, so a customer comparing a month's export to its invoice may see those requests a month later.\\n## Price changes\\nA price-book change applies to usage from the first period that starts on or after its effective date. Mid-period changes are not prorated unless the order form says so.\\nThe 2027 price book takes effect for usage from 1 March 2027: February 2027 and earlier usage is rated on the 2026 price book, and March 2027 usage onward on the 2027 price book.\\n## Credits and the close\\nCredit notes issued before BD4 are applied to the invoice being issued; later credit notes are applied to the next invoice. The credit ledger shows the date each one was applied.\"}, {\"source\": \"google_drive/shared_drives/finance/2027-price-book-rollout-plan\", \"kind\": \"policy/procedure page\", \"title\": \"2027 price book rollout plan (DRAFT)\", \"status\": \"draft\", \"updated\": \"2026-12-15\", \"text\": \"meta: owner=Rishi Malhotra; created_at=2026-12-08; team=finance; tags=pricing, price-book, draft, planning\\n[content]\\n2027 price book rollout plan - DRAFT, not approved\\nProposal: move every self-serve account to the 2027 price book for usage from 1 April 2027, so the change lands after Q1 close.\\nOpen questions:\\n- Batch API discount: keep 50%?\\n- Do we need 30 days' notice for self-serve? Legal to confirm.\\n- Should the effective date line up with the billing timezone change instead?\\nNext step: FP&A decision in January; the final date goes in the close calendar.\"}, {\"source\": \"confluence/eng-platform/systems-and-services/support-console-record-format-changes-2027\", \"kind\": \"policy/procedure page\", \"title\": \"Support Console: Record Format Changes (April 2027)\", \"status\": \"published\", \"updated\": \"2027-03-29\", \"text\": \"- A write or query on those tables that still sends `account_id` fails with an unknown-field error. Read-only tables keep `account_id`.\\n## Billing timezone\\n- Accounts have a `billing_timezone` (an IANA name such as `America/Los_Angeles`; `UTC` unless set).\\n- Which billing month and invoice line a request belongs to is set by Finance's invoice period rules; see Finance's 2027 Close Calendar and Invoice Periods (Finance shared drive).\\n## Case priority\\n- A case can only be set to `escalated` with a `priority` of `normal` or `urgent`, whether it is escalated when first inserted or by a later update. A draft case can still leave it empty.\\n- Which priority Support sets on a billing handoff was announced by Dev Patel in #support on 2027-03-30.\\n## Checking the format\\n`describe()` always returns the live field names, types, required fields and defaults. Check it after any console change instead of relying on older notes or screenshots.\\n## Timeline\\n| Date | Change |\"}, {\"source\": \"google_drive/shared_drives/finance/billing-adjustments-approval-matrix\", \"kind\": \"policy/procedure page\", \"title\": \"Billing Adjustments Approval Matrix\", \"status\": \"final\", \"updated\": \"2027-02-26\", \"text\": \"## Contacts\\n- FP&A: Rishi Malhotra\\n- Controller: Emily Stone\\n- CFO: Laura Bennett\\n## Change log\\n| Date | Change | By |\\n|---|---|---|\\n| 2027-02-26 | Support duplicate-charge limit lowered to $250 per duplicated line for invoices rated on the 2027 price book. Invoices on earlier price books keep $500 | Rishi Malhotra |\\n| 2026-02-03 | Support issues duplicate-charge credits itself, up to the per-line limit above, instead of routing every duplicate to Billing Ops | Rishi Malhotra |\\n| 2025-09-08 | First version | Rishi Malhotra |\"}, {\"source\": \"slack/support/1987654321-staggered-expiry-promo-credit-late-deduction\", \"kind\": \"case record or discussion\", \"title\": \"#support thread 1987654321\", \"status\": \"n/a\", \"updated\": \"n/a\", \"text\": \"meta: channel=support\\n[messages]\\nmaria_support: FYI customer ACME (org-acme-42) escalated \\u2014 their promo credits had staggered expiries (Mar/Apr/May) but invoice INV-2026-0043 shows charge for tokens that should've been offset. Dashboard shows 0 remaining credits, invoice charged $423.75. Customer says credits were 'applied' after invoice cutoff. Need triage.\\ndavid_billing: Can you paste org id + invoice link and the invoice period? Also any ledger ids or sample token timestamps?\\nmaria_support: org-acme-42, invoice INV-2026-0043 (period 2025-04-01 -> 2025-04-30). Customer claims dashboard token total = 12,345 but invoice tokens = 15,678 (billed). Saw credits consumed timestamped 2025-05-02 in our ledger.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_7BLXRrxQcrMfZkt7RXcmVPlR",
+     "name": "confirm_with_developer",
+     "arguments": {
+      "proposal": "Issue one $340.00 credit note with reason `duplicate` against the confirmed duplicate copy line INV-2026-0831-207/L3 on invoice INV-2026-0831-207. The console confirms L2 and L3 bill the same request ID (req_e55), with L2 as the original and L3 as the copy."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answer\": \"yes\", \"message\": \"Yes, go ahead.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_Hp4wbvBNFf3LwO5zAF9I4G8h",
+     "name": "issue_credit_note",
+     "arguments": {
+      "account_id": "copperleaf-ai",
+      "invoice_id": "INV-2026-0831-207",
+      "line_ids": [
+       "INV-2026-0831-207/L3"
+      ],
+      "amount": "340.00",
+      "reason": "duplicate",
+      "memo": "Credit for confirmed duplicate usage line L3; console shows req_e55 billed on L2 (original) and L3 (copy).",
+      "policy_source": "google_drive/shared_drives/finance/billing-adjustments-approval-matrix",
+      "policy_limit": "Invoices rated on an earlier price book: up to $500 per duplicated line"
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"issued\": {\"billing_account_id\": \"copperleaf-ai\", \"invoice_id\": \"INV-2026-0831-207\", \"line_ids\": [\"INV-2026-0831-207/L3\"], \"amount\": {\"value\": \"340.00\", \"currency\": \"USD\"}, \"reason\": \"duplicate\", \"memo\": \"Credit for confirmed duplicate usage line L3; console shows req_e55 billed on L2 (original) and L3 (copy).\", \"status\": \"issued\", \"credit_note_id\": \"CN-1\", \"at\": 15}}"
+  },
+  {
+   "role": "assistant",
+   "content": "I issued a **$340.00 credit note (CN-1)** against the duplicate copy, line **INV-2026-0831-207/L3**. The console confirmed that L2 and L3 both billed request `req_e55`, with L2 as the original.\n\nBecause the credit was issued after the invoice close, it will be applied to the next invoice. No further action is needed from you."
+  },
+  {
+   "role": "user",
+   "content": "Thanks. Is that done now?"
+  },
+  {
+   "role": "assistant",
+   "content": "Yes\u2014the **$340.00 credit note (CN-1)** has been issued against the duplicate line. It hasn\u2019t been applied to an invoice yet; it will be applied to your next invoice. It\u2019s a credit, not a refund to your card."
+  },
+  {
+   "role": "user",
+   "content": "Thanks, that's what I needed. ###STOP###"
+  }
+ ]
+}

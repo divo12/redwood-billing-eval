@@ -47,7 +47,7 @@ them in a live conversation, and testing all of that before it ships.
    indexes one page per topic gets half a rule.
 4. **Inference, not lookup.** The payment-retry date after a processor incident is stated nowhere. Four past status
    cards fix it uniquely (retries complete 3 business days after the incident window ends), and the agent must
-   work it out for a new incident. *Opus failed a1-03 in every run, on A0 and A1.*
+   work it out for a new incident. *Opus's builds missed it in runs 5 and 6; run 7's build derived it.*
 5. **Restraint is a rule too.** The routing page says to *answer*, not hand off, when the published pages explain
    what the customer sees (tokenizer counts, billed retries, console lag), "even if the customer calls it a bug".
    Escalating feels safe and is wrong. *The a0-01 tokenizer cases and a0-09-T failed in both Opus runs (run 6 passed
@@ -72,7 +72,7 @@ R1 is not a clean changelog. It mixes six kinds of change, and each kind has its
    Finance's close calendar says that starts 1 March 2027); the usage-delay threshold becomes 60 minutes only after a
    cut-over that only a Linear ticket dates. The old rule still governs older invoices, and Q10 replays the R0
    conversations to check it. *Opus's A1 dropped the $500 that still applies to 2026 invoices (a0-08 in run 5;
-   a0-07-C, a0-08, a0-08-T in run 6).*
+   a0-07-C and a0-08-T in run 6).*
 10. **Contradictions planted next to every change.** Each new rule arrives with a newer-looking competitor: a Slack
     thread saying the delay threshold is 10 minutes, agents' "everything is urgent" chatter against the announced
     escalation priority (`normal`), a draft 2027 price-book plan in Drive, and an earlier provisional Finance x
@@ -163,13 +163,16 @@ is implemented to the traps above.
 | Sealed the grader | audit | graded agents could read the task folder |
 | Moved grading into Harbor; Q01 on all 30 cases | submission | the trial's reward must come from `tests/test.sh` |
 | Rewrote a0-02-C | two independent agents (an oracle run, Opus run 6) routed it to Billing Ops | its "conflict" was a $980 figure from the customer's own dashboard, which fits the routing row for invoice/export mismatches: ambiguous, and not a refutable claim. Now a false policy claim ("requests that time out on our side aren't billed") that the published retries page refutes; the oracle's A0 passes it 3/3 |
+| Dropped the stated limits from a0-08 and a1-02 | audit of runs 6-7: agents failed only for not saying "$500"/"$250" after opening the right dispute | the duplicate pages tell Support to say what it did, not to state the limit; the dispute is already checked on the console. A hidden requirement, removed |
+| Q10 conversations see only their own release's records | a0-10-A (runs 6, 7) and a0-10-M (oracle) failed in Q10 | Q10 replays 2026 conversations on the R1 console, which also held R1's 2027 invoices; an agent asked "what do we owe?" saw the future. The console now serves the case's own release's records in the console release's format (test-enforced) |
 | Pinned `tenacity` | an oracle conversation crashed when a call was retried | LiteLLM imports it only to retry (e.g. after a 429); without it the support agent crashed and the case counted as failed (1 of 450 graded conversations, a Q01 case). A test now requires it in the lock |
 | Stated duplicate-over-refund precedence in the oracle's R1 skill | the oracle missed a1-02-T in 2 of 4 runs | the task is unambiguous (the 2027 duplicate page amends routing for duplicates), but the reference skill had a generic "refund → route" step that could win |
 
-Builder results on the final case set: run 5 Q00 0.833, Q10 0.867, Q11 0.90, reward 0. Its failures (detailed in
-`RUN_REPORT.md`) recur from runs 1-4 on earlier case sets: the retry-date inference is missed in every build,
-the tokenizer gap is escalated instead of explained, and the $500 scope is dropped on maintenance. The oracle
-missed 0, 2 and 1 cases in its last three runs, a different case each time (variance in the support model).
+Builder results on the final case set: runs 5, 6 and 7 all score reward 0 (Q00 0.833, 0.833, 0.733), and still 0
+when rescored with every defect below removed. The failures recur (detailed in `RUN_REPORT.md`): the tokenizer
+gap is escalated instead of explained in every run, the $500 scope is dropped on maintenance in two of three, and
+the retry-date inference is missed in two of three (and in every earlier build). The oracle scored 1.0 in four of
+four runs, missing at most two cases per run, a different one each time (variance in the support model).
 
 The gate (Q00 ≥ 0.9, Q11 ≥ 0.9, Q10 ≥ Q00 − 0.1) allows three misses in 30 and one case of regression slack.
 
@@ -189,9 +192,6 @@ The gate (Q00 ≥ 0.9, Q11 ≥ 0.9, Q10 ≥ Q00 − 0.1) allows three misses in 
 - **Build inputs that are not pinned.** The base image is pinned by digest and Python packages by
   `requirements.lock`, but Debian packages (`nodejs`, `npm`, `libfaketime` and a few tools) come from the
   distribution at build time, and the embedding model's weights download from Hugging Face during the build.
-- **Q10's console is newer than its conversations.** Q10 replays R0 conversations (dated September 2026) against
-  the R1 console, which also holds 2027 invoices. An agent that guesses "the latest invoice" instead of asking
-  for the month is caught in Q10 but can get lucky in Q00; asking always passes.
 - **Platform.** Built and run on Apple Silicon with Colima; the image is Linux and uses only
   multi-arch base layers and Python wheels. libfaketime is required on Linux and checked at runtime.
 

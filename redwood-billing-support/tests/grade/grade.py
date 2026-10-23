@@ -149,9 +149,10 @@ def _state_diff(actual: dict[str, list[JsonObject]], gold: dict[str, list[JsonOb
             for table in billing_store.PROJECTION if actual[table] != gold[table]}
 
 
-def check_db(expected: DbExpectation, billing: BillingRecord, release: Release) -> CheckResult:
+def check_db(expected: DbExpectation, billing: BillingRecord, release: Release,
+             records: Release | None = None) -> CheckResult:
     actual = billing_store.project(billing.state or billing_store.empty())
-    baseline = load_db(release)
+    baseline = load_db(records or release)  # the records the conversation saw (run_agent.World)
     diffs = [_state_diff(actual, billing_store.project(billing_store.replay(baseline, actions, release=release)))
              for actions in (expected.gold, *expected.alternatives)]
     closest = min(diffs, key=len)
@@ -310,7 +311,7 @@ class CaseRecord(BaseModel):
 
 
 def billing_checks(case: Scenario, result: Result, messages: list[Message], release: Release) -> list[CheckResult]:
-    rows = [check_db(case.db, result.billing, release)] if case.db is not None else []
+    rows = [check_db(case.db, result.billing, release, case.step.release)] if case.db is not None else []
     if case.actions:
         rows.append(check_actions(case.actions, result.billing.log, messages))
     if case.communicate:

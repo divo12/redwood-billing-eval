@@ -2,129 +2,137 @@
 
 ## Summary
 
-| Agent | Q00 (A0 on R0) | Q10 (A1 on R0) | Q11 (A1 on R1) | Reward |
-|---|---|---|---|---|
-| Oracle (`evidence/oracle`) | 30/30 | 30/30 | 30/30 | **1.0** |
-| Claude Opus 5.5, high, Claude Code (`evidence/opus-5-5-run5`) | 25/30 (0.833) | 26/30 (0.867) | 27/30 (0.90) | **0.0** |
+Claude Opus 5.5 (high, Claude Code) **fails in 3 of 3 runs** (reward 0 every time), and the oracle **passes in 4 of 4**
+(reward 1.0 every time). The failure survives every correction from the fairness audit below: rescored with every
+case or verifier defect found removed, all three Opus runs still score 0, because the R0 build itself never
+reaches the 0.9 bar.
 
-Full `reward.json` (recomputed with the current `tests/grade/final.py` from the saved grading):
+| Agent | Run | reward | q00 | q11 | drift | regression | behaviour_robustness | artifact_quality |
+|---|---|---|---|---|---|---|---|---|
+| Oracle | `evidence/oracle-2026-10-24` | **1.0** | 1.0 | 1.0 | 1.0 | 0.967 | 0.978 | 1.0 |
+| Oracle | `evidence/oracle-2026-10-24-b` | **1.0** | 1.0 | 0.967 | 0.96 | 0.967 | 0.978 | 1.0 |
+| Opus 5.5 | `evidence/opus-5-5-run6` | **0.0** | 0.833 | 0.867 | 0.818 | 0.84 | 0.756 | 1.0 |
+| Opus 5.5 | `evidence/opus-5-5-run7` | **0.0** | 0.733 | 0.80 | 0.75 | 0.955 | 0.889 | 1.0 |
+| Opus 5.5 | `evidence/opus-5-5-run5` (earlier version) | **0.0** | 0.833 | 0.90 | 0.80 | 0.96 | 1.0 | 1.0 |
 
-| Agent | reward | drift | regression | behaviour_robustness | artifact_quality |
-|---|---|---|---|---|---|
-| Oracle | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 |
-| Opus 5.5 run 5 | 0.0 | 0.80 (12 of 15; that run graded Q01 on base cases only) | 0.96 (lost a0-08) | 1.0 | 1.0 |
+Two more oracle runs (`evidence/oracle`, an earlier version; and one graded in Harbor on 2026-10-23) also scored
+1.0. Every case Opus fails, the oracle passes in at least 3 of 4 runs.
 
-`behaviour_robustness` 1.0 means no developer profile (missing info, ambiguous, conflict) broke a case its base
-handled: Opus's failures are about rules, not about difficult developers.
+**The failure in one line:** the deciding records reach the support agent, but the builder never turns them into
+behaviour the agent reliably acts on, and when the world changes it replaces rules instead of scoping them. The
+agent falls back to a cautious default (escalate, hedge, or answer a different question). The oracle writes each
+rule down (its billing-investigation skill and `billing_rules.py`) and passes.
 
-Opus 5.5 built a working, well-structured agent (a retrieval index, three skills, a policy-researcher subagent,
-hooks, wiring tests) and ran practice conversations in both steps. It still fails the gate on the build itself (Q00 < 0.9). In every recurring
-failure, **the deciding record reached the support agent, but the builder never turned it into a decision rule
-the agent acts on**, so the agent fell back to a cautious default: escalate, stay vague, or decline to give a
-date. The oracle writes each rule down (its billing-investigation skill and `billing_rules.py`) and passes
-everything.
+**Why the failure is the builder's and not the support model's.** Both use the same support model (gpt-6-luna):
+the oracle's build passes with it in every run. Writing the missing a1-03 rule into the prompt
+(`REDWOOD_REPLAY_HINT`, a diagnostic replay) makes the support agent answer a1-03 correctly. The model can apply
+a rule; Opus's builds did not give it the rule.
 
 ## Setup actually used (disclosed)
 
 - **Builder:** Harbor 0.22.0 `claude-code`, `claude-opus-5-5`, `reasoning_effort=high`, `max_budget_usd=30`, on a
-  Claude subscription (`CLAUDE_CODE_OAUTH_TOKEN`). Run 5 spent $17.21 of the cap (Claude Code's own cost meter).
-  Step 2 resumes the same Claude Code session (`resume_trajectory: true`; run 5's session `7a37d81f…` spans both
-  steps in `evidence/opus-5-5-run5/builder/session.jsonl`), and the step verifier marks the run invalid if it
-  does not.
-- **Deployed support model and developer wording:** `gpt-6-luna` (reasoning high for support, low for wording) on
-  Azure AI Foundry. This choice was about cost: a Claude support model would have made each 105-conversation
-  grading far more expensive than the author's budget allows. The model is now a parameter (`SUPPORT_MODEL`,
-  `USER_MODEL`, LiteLLM ids) that the builder-visible manifest and instructions name. Practice and grading use
-  the same model, so the builder tunes against what is graded.
-- **Since the reported runs:** the task was restructured for submission. Grading moved from a post-run script
-  (`scripts/grade_snapshots.sh`) into `maintain_r1`'s verifier, and the support-model gateway moved from the
-  OpenAI Responses API to LiteLLM chat completions, with the same model and effort. Case data, checks, the gate
-  and the builder's instructions are otherwise unchanged. **Re-running the oracle and one Opus trial on this
-  exact version is the next step**; until then the numbers above come from the version before these changes
-  (task 1.1.0, both runs on 2026-10-23).
+  Claude subscription (`CLAUDE_CODE_OAUTH_TOKEN`). Cost per run by Claude Code's meter: run 5 $17.21, run 6 $14.82
+  (build $5.49, maintain $9.33), run 7 $16.63 (build $6.17, maintain $10.46). Step 2 resumes the same Claude Code
+  session (`resume_trajectory: true`; each run's `builder/session.jsonl` spans both steps), and the step verifier
+  marks the run invalid if it does not.
+- **Deployed support model and developer wording:** `gpt-6-luna` on Azure AI Foundry (reasoning high for the
+  support agent, low for wording), chosen for cost. It is a parameter (`SUPPORT_MODEL`, `USER_MODEL`, LiteLLM ids)
+  that the builder-visible manifest and instructions name. Practice and grading use the same model.
+- **Versions.** Runs 6, 7 and the two `oracle-2026-10-24*` runs use the submitted version: grading inside
+  `maintain_r1`'s verifier, LiteLLM, Q01 on all 30 R1 cases. Run 5 and `evidence/oracle` are the previous version
+  (graded after the job by `scripts/grade_snapshots.sh`, OpenAI Responses API, Q01 on base cases only); same case
+  set, checks and gate.
 
 ## The failure, in detail
 
-The failing cases in run 5 (each read in full; linked from `evidence/opus-5-5-run5/README.md`):
+Failures across the three Opus runs, grouped by what went wrong (each conversation is linked from its run's
+`evidence/<run>/README.md`):
 
-| Case | Q | What the agent did | What was required, and where it is written |
-|---|---|---|---|
-| a0-01, a0-01-A/-C/-M | Q00 | Opened a Billing Engineering case for a token-count gap | Explain it: billing counts the full request with the model's own tokenizer. The current routing page says answer, don't hand off, unless request IDs still mismatch afterwards. |
-| a0-09-T | Q00 | Searched "full request payload model-native tokenizer", heard the developer counted only user messages, still escalated | Same rule: explain that system prompt and tool definitions count |
-| a0-01, -C, -M | Q10 | Same escalation on A1 | Same |
-| a0-08 | Q10 | A1 dropped the $500 limit that still applies to pre-2027 invoices | R1's approvals matrix: $250 only for invoices on the 2027 price book, $500 for earlier ones |
-| a1-03, a1-03-T | Q11 | Declined to give the payment-retry date | Past status cards fix it: retries complete 3 business days after the incident window ends |
-| a1-07 | Q11 | Gave the March total but said it could not tell which requests were the runaway script's | Ask when it ran (the agent's own skill lists `time_of_issue`); the developer says March 17, and that day's two requests total 17,683,825 tokens |
+| Pattern | Cases | Runs | What the agent did | What the records say |
+|---|---|---|---|---|
+| **No restraint** | a0-01 and its variants, a0-09-T | 5, 6, 7 | Explained part of the token gap, then escalated "check the meter" to Billing Engineering, or hedged that it could not tell | The routing page: answer, don't hand off, when the published pages explain it (model-native tokenizer, full request payload), "even if the customer calls it a bug". The Billing Engineering row needs request IDs that still mismatch; the developer has none. |
+| **Replaced instead of scoped** | a0-08 (run 5), a0-07-C and a0-08-T (run 6) | 5, 6 | A1 could not apply the $500 limit to a 2026 invoice: escalated a creditable duplicate, or credited then escalated | R1's approvals matrix: $250 only for invoices on the 2027 price book, $500 still for earlier ones |
+| **Rule never derived** | a1-03, a1-03-T | 5, 6 | Declined to give the payment-retry date | Four past status cards fix it: retries complete 3 business days after the incident window ends (run 7's build got it) |
+| **Never asked** | a1-07 and its variants; a0-02-A, a1-04-A | 5, 6, 7 | Reported a total without asking when the runaway script ran, or picked one reading of an ambiguous ask | The developer gives the date (or the line) through the form when asked; that day's two requests total 17,683,825 tokens |
+| **Wrong route** | a0-05-T, a1-04-A | 7 | Asked in chat whether a budget complaint was a relief request; sent an export mismatch to Billing Engineering | Routing: a request for relief on correct charges goes to Finance; an invoice-vs-export mismatch to Billing Ops |
 
 **Classification** (the brief's terms):
-- **Wrong hypothesis / not operationalised** (a0-01 family, a0-09-T, a1-03): retrieval worked, but the builder
-  shipped "escalate when unsure" instead of the rule. With the a1-03 rule placed in the system prompt
-  (`REDWOOD_REPLAY_HINT`, a diagnostic replay), the agent answers a1-03 correctly. So the knowledge was missing
-  from the build, not unusable by the support model.
-- **Brittle patch** (a0-08 on A1): the R1 update replaced the $500 limit instead of scoping it by price-book
-  date, a regression on a behaviour the R0 build got right.
-- **Incomplete inspection** (a1-07): it looked up six requests but never asked the one question that separates
-  them.
-- **Skipped verification:** practice was mostly the provided example scripts, plus two of the builder's own (an
-  SLA goodwill claim and a card-processor failure). None covered a tokenizer gap, a retry date or the
-  date-scoped credit limit, so practice could not catch these failures.
+- **Wrong hypothesis / not operationalised** (no restraint; rule never derived): retrieval worked (the agents quote
+  the rule's own words), but the build shipped "escalate when unsure" instead of the rule.
+- **Brittle patch** (replaced instead of scoped): the R1 update overwrote the $500 limit instead of scoping it by
+  date, breaking behaviour the R0 build got right. `regression` measures it.
+- **Incomplete inspection** (never asked; wrong route): the agent stopped at the first plausible reading.
+- **Skipped verification:** practice was mostly the provided example scripts plus a few of the builder's own (run
+  5: an SLA claim and a card-processor failure). None touched a tokenizer gap, a retry date or a date-scoped limit.
 
-**Recurring.** The same failures show up across builds of earlier case sets (runs 1-4, same builder): a1-03 failed
-in every graded build; a0-01 escalated in Q10 in all five runs and in Q00 in four (run 3 passed only because its
-own tool bug blocked the handoff); A1 dropped the $500 scope in four of five. Run 3 failed for a different,
-self-inflicted reason (a 200-character validator in its own handoff tool), which is what led to adding practice
-conversations.
+**Recurring.** The restraint failure appears in every Opus run (and in runs 1-4 on earlier case sets); "never
+asked" in every run; the scoped-limit regression in two of three; the retry-date inference in two of three (and in
+every earlier build).
 
 ## Oracle
 
 `steps/*/solution/solve.sh` installs a reference workspace (hybrid retrieval over embedded billing records, a
-billing-investigation skill and `billing_rules.py` that state each rule, a policy subagent, hooks), builds its index with the same local embedder, and on R1 embeds only
-the new and revised records. Oracle job `2026-10-23__20-38-54`: Q00, Q10 and Q11 30/30 each, reward 1.0,
-artifact quality 1.0 on both steps. Every behaviour variant and twin passed, no case was invalid and the developer
-leaked nothing. It runs through the same conversation loop, sandbox and console as the builder's agent, with no
-shortcut.
+billing-investigation skill and `billing_rules.py` that state each rule, a policy subagent, hooks), builds its
+index with the same local embedder, and on R1 embeds only the new and revised records. It runs through the same
+conversation loop, sandbox and console as the builder's agent, with no shortcut. Four runs, reward 1.0 each; it
+misses at most two cases per run, a different one each time (the support model is sampled).
 
 ## Fairness audit
 
-Done over the oracle's and run 5's 105 graded conversations each, the builder trace, the image and the data:
-- **Solvable from visible files.** Every rule cites builder-visible records per release (test-enforced). Every
-  value the agent must say appears in a tool result, except a1-03's date, which the past status cards determine
-  uniquely. The oracle passes 90/90.
-- **The failures are the agent's.** For a0-01 and a0-09-T, no current record tells Support to escalate a
-  tokenizer gap; the only contrary record is a superseded draft. For a0-08, the R1 matrix states both limits. For
-  a1-07, the developer gives the date when asked.
-- **Simulated developer.** Across 188 worded lines in run 5 there were 0 invented values, 0 team or rule names,
-  0 answers to questions asked in chat and 0 leaks. Every ending matches the console (a transfer exactly when a
-  case was escalated), and the clock showed the right date in every case.
-- **No leakage.** The builder trace was audited: no hidden path, value or R1 record reached it before R1. `/tests`,
-  seeds, overlays and the practice service are root-only. A grading-time leak (task folder mounted
-  world-readable to graded agents) was found and closed; no saved workspace had used it. Identifier collisions
-  that could satisfy a check by accident were removed (`req_pb402` vs "402"), with a test.
-- **Not brittle.** Values match in any listed form after normalising case, commas, `$`, markdown and dashes. The DB
-  check accepts every outcome the records allow (e.g. either duplicated line). Twins (a similar ask, the
-  opposite answer) catch pattern-matching, and swapping twin golds fails.
+Every failing conversation in runs 5, 6 and 7 was read, against the records that state its rule. Findings:
+
+**Fair (agent capability):** every pattern in the table above. In each, the deciding record is builder-visible,
+the oracle passes the case, and the agent either did not act on a rule it retrieved or did not ask for a fact the
+developer would have given.
+
+**Fixed (not the agent's fault), and rescored:**
+
+| Finding | Why it was unfair | Fix |
+|---|---|---|
+| a0-02-C was ambiguous | its "conflict" was a $980 figure from the customer's own dashboard, which fits the routing row for invoice/export mismatches; an oracle run and Opus run 6 both defensibly routed it to Billing Ops | rewritten as a false policy claim the retries page refutes; the oracle passes it 3/3 |
+| a0-08 and a1-02 required saying the limit ($500, $250) | the duplicate pages tell Support to say what it did (a dispute is open), not to state the limit; the dispute itself is already checked on the console | the two values removed (hidden requirement) |
+| Q10 showed 2027 invoices to 2026 conversations | Q10 replays R0 cases on the R1 console, which also held R1's later invoices; an agent asked "what do we owe?" saw the future (a0-10-A in runs 6 and 7, a0-10-M for the oracle) | each conversation's console now holds its own release's records in the console release's format (test-enforced) |
+| A retried model call could crash the support agent | LiteLLM needs `tenacity` to retry (e.g. after a 429) and it was not installed; 1 of 450 graded conversations crashed (an oracle Q01 case), none in runs 6 or 7 | `tenacity` pinned, with a test |
+
+Rescored with these defects removed (a defect case excluded, as invalid; a removed value no longer required):
+run 5 Q00 0.828, Q10 0.862, Q11 0.90; run 6 0.862, 0.821, 0.867; run 7 0.767, 0.759, 0.833. **Reward stays 0 for
+all three.**
+
+**Checked and clean:**
+- **No near-miss phrasing.** Every failure on `communicate` alone was read: in each, the agent said a different
+  value (a stale date, a stale threshold, the wrong error code) or hedged, not the right value in other words.
+- **Simulated developer.** Audited over runs 5, 6 and 7 and the oracle (about 660 worded lines): no team or rule
+  names, no answers to questions asked in chat, no required value said before the agent said it, and every ending
+  matches the console. Three lines repeated values the agent had just given ("thanks for confirming the $340.00
+  credit note"); the wording model sees only the transcript, never the script's facts, so these are echoes.
+- **No leakage.** All six builder steps of runs 5-7 were audited: no hidden path, no network fetch, and no R1 record
+  reached a builder before R1.
+  `/tests`, seeds, overlays and the practice service are root-only; graded agents run as `nobody` after `/tests`
+  is made root-only. A grading-time leak (the task folder mounted world-readable) was found and closed earlier; no
+  workspace had used it. Identifier collisions that could pass a check by accident were removed (`req_pb402`).
+- **Shallow solutions fail.** A do-nothing agent fails all 60 cases, and the unmaintained A0 passes 4 to 8 of 30 R1
+  cases (Q01), both test- or run-verified.
 - **No LLM judge.** A model only rewords scripted lines; every verdict is reproducible from the case log.
 
 ## Realism and economic value
 
 Support agents grounded in company knowledge are among the most deployed LLM applications, and their cost is not
-the first build but keeping them right as pricing, policy and data formats change. This task is that job: a
-noisy multi-platform export, rules owned by Finance, Security and Support, drafts and superseded pages, a
-breaking console change, and a six-month gap. A wrong answer here is a real cost (an unneeded engineering
-ticket, a credit over the approval limit, a customer told the wrong retry date).
+the first build but keeping them right as pricing, policy and data formats change. This task is that job: a noisy
+multi-platform export, rules owned by Finance, Security and Support, drafts and superseded pages, a breaking
+console change, and a six-month gap. A wrong answer here is a real cost (an unneeded engineering ticket, a credit
+over the approval limit, a customer told the wrong retry date).
 
-Cost per trial: one builder run (about $17 of Opus at Claude Code's meter) plus about 90 graded conversations
-(about 117K input and 3K output tokens each). At published gpt-6-luna prices that is roughly $1-2 per grading.
-Grading needs a provider rate limit near 500K tokens/min to finish in about 80 minutes.
+Cost per trial: one builder run ($15-17 of Opus at Claude Code's meter) plus 120 graded conversations (about 117K
+input and 3K output tokens each), roughly $1.5-2 at published gpt-6-luna prices. Grading takes 60-90 minutes at 2-4
+workers and needs a provider rate limit of 500K-1M tokens per minute.
 
 ## Limitations
 
-- One target-model trial on the final case set (plus four builds on earlier sets showing the same failures).
-  30 cases per release means one case moves a rate by 0.033; the gate allows one case of slack on regression.
-- The support model is gpt-6-luna for cost. The failure is the builder's, and the replay hint shows the support
-  model can act on a rule once it is written down, but results with a Claude support model are not reported.
-- A full trial takes about 4.5 h and needs provider keys for the support model.
-- The reported runs predate the restructure (see *Setup actually used*).
+- Three target-model trials. 30 cases per release, so one case moves a rate by 0.033; the gate allows three misses
+  and one case of regression slack. The support model is sampled, so a case can flip between runs.
+- The support model is gpt-6-luna for cost; results with a Claude support model are not reported.
+- A full trial takes about 4.5 h and needs a provider key for the support model.
+- The audit fixes above landed after runs 5-7; their scores are reported as graded and as rescored.
 
 ## Reproduce
 
@@ -134,3 +142,6 @@ harbor run -p ./redwood-billing-support -a claude-code -m claude-opus-5-5 --ak r
 harbor view ./jobs
 python redwood-billing-support/scripts/curate_evidence.py jobs/<job>/<trial> <label>   # refresh evidence/
 ```
+
+Harbor 0.22.0 names the Claude Code agent `claude-code`; the brief's `-a claude -m opus-5-5` maps to the second
+command.

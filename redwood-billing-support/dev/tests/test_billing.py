@@ -146,7 +146,8 @@ def as_billing(actual: dict | BillingRecord) -> BillingRecord:
 
 def billing_rows(spec: dict, actual: dict | BillingRecord, release: str = "R0",
                  messages: tuple[Message, ...] = ()) -> dict[str, CheckResult]:
-    case = Scenario.model_validate({"id": "inline", "db": spec["db"], "actions": spec.get("actions", [])})
+    case = Scenario.model_validate({"id": "inline", "db": spec["db"], "actions": spec.get("actions", []),
+                                    "step": spec.get("step") or ("maintain_r1" if release == "R1" else "build_r0")})
     result = Result(case_id="inline", billing=as_billing(actual))
     return {row.kind.value: row for row in grade.billing_checks(case, result, list(messages), Release(release))}
 
@@ -1059,7 +1060,7 @@ def _derived(state):
                   str(tokens_between("northwind-ai", "2026-08-17", "2026-08-23"))],
         "a0-04-T": [lines[usage_on("velvet-signal", "2026-08-20")]["invoice_id"],
                     str(tokens_between("velvet-signal", "2026-08-17", "2026-08-23"))],
-        "a0-08": [_dollars(lines["INV-2026-0831-114/L3"]["amount_cents"]), "500"],  # the limit is R0 policy
+        "a0-08": [_dollars(lines["INV-2026-0831-114/L3"]["amount_cents"])],  # over the limit: say the dispute, not the limit
         "a0-10": [_dollars(invoices["INV-2026-0831-177"]["total_cents"]),
                   *(_dollars(cents) for cents in _lines(state, "INV-2026-0831-177"))],
     }
@@ -1093,7 +1094,7 @@ def _derived_r1(state):
     lines, invoices = state["invoice_lines"], state["invoices"]
     expiry = {entry["grant_id"]: entry["expires_on"] for entry in state["credit_ledger"].values() if entry["expires_on"]}
     return {
-        "a1-02": [_dollars(lines["INV-2027-0331-118/L3"]["amount_cents"]), "250"],  # the limit is R1 policy
+        "a1-02": [_dollars(lines["INV-2027-0331-118/L3"]["amount_cents"])],  # over the limit: say the dispute, not the limit
         "a1-03": ["2027-04-12"],  # 3 business days after the window ends on Wed 2027-04-07
         "a1-05": [_dollars(invoices["INV-2027-0331-266"]["total_cents"]),
                   str(_billed_tokens(state, "rosehip-data", "2027-03"))],
@@ -1858,7 +1859,7 @@ def test_r1_dispute_is_valid_but_credit_of_three_hundred_is_not():
         "marrowline-analytics", "INV-2027-0331-118", "INV-2027-0331-118/L2", ["req_b71", "req_b72"],
         "INV-2027-0331-118/L3",
         [escalated_case_action("marrowline-analytics", "billing_ops", priority="normal")],
-    )
+    ) | {"step": "maintain_r1"}  # an R1 case: its console holds R1's records
     actual = record(
         query("accounts", {"account_id": "marrowline-analytics"}),
         as_r1(dispute(

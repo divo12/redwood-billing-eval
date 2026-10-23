@@ -1,0 +1,367 @@
+{
+ "id": "a0-06",
+ "grade": {
+  "id": "a0-06",
+  "category": "normal",
+  "termination": "customer_transfer",
+  "error": null,
+  "passed": true,
+  "checks": [
+   {
+    "kind": "db",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   },
+   {
+    "kind": "action",
+    "passed": true,
+    "problem": "",
+    "observed": [
+     {
+      "op": "query:accounts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_grants",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contacts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:contracts",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:disputes",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "query:cases",
+      "at": 3,
+      "ok": true
+     },
+     {
+      "op": "describe:None",
+      "at": 8,
+      "ok": true
+     },
+     {
+      "op": "query:invoices",
+      "at": 13,
+      "ok": true
+     },
+     {
+      "op": "query:invoice_lines",
+      "at": 13,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 13,
+      "ok": true
+     },
+     {
+      "op": "query:accounts",
+      "at": 13,
+      "ok": true
+     },
+     {
+      "op": "query:credit_notes",
+      "at": 13,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 13,
+      "ok": true
+     },
+     {
+      "op": "query:usage",
+      "at": 13,
+      "ok": true
+     },
+     {
+      "op": "insert:cases",
+      "at": 22,
+      "ok": true
+     }
+    ]
+   },
+   {
+    "kind": "communicate",
+    "passed": true,
+    "problem": "",
+    "observed": []
+   }
+  ],
+  "tools_called": [
+   "account_overview",
+   "ask_developer",
+   "confirm_with_developer",
+   "console_query",
+   "console_schema",
+   "escalate_case",
+   "invoice_details",
+   "load_skill",
+   "search_knowledge"
+  ]
+ },
+ "termination": "customer_transfer",
+ "invalid": null,
+ "seconds": 41.237914065999576,
+ "transcript": [
+  {
+   "role": "assistant",
+   "content": "Hi! How can I help you today?"
+  },
+  {
+   "role": "user",
+   "content": "Hi, responses were slow for about a week recently. What was that month's invoice, how many tokens did we use during the slow week, and could you take something off as a goodwill gesture? Org quickmint-dev."
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_Ik0dvG0g7SssTlKP13FFiZ33",
+     "name": "load_skill",
+     "arguments": {
+      "name": "charge-review"
+     }
+    },
+    {
+     "id": "call_9HhA0Z4uBmjUUQKONcpltklP",
+     "name": "load_skill",
+     "arguments": {
+      "name": "usage-reconciliation"
+     }
+    },
+    {
+     "id": "call_aP2n7U4nbJtxbnKHCKHP61vT",
+     "name": "account_overview",
+     "arguments": {
+      "org": "quickmint-dev"
+     }
+    },
+    {
+     "id": "call_lACRfDXTDKrbh20NgtZyYGHV",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "Support goodwill credit for slow API latency performance degradation service issue credit authority limits Finance review routing",
+      "top_k": 8
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"charge-review\", \"steps\": \"Goal: decide from console evidence and current policy what Support may do about a charge, do it with approval, and tell the developer.\\n\\n1. Gather. If the developer has not given them, call `ask_developer` once for the org (or account id), the invoice id or month, and the lines/amounts in question; add request ids if they say specific requests were mis-billed.\\n2. Read, in one round: `account_overview` (org or account id) and `search_knowledge` for the policy on this kind of request (e.g. \\\"duplicate charge credit Support limit\\\", \\\"refund request billed in error\\\", \\\"goodwill credit request\\\", \\\"SLA credit request contract\\\"). Then `invoice_details` for the invoice. If the developer gave only a month, pick the invoice whose period covers it.\\n3. Check the billing channel first. If the account is billed by a marketplace or reseller, Support does not credit or dispute that invoice: find the policy for that channel and tell the developer who handles it.\\n4. Classify with console evidence only:\\n   - Duplicate: `console_confirmed_duplicates` lists the lines (same request ids on the same invoice). Same description or amount alone is not a duplicate; lines in `lookalike_lines` bill different requests and are separate charges: explain that with the request ids and times, then follow the policy row for a duplicate the console does not confirm.\\n   - Already credited: the line shows `credited_cents` or a credit note exists; say so, don't credit again.\\n   - Correct charge the developer wants removed or reduced (goodwill, waiver, SLA/service credit, exception, retries): Support explains why it is billed and routes the request per policy; it issues nothing.\\n   - Wrong rate, quantity or unexplained amount: route per policy with the evidence.\\n5. For a confirmed duplicate, find Support's current per-line limit in the retrieved policy (check it is the authoritative, current source; drafts and proposals don't count). If the duplicated line is within the limit: `confirm_with_developer` (\\\"credit note of $X on line L of invoice I, reason duplicate\\\"), then `issue_credit_note` for the full line amount on that one line with reason `duplicate`, citing `policy_source` and `policy_limit`. If over the limit: don't credit; confirm, `open_dispute` on the duplicated line (reason `duplicate_charge`, with its request ids), then `escalate_case` to the team policy names with the dispute id.\\n6. Routing without a write: load the `billing-handoff` skill.\\n7. Reply: what the console shows (lines, request ids, amounts), what you did (credit note id and amount, or dispute/case and team), and what happens next. Don't promise outcomes, refund timing or amounts the policy doesn't state.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"usage-reconciliation\", \"steps\": \"1. Collect: org, the request ids, their HTTP status, when it happened and the timezone they used, and how they counted (`checks_done`: filters, tokenizer, retries, timeouts). Ask in one `ask_developer` call for what's missing.\\n2. Read in one round: `account_overview`, `usage_lookup` for the request ids, and `search_knowledge` for how billed tokens are counted and how retries, cancellation, caching, console delay and exports work.\\n3. Compare console facts with what they report: UTC time vs their timezone, `http_status`, `billed_tokens`, `cached_tokens`, and `line_id`/`invoice_id` (null = not on a Redwood invoice line yet, or billed elsewhere, e.g. by a marketplace; check the account's billing channel and the policy for that channel).\\n4. If a current page explains the difference (counting method, retries, cancellations, timezone or filter cut, delay), explain it with their numbers. No case.\\n5. If the difference remains after those rules, or successful usage is still missing after the delay policy states, route it with `billing-handoff` to the team the routing passage names, with request ids, statuses, UTC window and what was checked.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"account\": {\"account_id\": \"quickmint-dev\", \"org\": \"quickmint-dev\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"status\": \"active\", \"payment_method\": \"card\", \"created_on\": \"2025-06-02\"}, \"contacts\": [{\"name\": \"quickmint-dev Owner\", \"role\": \"owner\"}, {\"name\": \"quickmint-dev Developer\", \"role\": \"developer\"}], \"contracts\": [], \"credit_grants\": [], \"credit_balance_cents\": 0, \"invoices\": [{\"invoice_id\": \"INV-2026-0831-455\", \"account_id\": \"quickmint-dev\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total_cents\": 18700}, {\"invoice_id\": \"INV-BG-202603-029\", \"account_id\": \"quickmint-dev\", \"period_start\": \"2026-03-01\", \"period_end\": \"2026-03-31\", \"issued_on\": \"2026-04-01\", \"status\": \"paid\", \"total_cents\": 327879}, {\"invoice_id\": \"INV-BG-202604-029\", \"account_id\": \"quickmint-dev\", \"period_start\": \"2026-04-01\", \"period_end\": \"2026-04-30\", \"issued_on\": \"2026-05-01\", \"status\": \"paid\", \"total_cents\": 203518}, {\"invoice_id\": \"INV-BG-202605-029\", \"account_id\": \"quickmint-dev\", \"period_start\": \"2026-05-01\", \"period_end\": \"2026-05-31\", \"issued_on\": \"2026-06-01\", \"status\": \"paid\", \"total_cents\": 197735}, {\"invoice_id\": \"INV-BG-202606-029\", \"account_id\": \"quickmint-dev\", \"period_start\": \"2026-06-01\", \"period_end\": \"2026-06-30\", \"issued_on\": \"2026-07-01\", \"status\": \"paid\", \"total_cents\": 169825}, {\"invoice_id\": \"INV-BG-202607-029\", \"account_id\": \"quickmint-dev\", \"period_start\": \"2026-07-01\", \"period_end\": \"2026-07-31\", \"issued_on\": \"2026-08-01\", \"status\": \"paid\", \"total_cents\": 194048}], \"credit_notes\": [], \"disputes\": [], \"cases\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"Support goodwill credit for slow API latency performance degradation service issue credit authority limits Finance review routing\", \"results\": [{\"source\": \"google_drive/shared_drives/finance/billing-adjustments-approval-matrix\", \"kind\": \"policy/procedure page\", \"title\": \"Billing Adjustments Approval Matrix\", \"status\": \"final\", \"updated\": \"2026-02-03\", \"text\": \"- **Goodwill**: any reduction of a correct charge, for any reason.\\n## Approval matrix\\n| Adjustment | Who issues it | Limit and approver |\\n|---|---|---|\\n| Duplicate-charge credit (console-confirmed duplicate line on a direct invoice) | Support, from the support console | Up to $500 per duplicated line. Over that, Support opens a dispute and Billing Ops takes it |\\n| Billing-error correction other than a duplicate (wrong rate, quantity or product) | Billing Ops | Up to $2,000 per invoice; above that, the Controller |\\n| Refund of a paid invoice line after an approved adjustment | Billing Ops | Up to $5,000; above that, the Controller |\\n| Goodwill credit, waiver, or exception to a billing rule | Finance (FP&A) | Any amount, decided in FP&A's review. Support and Billing Ops route these requests and never issue them |\\n| SLA credit on a self-serve account | Finance (FP&A) | Self-serve plans carry no SLA. FP&A reviews any request as goodwill |\\n| SLA credit under a signed contract | Account team files the claim; Finance approves | Per the contract's SLA terms. No amount is promised before Finance's review |\"}, {\"source\": \"confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes\", \"kind\": \"policy/procedure page\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes\", \"status\": \"published\", \"updated\": \"2026-02-05\", \"text\": \"## What Support never credits\\n- Goodwill, exceptions, SLA credits, or any credit someone says a manager, sales rep or Redwood engineer already approved. These stay with Finance, per the #support guidance from FP&A. Route the request; don't issue anything from the console.\\n- Marketplace purchases, which are billed by the marketplace.\\n## Telling the customer\\n- Say what you did: the credit note and its amount, or that a dispute is open and Billing Ops has the case. Don't promise the outcome of a dispute or a date.\\n_Last reviewed 2026-02-05._\"}, {\"source\": \"google_drive/shared_drives/finance/billing-adjustments-approval-matrix\", \"kind\": \"policy/procedure page\", \"title\": \"Billing Adjustments Approval Matrix\", \"status\": \"final\", \"updated\": \"2026-02-03\", \"text\": \"## Reviewing this matrix\\nFP&A reviews the limits each quarter against adjustment volume and error rates. Changes are announced in #support and #billing-ops and logged below. A limit change applies from the date or period stated in the log; earlier adjustments keep the limit in force when they were issued.\\n## Contacts\\n- FP&A: Rishi Malhotra\\n- Controller: Emily Stone\\n- CFO: Laura Bennett\\n## Change log\\n| Date | Change | By |\\n|---|---|---|\\n| 2026-02-03 | Support issues duplicate-charge credits itself, up to the per-line limit above, instead of routing every duplicate to Billing Ops | Rishi Malhotra |\\n| 2025-09-08 | First version | Rishi Malhotra |\"}, {\"source\": \"confluence/product-docs/pricing-and-packaging/usage-credit-and-quota-guidelines-2026\", \"kind\": \"policy/procedure page\", \"title\": \"Usage Credits and Quota Assignment Guidelines for Hosted Inference (2026)\", \"status\": \"in_review\", \"updated\": \"2026-02-03\", \"text\": \"Quantization and optimized kernels may reduce actual backend resource consumption; platform adjusts cost multipliers quarterly and documents changes in pricing-change-notices.\\\\n\\\\nQuota types and enforcement semantics:\\\\n1) monthly_budget (hard): A monthly CR cap. When exhausted, requests receive HTTP 402 (Payment Required) with body code \\\\\\\"quota_exceeded.monthly_budget\\\\\\\" unless account configured for auto-topup.\\\\n2) concurrency (soft then hard): A per-account concurrent request cap measured over 1s windows. Soft limit issues 429 with header X-Quota-Action: slow-down and offers Retry-After. If soft limit persists for >10s, platform escalates to hard 429 with X-Quota-Blocked.\\\\n3) burst_pool (grace): Rolling 24h pool that replenishes linearly. When monthly_budget is near exhaustion, burst_pool provides allowance up to configured percentage of monthly_budget.\"}, {\"source\": \"confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs\", \"kind\": \"policy/procedure page\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"status\": \"published\", \"updated\": \"2026-02-06\", \"text\": \"| Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why. Applies even when Support has just explained that the charge is correct |\\n| SLA credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\\n| Customer says they have a contract the console doesn't show | Account team | The account team confirms the contract and owns any request that depends on it, including an SLA credit. Treat the account as the console shows it until then |\"}, {\"source\": \"slack/support/1749139920-goodwill-credit-asks-routing-finance\", \"kind\": \"case record or discussion\", \"title\": \"#support thread 1749139920\", \"status\": \"n/a\", \"updated\": \"2025-06-05\", \"text\": \"Dev Patel: :thumbsup: thanks both, folding this into the routing page. the RACI draft is dead\\nPriya Shah: :pray: sending the goodwill ask to finance then\"}, {\"source\": \"slack/support/1749139920-goodwill-credit-asks-routing-finance\", \"kind\": \"case record or discussion\", \"title\": \"#support thread 1749139920\", \"status\": \"n/a\", \"updated\": \"2025-06-05\", \"text\": \"meta: channel=support\\n[messages]\\nPriya Shah: quick one - self-serve customer asking for a goodwill credit after the us-east blip yesterday. now that billing ops is live, do these go to billing ops?\\nDev Patel: pretty sure no but want FP&A to confirm before it goes in the routing page. @Rishi Malhotra\\nRishi Malhotra: correct, not billing ops. credit, goodwill and exception approvals come to Finance. open the case to finance with the ask, the amount if they gave one, and why. we decide. billing ops only applies what we approve\\nRishi Malhotra: and please don't route these straight to legal. we pull legal in ourselves if it's non-standard comp or touches contract terms\\nRachel Kim: +1. one carve-out: if the customer is asking what their contract or SLA actually says (terms, SLA %, what's covered), that's the account team - their CSM/TAM. not finance and not sales\\nDev Patel: :thumbsup: thanks both, folding this into the routing page. the RACI draft is dead\"}, {\"source\": \"slack/support/2319876543-eu-affinity-route-flip-to-public-during-scale\", \"kind\": \"case record or discussion\", \"title\": \"#support thread 2319876543\", \"status\": \"n/a\", \"updated\": \"n/a\", \"text\": \"Jordan K.: Correlating: affinity TTL flush + autoscaler backfill triggered fallback policy -> requests without an active dedicated binding fallthrough to hosted pool in the nearest region configured (us-east-1). That explains latency and billing delta.\\nPriya S.: Customer billing screenshot attached (they pasted numbers) \\u2014 we should create credit request. Ticket FIN-3821.\\nbilling-ops: Received. Marked for review, estimating credit after we confirm duration and token count.\\nMarco L.: Repro locally: run\\n```bash\\n# simulate expired affinity\\nhttp POST https://route-service.internal/v1/tenants/finedge/affinity ttl:=0\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_nGVkkH4sHsQdy8AtkfsRGGhb",
+     "name": "load_skill",
+     "arguments": {
+      "name": "billing-handoff"
+     }
+    },
+    {
+     "id": "call_eDwOTNiYvEq6SijJeL1COz2G",
+     "name": "console_schema",
+     "arguments": {}
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"name\": \"billing-handoff\", \"steps\": \"1. Decide whether a case is needed. Search the routing policy (`search_knowledge`, e.g. \\\"billing case routing <topic>\\\"). If a current page explains what the developer sees, or they only asked a question (how something is billed, what their contract says, typical amounts), answer it and stop: no case. Open a case only when they ask for something Support can't do in the conversation, or report a problem the pages don't explain.\\n2. Pick the owning team from the current routing passage for this exact situation. Watch for the distinguishing condition in each row: billing channel (direct vs marketplace/reseller), plan (self-serve vs contract), whether the charge is an error or correct, whether the console confirms the problem. If the developer claims something the console doesn't show (e.g. a contract), follow the policy row for that.\\n3. Collect the intake that row lists. Use what the developer already wrote and the console; call `ask_developer` once for the rest (e.g. invoice_id, line_items, request_ids, time_of_issue + timezone, error_code, checks_done, contract). If they don't have something, proceed and record it as missing.\\n4. Answer everything you can first: escalation closes the console for the rest of the conversation.\\n5. `confirm_with_developer`: \\\"I'll hand this to <team> with <key facts>.\\\" If they decline, don't escalate; tell them how to come back.\\n6. `escalate_case` once: team, a summary (what they asked, what the console shows, what policy says, what you already did), details (account_id, invoice_id, line_ids, request_ids, amounts, UTC window, error code, plan/contract, missing items, policy source ids), and the dispute id if any.\\n7. Tell the developer the team that has it, the case id, what that team does next per policy, and that you can't promise an outcome, amount or date.\"}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"accounts\": {\"notes\": \"Account identity and billing configuration.\", \"writable\": false, \"selectors\": [\"account_id\", \"org\"], \"fields\": {\"account_id\": {\"type\": \"string\", \"required\": true}, \"org\": {\"type\": \"string\", \"required\": true}, \"plan\": {\"type\": \"string\", \"enum\": [\"free\", \"self_serve\", \"enterprise\"], \"required\": true}, \"plan_name\": {\"type\": \"string\", \"required\": true}, \"billing_channel\": {\"type\": \"string\", \"enum\": [\"direct\", \"aws_marketplace\", \"gcp_marketplace\"], \"required\": true}, \"status\": {\"type\": \"string\", \"enum\": [\"active\", \"suspended\"], \"required\": true}, \"payment_method\": {\"type\": \"string\", \"enum\": [\"card\", \"invoice\", \"marketplace\", \"none\"], \"required\": true}, \"created_on\": {\"type\": \"date\", \"required\": true}}}, \"contacts\": {\"notes\": \"Account contact records.\", \"writable\": false, \"selectors\": [\"contact_id\", \"account_id\", \"email\"], \"fields\": {\"contact_id\": {\"type\": \"string\", \"required\": true}, \"account_id\": {\"type\": \"string\", \"ref\": \"accounts\", \"required\": true}, \"name\": {\"type\": \"string\", \"required\": true}, \"email\": {\"type\": \"string\", \"required\": true}, \"role\": {\"type\": \"string\", \"enum\": [\"owner\", \"billing_admin\", \"developer\"], \"required\": true}}}, \"contracts\": {\"notes\": \"Signed account terms and service dates.\", \"writable\": false, \"selectors\": [\"contract_id\", \"account_id\"], \"fields\": {\"contract_id\": {\"type\": \"string\", \"required\": true}, \"account_id\": {\"type\": \"string\", \"ref\": \"accounts\", \"required\": true}, \"sla\": {\"type\": \"boolean\", \"required\": true}, \"signed_terms\": {\"type\": \"string\", \"list\": true, \"required\": true}, \"start_on\": {\"type\": \"date\", \"required\": true}, \"end_on\": {\"type\": \"date\", \"nullable\": true, \"required\": true}}}, \"invoices\": {\"notes\": \"Invoice header records.\", \"writable\": false, \"selectors\": [\"invoice_id\", \"account_id\"], \"fields\": {\"invoice_id\": {\"type\": \"string\", \"required\": true}, \"account_id\": {\"type\": \"string\", \"ref\": \"accounts\", \"required\": true}, \"period_start\": {\"type\": \"date\", \"required\": true}, \"period_end\": {\"type\": \"date\", \"required\": true}, \"issued_on\": {\"type\": \"date\", \"required\": true}, \"status\": {\"type\": \"string\", \"enum\": [\"open\", \"paid\"], \"required\": true}, \"total_cents\": {\"type\": \"integer\", \"required\": true}}}, \"invoice_lines\": {\"notes\": \"Invoice line details and linked requests.\", \"writable\": false, \"selectors\": [\"line_id\", \"invoice_id\"], \"fields\": {\"line_id\": {\"type\": \"string\", \"required\": true}, \"invoice_id\": {\"type\": \"string\", \"ref\": \"invoices\", \"required\": true}, \"description\": {\"type\": \"string\", \"required\": true}, \"product\": {\"type\": \"string\", \"enum\": [\"hosted_api\", \"embeddings\", \"batch\", \"dedicated\", \"plan_fee\", \"tax\"], \"required\": true}, \"period_start\": {\"type\": \"date\", \"required\": true}, \"period_end\": {\"type\": \"date\", \"required\": true}, \"amount_cents\": {\"type\": \"integer\", \"required\": true}, \"request_ids\": {\"type\": \"string\", \"list\": true, \"ref\": \"usage\", \"required\": true}}}, \"usage\": {\"notes\": \"Usage request records.\", \"writable\": false, \"selectors\": [\"request_id\", \"account_id\", \"line_id\"], \"fields\": {\"request_id\": {\"type\": \"string\", \"required\": true}, \"account_id\": {\"type\": \"string\", \"ref\": \"accounts\", \"required\": true}, \"at\": {\"type\": \"utc\", \"required\": true}, \"http_status\": {\"type\": \"integer\", \"required\": true}, \"billed_tokens\": {\"type\": \"integer\", \"required\": true}, \"cached_tokens\": {\"type\": \"integer\", \"required\": true}, \"line_id\": {\"type\": \"string\", \"ref\": \"invoice_lines\", \"nullable\": true, \"required\": true}}}, \"credit_grants\": {\"notes\": \"Granted account credits.\", \"writable\": false, \"selectors\": [\"grant_id\", \"account_id\"], \"fields\": {\"grant_id\": {\"type\": \"string\", \"required\": true}, \"account_id\": {\"type\": \"string\", \"ref\": \"accounts\", \"required\": true}, \"kind\": {\"type\": \"string\", \"enum\": [\"promotional\", \"service\", \"prepaid\"], \"required\": true}, \"amount_cents\": {\"type\": \"integer\", \"required\": true}, \"remaining_cents\": {\"type\": \"integer\", \"required\": true}, \"granted_on\": {\"type\": \"date\", \"required\": true}, \"expires_on\": {\"type\": \"date\", \"nullable\": true, \"required\": true}}}, \"credit_notes\": {\"notes\": \"Issued credit note records.\", \"writable\": true, \"selectors\": [\"credit_note_id\", \"account_id\", \"invoice_id\"], \"fields\": {\"credit_note_id\": {\"type\": \"string\", \"required\": false}, \"account_id\": {\"type\": \"string\", \"ref\": \"accounts\", \"required\": true}, \"invoice_id\": {\"type\": \"string\", \"ref\": \"invoices\", \"required\": true}, \"line_ids\": {\"type\": \"string\", \"list\": true, \"ref\": \"invoice_lines\", \"required\": true}, \"amount_cents\": {\"type\": \"integer\", \"required\": true}, \"reason\": {\"type\": \"string\", \"enum\": [\"duplicate\", \"service_credit\", \"goodwill\"], \"required\": true}, \"memo\": {\"type\": \"string\", \"default\": \"\", \"required\": false}, \"status\": {\"type\": \"string\", \"enum\": [\"issued\"], \"default\": \"issued\", \"required\": false}, \"at\": {\"type\": \"integer\", \"required\": false}}}, \"disputes\": {\"notes\": \"Billing dispute records.\", \"writable\": true, \"selectors\": [\"dispute_id\", \"account_id\"], \"fields\": {\"dispute_id\": {\"type\": \"string\", \"required\": false}, \"account_id\": {\"type\": \"string\", \"ref\": \"accounts\", \"required\": true}, \"invoice_id\": {\"type\": \"string\", \"ref\": \"invoices\", \"nullable\": true, \"default\": null, \"required\": false}, \"line_ids\": {\"type\": \"string\", \"list\": true, \"ref\": \"invoice_lines\", \"default\": [], \"required\": false}, \"reason\": {\"type\": \"string\", \"enum\": [\"duplicate_charge\", \"incorrect_amount\", \"unrecognized_usage\"], \"nullable\": true, \"default\": null, \"required\": false}, \"request_ids\": {\"type\": \"string\", \"list\": true, \"ref\": \"usage\", \"default\": [], \"required\": false}, \"window\": {\"type\": \"string\", \"default\": \"\", \"required\": false}, \"status\": {\"type\": \"string\", \"enum\": [\"draft\", \"submitted\"], \"required\": true}, \"at\": {\"type\": \"integer\", \"required\": false}}}, \"cases\": {\"notes\": \"Support case records.\", \"writable\": true, \"selectors\": [\"case_id\", \"account_id\"], \"fields\": {\"case_id\": {\"type\": \"string\", \"required\": false}, \"account_id\": {\"type\": \"string\", \"ref\": \"accounts\", \"required\": true}, \"team\": {\"type\": \"string\", \"enum\": [\"billing_ops\", \"billing_engineering\", \"finance\", \"legal\", \"account_team\", \"partnerships\", \"telemetry\", \"sre\", \"platform\"], \"nullable\": true, \"default\": null, \"required\": false}, \"summary\": {\"type\": \"string\", \"required\": true}, \"details\": {\"type\": \"map<string,string>\", \"default\": {}, \"required\": false}, \"dispute_id\": {\"type\": \"string\", \"ref\": \"disputes\", \"nullable\": true, \"default\": null, \"required\": false}, \"status\": {\"type\": \"string\", \"enum\": [\"draft\", \"escalated\"], \"required\": true}, \"at\": {\"type\": \"integer\", \"required\": false}}}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_ceWZRfa35LwLLeoT8QKyWKZh",
+     "name": "ask_developer",
+     "arguments": {
+      "fields": [
+       "time_of_issue",
+       "timezone",
+       "invoice_month"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answers\": {\"time_of_issue\": \"The slow week was Aug 17-23, 2026.\", \"timezone\": \"I don't have that.\", \"invoice_month\": \"August 2026\"}}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_nuPeV08opBZAqam5LBn03cw7",
+     "name": "invoice_details",
+     "arguments": {
+      "invoice_id": "INV-2026-0831-455"
+     }
+    },
+    {
+     "id": "call_DNGPz5sOW17EuMFRh3SWhX4W",
+     "name": "console_query",
+     "arguments": {
+      "table": "usage",
+      "filters": {
+       "account_id": "quickmint-dev"
+      }
+     }
+    },
+    {
+     "id": "call_73pnXO6AO8hN363x38is8n0W",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "customer reports slow responses API latency degradation outage performance incident routing to SRE platform telemetry support case",
+      "top_k": 8
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"found\": true, \"invoice\": {\"invoice_id\": \"INV-2026-0831-455\", \"account_id\": \"quickmint-dev\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"issued_on\": \"2026-09-01\", \"status\": \"open\", \"total_cents\": 18700}, \"account\": {\"account_id\": \"quickmint-dev\", \"org\": \"quickmint-dev\", \"plan\": \"self_serve\", \"plan_name\": \"Hosted Self-Serve\", \"billing_channel\": \"direct\", \"payment_method\": \"card\", \"status\": \"active\"}, \"lines\": [{\"line_id\": \"INV-2026-0831-455/L1\", \"invoice_id\": \"INV-2026-0831-455\", \"description\": \"Hosted API usage, Aug 1-31\", \"product\": \"hosted_api\", \"period_start\": \"2026-08-01\", \"period_end\": \"2026-08-31\", \"amount_cents\": 18700, \"request_ids\": [\"req_q11\"], \"credited_cents\": 0, \"uncredited_cents\": 18700}], \"console_confirmed_duplicates\": [], \"lookalike_lines\": [], \"credit_notes\": []}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"rows\": [{\"request_id\": \"req_0422b5ce9d\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-06-17T12:59:28Z\", \"http_status\": 200, \"billed_tokens\": 1966536, \"cached_tokens\": 2662899, \"line_id\": \"INV-BG-202606-029/L2\"}, {\"request_id\": \"req_07b766a790\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-03-28T12:32:31Z\", \"http_status\": 200, \"billed_tokens\": 8797840, \"cached_tokens\": 3223503, \"line_id\": \"INV-BG-202603-029/L2\"}, {\"request_id\": \"req_0fae6606c0\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-06-28T05:32:41Z\", \"http_status\": 200, \"billed_tokens\": 16831017, \"cached_tokens\": 4075484, \"line_id\": \"INV-BG-202606-029/L2\"}, {\"request_id\": \"req_21fbb4adf0\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-09-12T11:31:21Z\", \"http_status\": 200, \"billed_tokens\": 8113831, \"cached_tokens\": 764368, \"line_id\": null}, {\"request_id\": \"req_23dbe8bc58\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-09-02T03:21:23Z\", \"http_status\": 200, \"billed_tokens\": 9044267, \"cached_tokens\": 915388, \"line_id\": null}, {\"request_id\": \"req_3271b502a2\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-05-04T22:20:28Z\", \"http_status\": 200, \"billed_tokens\": 2064932, \"cached_tokens\": 1806806, \"line_id\": \"INV-BG-202605-029/L1\"}, {\"request_id\": \"req_329877c4ab\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-03-15T18:23:55Z\", \"http_status\": 200, \"billed_tokens\": 6129454, \"cached_tokens\": 3510889, \"line_id\": \"INV-BG-202603-029/L1\"}, {\"request_id\": \"req_36ae40225b\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-04-28T14:55:13Z\", \"http_status\": 200, \"billed_tokens\": 28253270, \"cached_tokens\": 267562, \"line_id\": \"INV-BG-202604-029/L2\"}, {\"request_id\": \"req_420d8105c1\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-04-23T05:03:32Z\", \"http_status\": 200, \"billed_tokens\": 15122563, \"cached_tokens\": 3351738, \"line_id\": \"INV-BG-202604-029/L2\"}, {\"request_id\": \"req_4778789587\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-04-07T19:32:13Z\", \"http_status\": 200, \"billed_tokens\": 26862102, \"cached_tokens\": 319776, \"line_id\": \"INV-BG-202604-029/L1\"}, {\"request_id\": \"req_5250e7b92e\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-05-18T03:48:46Z\", \"http_status\": 200, \"billed_tokens\": 26726226, \"cached_tokens\": 340271, \"line_id\": \"INV-BG-202605-029/L2\"}, {\"request_id\": \"req_6108949e55\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-07-14T04:50:59Z\", \"http_status\": 200, \"billed_tokens\": 24706898, \"cached_tokens\": 2292953, \"line_id\": \"INV-BG-202607-029/L1\"}, {\"request_id\": \"req_7ebeebc2f1\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-03-27T21:45:35Z\", \"http_status\": 200, \"billed_tokens\": 18214881, \"cached_tokens\": 1753216, \"line_id\": \"INV-BG-202603-029/L2\"}, {\"request_id\": \"req_80b96fde73\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-06-21T00:24:46Z\", \"http_status\": 200, \"billed_tokens\": 8744954, \"cached_tokens\": 653181, \"line_id\": \"INV-BG-202606-029/L2\"}, {\"request_id\": \"req_886d3137ed\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-06-05T15:30:09Z\", \"http_status\": 200, \"billed_tokens\": 23006329, \"cached_tokens\": 4680315, \"line_id\": \"INV-BG-202606-029/L1\"}, {\"request_id\": \"req_98debfca28\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-07-23T15:27:56Z\", \"http_status\": 200, \"billed_tokens\": 21115006, \"cached_tokens\": 119717, \"line_id\": \"INV-BG-202607-029/L2\"}, {\"request_id\": \"req_ae1594eead\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-09-10T01:26:39Z\", \"http_status\": 200, \"billed_tokens\": 8723516, \"cached_tokens\": 985069, \"line_id\": null}, {\"request_id\": \"req_b078fd6e7d\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-04-02T19:33:45Z\", \"http_status\": 200, \"billed_tokens\": 2338823, \"cached_tokens\": 67658, \"line_id\": \"INV-BG-202604-029/L1\"}, {\"request_id\": \"req_b20fc2cef6\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-06-17T03:19:33Z\", \"http_status\": 200, \"billed_tokens\": 7080968, \"cached_tokens\": 4033677, \"line_id\": \"INV-BG-202606-029/L3\"}, {\"request_id\": \"req_b48752c92a\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-04-05T03:36:50Z\", \"http_status\": 200, \"billed_tokens\": 13716537, \"cached_tokens\": 1408603, \"line_id\": \"INV-BG-202604-029/L1\"}, {\"request_id\": \"req_b7e71cb9ea\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-05-31T05:58:09Z\", \"http_status\": 200, \"billed_tokens\": 3027221, \"cached_tokens\": 4521264, \"line_id\": \"INV-BG-202605-029/L2\"}, {\"request_id\": \"req_bd7a7aa9c8\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-06-11T07:59:00Z\", \"http_status\": 200, \"billed_tokens\": 3063292, \"cached_tokens\": 533060, \"line_id\": \"INV-BG-202606-029/L1\"}, {\"request_id\": \"req_d1a5657fb2\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-05-24T18:35:45Z\", \"http_status\": 200, \"billed_tokens\": 11072960, \"cached_tokens\": 1548750, \"line_id\": \"INV-BG-202605-029/L2\"}, {\"request_id\": \"req_d458bfc724\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-05-17T18:54:11Z\", \"http_status\": 200, \"billed_tokens\": 7661564, \"cached_tokens\": 895749, \"line_id\": \"INV-BG-202605-029/L2\"}, {\"request_id\": \"req_e03210b4f5\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-06-11T18:00:24Z\", \"http_status\": 200, \"billed_tokens\": 5395068, \"cached_tokens\": 2595940, \"line_id\": \"INV-BG-202606-029/L1\"}, {\"request_id\": \"req_e38d338847\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-04-21T08:50:32Z\", \"http_status\": 200, \"billed_tokens\": 8417049, \"cached_tokens\": 1875642, \"line_id\": \"INV-BG-202604-029/L2\"}, {\"request_id\": \"req_fdde8a0bcb\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-04-26T14:50:18Z\", \"http_status\": 200, \"billed_tokens\": 2401274, \"cached_tokens\": 4323175, \"line_id\": \"INV-BG-202604-029/L2\"}, {\"request_id\": \"req_ffda2da8eb\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-03-21T13:14:03Z\", \"http_status\": 200, \"billed_tokens\": 25361352, \"cached_tokens\": 2063947, \"line_id\": \"INV-BG-202603-029/L2\"}, {\"request_id\": \"req_q11\", \"account_id\": \"quickmint-dev\", \"at\": \"2026-08-18T12:00:00Z\", \"http_status\": 200, \"billed_tokens\": 1490000, \"cached_tokens\": 0, \"line_id\": \"INV-2026-0831-455/L1\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"customer reports slow responses API latency degradation outage performance incident routing to SRE platform telemetry support case\", \"results\": [{\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/overload-errors-and-retry-guidance\", \"kind\": \"policy/procedure page\", \"title\": \"Hosted API overload errors: support guidance, retry/backoff, and escalation\", \"status\": \"published\", \"updated\": \"2025-12-05\", \"text\": \"3) **Customer interprets 503 as \\u201cplatform outage\\u201d**\\n- Guidance: Use the approved response language; direct them to Retry-After and backoff guidance.\\n## When to escalate to Engineering (Eng Oncall / SRE)\\nEscalate immediately if any of the following are true:\\n- **Enterprise customer** reporting sustained overload errors impacting production.\\n- Overload errors persist for **>15 minutes** with correct backoff behavior.\\n- **No Retry-After** observed on multiple responses for the same route/region/model.\\n- Suspected **misclassification** (e.g., 500s that should be 429/503 overload, or overload codes returned with 200/stream interruptions).\\n- **Fallback routing configured** but not activating.\\n- Customer reports sharp regression (new errors) coincident with a canary/rollout and provides IDs.\\n## Escalation template (copy/paste)\\nSubject: Hosted API overload errors \\u2013 customer impact\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/enterprise-priority-429-and-quota-behavior\", \"kind\": \"policy/procedure page\", \"title\": \"Enterprise priority: 429 / quota / overload behavior (Support guide)\", \"status\": \"published\", \"updated\": \"2026-02-06\", \"text\": \"7) Their current retry policy (backoff, max attempts, concurrency)\\n8) Whether it\\u2019s isolated to a single API key or all keys in the account\\nInternal-only (if available to TAM/CS): contract tier (Hosted API vs Dedicated), priority class, and any approved exceptions.\\n---\\n## Escalation criteria (when to page/loop in Engineering)\\nEscalate to SRE/Platform when ANY of the following are true:\\n### Enterprise impact thresholds\\n- Enterprise customer reports sustained 429s on a protected route for **>10 minutes** AND:\\n  - reason indicates overload protection (`overloaded/*`), OR\\n  - they claim traffic is within contracted limits but still seeing 429s\\n- Enterprise customer reports p95/p99 latency degradation plus 429 spikes (possible mis-tuned thresholds)\\n### Suspected misconfiguration\\n- `x-redwood-limit-policy` changes unexpectedly after rollout / config migration\\n- A single tenant is denied while peers are not, and headers indicate route-group limits that don\\u2019t match the contract\"}, {\"source\": \"confluence/oncall-and-incident-response/status-page-and-comms/status-page-comms-templates\", \"kind\": \"policy/procedure page\", \"title\": \"Status page + customer comms templates (failover / regional outage)\", \"status\": \"published\", \"updated\": \"2026-01-07\", \"text\": \"meta: author=Ava Chen; owner_team=customer-success; created_at=2024-03-21; labels=status-page, comms, incident, failover\\n[body]\\nh1. Purpose\\nProvide consistent external communications during outages and failovers. These templates are written to be accurate even when details are still emerging.\\nh1. Principles\\n- Acknowledge impact and symptoms (errors/latency).\\n- Avoid speculation about root cause.\\n- State what we are doing next (investigating, mitigating, failing over).\\n- Provide the next update time.\\nh1. Status page template: incident start\\n*Title:* Increased error rates for Redwood Hosted API\\n*Body:* We are investigating elevated error rates and latency affecting a subset of requests to the Redwood Hosted API. We have identified a regional service degradation and are working to mitigate. Next update in 30 minutes.\"}, {\"source\": \"confluence/oncall-and-incident-response/status-page-and-comms/model-rollout-comms-template\", \"kind\": \"policy/procedure page\", \"title\": \"Model rollout communications template (status page + customer messaging)\", \"status\": \"published\", \"updated\": \"2025-01-30\", \"text\": \"- a rollback occurs due to customer impact\\n- an enterprise customer requires proactive notice per contract\\n# Channels\\n- **Status page**: used for broad incidents or notable degradations\\n- **Customer email**: used for enterprise accounts or customer-specific pins\\n- **Support macros**: used for inbound tickets referencing the rollout\\n# Status page template (degradation during rollout)\\nTitle: Hosted API performance degradation\\nBody:\\nWe are investigating increased error rates and latency for a subset of Hosted API requests. Some traffic may be served via fallback routes while we stabilize the system. We will provide another update within 30 minutes.\\nNext update: <time>\\n# Status page template (rollback completed)\\nTitle: Hosted API mitigation applied\\nBody:\\nWe have rolled back a recent model change and service metrics are returning to normal. We will continue monitoring and will publish a post-incident summary if warranted.\"}, {\"source\": \"confluence/oncall-and-incident-response/status-page-and-comms/status-page-comms-templates\", \"kind\": \"policy/procedure page\", \"title\": \"Status page + customer comms templates (failover / regional outage)\", \"status\": \"published\", \"updated\": \"2026-01-07\", \"text\": \"h1. Status page template: failover initiated\\n*Title:* Regional degradation; traffic failover in progress\\n*Body:* We are performing a controlled traffic failover to a secondary region to mitigate ongoing elevated error rates. During this process, some requests may see transient errors or increased latency. Next update in 30 minutes.\\nh1. Status page template: failover complete\\n*Title:* Traffic routed to secondary region\\n*Body:* We have completed traffic failover to a secondary region and are monitoring service stability. Some users may continue to experience elevated latency while capacity stabilizes. Next update in 60 minutes.\\nh1. Status page template: resolved\\n*Title:* Resolved: Hosted API errors and latency\\n*Body:* This incident is resolved. We will publish a follow-up with additional details after internal review.\\nh1. Direct customer email template (enterprise)\\n*Subject:* Update: Redwood Hosted API regional incident\\n*Body:* Hello,\"}, {\"source\": \"jira/customer-support/SUP-104512-novacare-quota-burst-retries-masking-as-inference-timeouts\", \"kind\": \"case record or discussion\", \"title\": \"SUP-104512: NovaCare: quota enforcement + client retry amplification causing apparent inference timeouts\", \"status\": \"In Progress\", \"updated\": \"2026-03-12\", \"text\": \"[description]\\nIssue summary: NovaCare reported intermittent inference requests that either time out or return very slow responses starting 2026-03-10 09:15 UTC. Initial customer observation suggested a latency regression in the serving stack. Impact: production traffic for NovaCare's chat endpoint experiences degraded throughput and increased user-perceived timeouts leading to support tickets and rollbacks in their client. Environment: NovaCare is on a Dedicated cluster in us-east using model gpt-like-2.7b-quant with client-side retries implemented in their SDK.\"}, {\"source\": \"confluence/customer-success-and-support/escalation-playbook/rapid-sla-triage-runbook-and-external-briefing-templates-2026\", \"kind\": \"policy/procedure page\", \"title\": \"Rapid SLA Triage Runbook and External Briefing Templates\", \"status\": \"published\", \"updated\": \"2025-06-12\", \"text\": \"- For cross-region outages, engage Cloud Ops and network providers immediately.\\nCustomer and executive briefing templates (copyable)\\n- Initial acknowledgement (within 10 minutes):\\n  Subject: [Redwood] Incident affecting inference API \\u2014 we\\u2019re investigating\\n  Body: Hello \\u2014 we are aware of an issue affecting inference API performance for some customers. Our engineers have opened an incident and are investigating root cause. We're prioritizing SLA stability and will provide an update by <ETA in minutes>. Bridge ID: #oncall-bridge-inference-<ts>.\\n- Status update (10/30/60 minute cadence):\\n  Subject: [Redwood] Update \\u2014 inference API incident \\u2014 progress update\\n  Body: Current status: Mitigations in progress (routing changes / temporary capacity increases). Impact: X% of requests affected; primary symptom: increased 95th/99th latency. Next update: in 20 minutes. For urgent support, reply to this message or open a support ticket: <link>.\"}, {\"source\": \"jira/customer-support/SUP-58340-orionhealth-eu-west-routing-anomaly-post-incident-followup\", \"kind\": \"case record or discussion\", \"title\": \"SUP-58340: OrionHealth - EU-WEST production: sustained 5xx + routing anomaly causing inconsistent fallback outputs and unexpected billing spike\", \"status\": \"Resolved\", \"updated\": \"2026-03-12\", \"text\": \"summary: OrionHealth - EU-WEST production: sustained 5xx + routing anomaly causing inconsistent fallback outputs and unexpected billing spike\\n[description]\\nIssue summary: Between 2026-03-09 12:42 UTC and 2026-03-09 14:20 UTC OrionHealth observed sustained 5xx errors on streaming RPCs and REST generation endpoints in eu-west. Simultaneously, a subset of routed requests were bounced to an older quantized variant (rw-7b-quantized) which produced short, truncated responses and higher token counts resulting in a billing anomaly. Customer impact: OrionHealth reported degraded clinical-search UX, several timed-out autocomplete requests, and an unexpected daily bill increase. They opened an escalation with CSM at 12:51 UTC.\\nimpact: Customer-facing production outage in eu-west for OrionHealth. High error rate (~18% 5xx on generation endpoints), increased tail latency, truncated streaming responses for specific routes, and ~30% higher token usage for affected requests during the window.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_7zrFXU9pQdF8P5lUitSDLIRS",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "billing handoff routing customer reports API slow latency complaint performance issue not overload errors SRE platform team",
+      "top_k": 8
+     }
+    },
+    {
+     "id": "call_Ljnqau7CYCkzIu2LjtXPAoWb",
+     "name": "search_knowledge",
+     "arguments": {
+      "query": "Finance case intake goodwill credit request must include amount if given why service degradation invoice window",
+      "top_k": 6
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"billing handoff routing customer reports API slow latency complaint performance issue not overload errors SRE platform team\", \"results\": [{\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/overload-errors-and-retry-guidance\", \"kind\": \"policy/procedure page\", \"title\": \"Hosted API overload errors: support guidance, retry/backoff, and escalation\", \"status\": \"published\", \"updated\": \"2025-12-05\", \"text\": \"3) **Customer interprets 503 as \\u201cplatform outage\\u201d**\\n- Guidance: Use the approved response language; direct them to Retry-After and backoff guidance.\\n## When to escalate to Engineering (Eng Oncall / SRE)\\nEscalate immediately if any of the following are true:\\n- **Enterprise customer** reporting sustained overload errors impacting production.\\n- Overload errors persist for **>15 minutes** with correct backoff behavior.\\n- **No Retry-After** observed on multiple responses for the same route/region/model.\\n- Suspected **misclassification** (e.g., 500s that should be 429/503 overload, or overload codes returned with 200/stream interruptions).\\n- **Fallback routing configured** but not activating.\\n- Customer reports sharp regression (new errors) coincident with a canary/rollout and provides IDs.\\n## Escalation template (copy/paste)\\nSubject: Hosted API overload errors \\u2013 customer impact\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/enterprise-priority-429-and-quota-behavior\", \"kind\": \"policy/procedure page\", \"title\": \"Enterprise priority: 429 / quota / overload behavior (Support guide)\", \"status\": \"published\", \"updated\": \"2026-02-06\", \"text\": \"7) Their current retry policy (backoff, max attempts, concurrency)\\n8) Whether it\\u2019s isolated to a single API key or all keys in the account\\nInternal-only (if available to TAM/CS): contract tier (Hosted API vs Dedicated), priority class, and any approved exceptions.\\n---\\n## Escalation criteria (when to page/loop in Engineering)\\nEscalate to SRE/Platform when ANY of the following are true:\\n### Enterprise impact thresholds\\n- Enterprise customer reports sustained 429s on a protected route for **>10 minutes** AND:\\n  - reason indicates overload protection (`overloaded/*`), OR\\n  - they claim traffic is within contracted limits but still seeing 429s\\n- Enterprise customer reports p95/p99 latency degradation plus 429 spikes (possible mis-tuned thresholds)\\n### Suspected misconfiguration\\n- `x-redwood-limit-policy` changes unexpectedly after rollout / config migration\\n- A single tenant is denied while peers are not, and headers indicate route-group limits that don\\u2019t match the contract\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/overload-errors-and-retry-guidance\", \"kind\": \"policy/procedure page\", \"title\": \"Hosted API overload errors: support guidance, retry/backoff, and escalation\", \"status\": \"published\", \"updated\": \"2025-12-05\", \"text\": \"Notes:\\n- If the customer reports **timeouts** with no JSON error, treat as a separate issue (possible client/network or upstream timeouts) and escalate based on impact.\\n- If the customer gets **5xx** without the overload payload, collect details; it may be an unrelated incident.\\n## Retry & backoff guidance (what we should recommend)\\n### Golden rules\\n- **Always respect Retry-After** when provided.\\n- **Use exponential backoff with jitter**; do not retry immediately.\\n- **Cap retries** to avoid amplifying overload.\\n- **Reduce concurrency** rather than increasing it during overload.\\n- Prefer **idempotency keys** for safe retries on non-streaming requests.\\n### Recommended algorithm (support-approved)\\nIf `Retry-After` is present:\\n- Sleep `Retry-After` seconds, then retry.\\nIf `Retry-After` is missing:\\n- Backoff schedule suggestion: 0.5s, 1s, 2s, 4s, then stop (max 4 retries), each with \\u00b120\\u201340% jitter.\"}, {\"source\": \"confluence/customer-success-and-support/known-issues-and-workarounds/enterprise-priority-429-and-quota-behavior\", \"kind\": \"policy/procedure page\", \"title\": \"Enterprise priority: 429 / quota / overload behavior (Support guide)\", \"status\": \"published\", \"updated\": \"2026-02-06\", \"text\": \"Support positioning:\\n- For enterprise accounts: \\u201cThis is protective backpressure to preserve latency/availability for protected routes. It can occur during unusual bursts or regional pressure.\\u201d\\n- For self-serve/best-effort: \\u201cDuring peak pressure, the platform prioritizes higher-SLA traffic; your requests may be throttled earlier.\\u201d\\n---\\n## Recommended customer retry & backoff guidance\\nProvide the following general guidance (tailor to the customer\\u2019s stack):\\n### When to retry\\n- Retry 429s when:\\n  - `error.type = overloaded` (most cases)\\n  - `error.type = rate_limit_exceeded`\\n- Do NOT aggressively retry when:\\n  - `error.type = quota_exceeded` and the response includes a reset hint (wait until reset)\"}, {\"source\": \"confluence/customer-success-and-support/escalation-playbook/dedicated-throughput-slo-escalation\", \"kind\": \"policy/procedure page\", \"title\": \"Dedicated Throughput SLO Escalation Playbook\", \"status\": \"published\", \"updated\": \"2025-05-02\", \"text\": \"---\\n## Post-incident expectations\\nFor confirmed Premium-tier breaches (and significant Plus-tier events), request:\\n- SRE-written incident summary within 5 business days.\\n- Follow-up action items tagged to owning teams (SRE/Infra/Observability/Routing).\\n- If credits were issued: ensure the billing/metering record reflects committed vs burst usage correctly.\\n---\\n## Appendix: Minimal internal handoff note (for paging)\\nWhen paging SRE/Infra, include:\\n- \\u201cDedicated Throughput SLO: suspected/confirmed\\u201d\\n- Deployment ID\\n- Tier + region\\n- Time window and whether ongoing\\n- Customer-confirmed load/concurrency (if available)\\n- Dashboard link\\n- Any correlated symptoms (timeouts, 5xx, queue depth)\\nThis reduces back-and-forth and speeds mitigation.\"}, {\"source\": \"jira/customer-support/SUP-58340-orionhealth-eu-west-routing-anomaly-post-incident-followup\", \"kind\": \"case record or discussion\", \"title\": \"SUP-58340: OrionHealth - EU-WEST production: sustained 5xx + routing anomaly causing inconsistent fallback outputs and unexpected billing spike\", \"status\": \"Resolved\", \"updated\": \"2026-03-12\", \"text\": \"[action_items]\\nENG-2345: Add circuit breaker to routing layer to prevent retry amplification (owner: Luis Ortega, due: 2026-03-19)\\nENG-2346: Fix EOS/tokenization mismatch between rw-13b-v2 and rw-7b-quantized to avoid billing regressions (owner: Priya Nair, due: 2026-03-26)\\nOPS-1182: Increase kernel-selection replicas in eu-west and add request-latency alerting (owner: SRE team, due: 2026-03-14)\\nCS-402: Follow-up with OrionHealth CSM to review runbook and confirm acceptance of billing credit (owner: Maya Chen, due: 2026-03-13)\"}, {\"source\": \"jira/customer-support/SUP-58340-orionhealth-eu-west-routing-anomaly-post-incident-followup\", \"kind\": \"case record or discussion\", \"title\": \"SUP-58340: OrionHealth - EU-WEST production: sustained 5xx + routing anomaly causing inconsistent fallback outputs and unexpected billing spike\", \"status\": \"Resolved\", \"updated\": \"2026-03-12\", \"text\": \"CS-402: Follow-up with OrionHealth CSM to review runbook and confirm acceptance of billing credit (owner: Maya Chen, due: 2026-03-13)\\n[comments]\\nMaya Chen (Support) 2026-03-09 12:53 UTC: Logged P0 after call with OrionHealth CSM. Customer reports clinician search timeouts and multiple errors in production. Requested immediate SRE involvement.\\nSRE Triage (Alejandro Ruiz) 2026-03-09 13:07 UTC: Observed kernel-selection RPC latency spike and 502s. Applying scale + routing override now.\\nLuis Ortega (Oncall ENG) 2026-03-09 13:20 UTC: Rolling restart of kernel-selection group in eu-west completed. Monitoring latency; will keep emergency routing override in place until root cause fixed.\\nOrionHealth CSM (Jules Park) 2026-03-09 14:05 UTC: Confirmed UX recovery for majority of users. Requesting formal postmortem and billing reconciliation.\\nMaya Chen (Support) 2026-03-12 09:30 UTC: Post-incident follow-up completed; action items created and assigned. Billing credit approved by Finance. Closing ticket after customer sign-off.\"}, {\"source\": \"confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs\", \"kind\": \"policy/procedure page\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"status\": \"published\", \"updated\": \"2026-02-06\", \"text\": \"- If the customer doesn't have some of the details, hand off with what you have and note what's missing. Don't hold the case until they find them.\\n## Routing table\\n| Case | Owning team | Notes |\\n|---|---|---|\\n| Disputed or duplicated line on a direct Redwood invoice | Billing Ops | Invoice number, the line(s), UTC window, request IDs |\\n| Refund request on a direct invoice line the customer says was billed in error | Billing Ops | Billing Ops confirms the charge and requests approval where needed |\\n| Invoice total doesn't match the customer's usage export | Billing Ops | Note the export's timezone and filters |\\n| Payment failures, holds, receipts | Billing Ops | |\\n| Meter discrepancy the related pages don't explain: request IDs whose billed tokens still don't match after the tokenizer, payload and retry rules are applied | Billing Engineering | Billing Eng checks meter correctness and hands any correction to Billing Ops |\"}]}"
+  },
+  {
+   "role": "tool",
+   "content": "{\"query\": \"Finance case intake goodwill credit request must include amount if given why service degradation invoice window\", \"results\": [{\"source\": \"google_drive/shared_drives/finance/billing-adjustments-approval-matrix\", \"kind\": \"policy/procedure page\", \"title\": \"Billing Adjustments Approval Matrix\", \"status\": \"final\", \"updated\": \"2026-02-03\", \"text\": \"| Promotional or campaign credits | Growth marketing | Within the campaign budget FP&A approved |\\n| Partner program funds (MDF) | Partnerships | Per the partner agreement; never applied to invoices |\\n| Write-off of an uncollectible balance | Controller | Up to $10,000; above that, the CFO |\\n| Re-issued invoice (address, PO number, tax ID) | Billing Ops | No limit; no change to amounts |\\n## Evidence each adjustment needs\\n- **Duplicate-charge credit**: the invoice number, both line IDs and the request IDs they bill. The console confirms the duplicate; a matching description or amount alone is not evidence.\\n- **Billing-error correction**: the line, the expected rate or quantity and where it comes from (price book, order form).\\n- **Goodwill and SLA credits**: the customer's ask, the amount if given, and the reason. The account team adds contract references for SLA claims.\\n- **Write-offs**: collections history and the Controller's note.\"}, {\"source\": \"google_drive/shared_drives/finance/billing-adjustments-approval-matrix\", \"kind\": \"policy/procedure page\", \"title\": \"Billing Adjustments Approval Matrix\", \"status\": \"final\", \"updated\": \"2026-02-03\", \"text\": \"- **Goodwill**: any reduction of a correct charge, for any reason.\\n## Approval matrix\\n| Adjustment | Who issues it | Limit and approver |\\n|---|---|---|\\n| Duplicate-charge credit (console-confirmed duplicate line on a direct invoice) | Support, from the support console | Up to $500 per duplicated line. Over that, Support opens a dispute and Billing Ops takes it |\\n| Billing-error correction other than a duplicate (wrong rate, quantity or product) | Billing Ops | Up to $2,000 per invoice; above that, the Controller |\\n| Refund of a paid invoice line after an approved adjustment | Billing Ops | Up to $5,000; above that, the Controller |\\n| Goodwill credit, waiver, or exception to a billing rule | Finance (FP&A) | Any amount, decided in FP&A's review. Support and Billing Ops route these requests and never issue them |\\n| SLA credit on a self-serve account | Finance (FP&A) | Self-serve plans carry no SLA. FP&A reviews any request as goodwill |\\n| SLA credit under a signed contract | Account team files the claim; Finance approves | Per the contract's SLA terms. No amount is promised before Finance's review |\"}, {\"source\": \"confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs\", \"kind\": \"policy/procedure page\", \"title\": \"Billing Support: Case Routing and Handoffs\", \"status\": \"published\", \"updated\": \"2026-02-06\", \"text\": \"| Request for a credit, goodwill credit, waiver, or removal of charges that were billed correctly (including retries), or an exception to a billing rule | Finance | The ask, the amount if given, and why. Applies even when Support has just explained that the charge is correct |\\n| SLA credit request on a self-serve account | Finance | Self-serve plans have no SLA; tell the customer, and still route the request. If the customer says a contract covers them, use the next row instead |\\n| SLA credit claim on an account with a signed contract | Account team | The CSM/TAM checks the contract's SLA terms and files the claim with Finance |\\n| Customer says they have a contract the console doesn't show | Account team | The account team confirms the contract and owns any request that depends on it, including an SLA credit. Treat the account as the console shows it until then |\"}, {\"source\": \"confluence/customer-success-and-support/support-process/support-console-billing-credits-and-disputes\", \"kind\": \"policy/procedure page\", \"title\": \"Support Console: Duplicate-Charge Credits and Billing Disputes\", \"status\": \"published\", \"updated\": \"2026-02-05\", \"text\": \"| Situation | What Support does |\\n|---|---|\\n| Confirmed duplicate, duplicated line within Support's limit | Issue one credit note with reason `duplicate` for the full amount of the duplicated line, against that line. No handoff is needed. Tell the customer the amount credited. |\\n| Confirmed duplicate, duplicated line over the limit | Don't credit. Open a dispute on the duplicated line (reason `duplicate_charge`, with the request IDs) and hand the case to Billing Ops with the invoice number, the line and the dispute id. |\\n| Duplicate the console doesn't confirm (different request IDs, or no second line) | Don't credit. Collect the intake details and hand the case to Billing Ops as the routing page describes. |\\nSupport's limit is set by Finance in the Billing Adjustments Approval Matrix (Finance shared drive) (the duplicate-charge credit row). It is per duplicated line and applies to the line's full amount. Don't split a larger duplicate into several smaller credits.\"}, {\"source\": \"slack/support/1749139920-goodwill-credit-asks-routing-finance\", \"kind\": \"case record or discussion\", \"title\": \"#support thread 1749139920\", \"status\": \"n/a\", \"updated\": \"2025-06-05\", \"text\": \"meta: channel=support\\n[messages]\\nPriya Shah: quick one - self-serve customer asking for a goodwill credit after the us-east blip yesterday. now that billing ops is live, do these go to billing ops?\\nDev Patel: pretty sure no but want FP&A to confirm before it goes in the routing page. @Rishi Malhotra\\nRishi Malhotra: correct, not billing ops. credit, goodwill and exception approvals come to Finance. open the case to finance with the ask, the amount if they gave one, and why. we decide. billing ops only applies what we approve\\nRishi Malhotra: and please don't route these straight to legal. we pull legal in ourselves if it's non-standard comp or touches contract terms\\nRachel Kim: +1. one carve-out: if the customer is asking what their contract or SLA actually says (terms, SLA %, what's covered), that's the account team - their CSM/TAM. not finance and not sales\\nDev Patel: :thumbsup: thanks both, folding this into the routing page. the RACI draft is dead\"}, {\"source\": \"gmail/rachel_kim/20260718-capacity-topup-charge-rectify\", \"kind\": \"case record or discussion\", \"title\": \"Email: Re: Unexpected one-time capacity charge + settlement proposal\", \"status\": \"n/a\", \"updated\": \"2026-07-18\", \"text\": \"Thanks,\\nRachel\\nAttachment: greenleaf-usage-breakdown.pdf (pdf)\\nFrom: Ben Carter <ben.carter@redwood.ai>\\nTo: Rachel Kim <rachel.kim@redwood.ai>\\nCc: Vivek Kulkarni <vivek.kulkarni@redwood.ai>, Laura Bennett <laura.bennett@redwood.ai>\\nDate: Thu, 25 Jun 2026 09:30:00 -07:00\\nSubject: Re: FW: Unexpected one-time capacity charge on June invoice \\u2014 request for credit approval\\nRachel \\u2014\\nAfter reviewing the usage breakout and contract, Finance will approve a partial resolution: we can offer a 50% goodwill credit of the overage ($9,216) to be applied to the June invoice. Alternatively, if the customer signs the proposed 12-month amendment (20% capacity bump), we can convert to a full waiver of the overage amount.\\nConditions:\\n- Credit will be applied only after we receive either (a) a signed amendment from Greenleaf or (b) explicit written acceptance of the one-time adjusted invoice.\\n- If they choose the amendment route, we require procurement PO or signed DocuSign within 30 days.\"}]}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_kbqhCQKJ7MCQDJ9ZocDTMWZy",
+     "name": "confirm_with_developer",
+     "arguments": {
+      "proposal": "I\u2019ll send a goodwill-credit request to Finance for review, noting the August 2026 invoice is $187.00, the console shows 1,490,000 billed tokens in its Aug 17\u201323 UTC usage record, and your reason is slow responses during that week. No credit amount was specified. Your account is self-serve and has no SLA; Finance decides whether and what amount to approve."
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"answer\": \"yes\", \"message\": \"Yes, go ahead.\"}"
+  },
+  {
+   "role": "assistant",
+   "tool_calls": [
+    {
+     "id": "call_DbJgWAJMiSfOb5aVS3GL4Cln",
+     "name": "escalate_case",
+     "arguments": {
+      "account_id": "quickmint-dev",
+      "team": "finance",
+      "summary": "Developer asks what August invoice was, tokens used during slow response week Aug 17\u201323, 2026, and requests a goodwill gesture. Console shows the August 2026 invoice is $187.00 and one usage record within that date range with 1,490,000 billed tokens. Developer approved routing the goodwill request; no amount was specified. Finance reviews goodwill requests and determines whether and what amount to approve.",
+      "details": {
+       "account_id": "quickmint-dev",
+       "org": "quickmint-dev",
+       "invoice_id": "INV-2026-0831-455",
+       "invoice_period": "2026-08-01 to 2026-08-31",
+       "invoice_amount": "$187.00; open; issued 2026-09-01",
+       "invoice_line_id": "INV-2026-0831-455/L1",
+       "invoice_line_amount": "$187.00",
+       "usage_window": "Developer-reported slow week Aug 17\u201323, 2026; timezone not provided",
+       "usage_record": "req_q11 at 2026-08-18T12:00:00Z; HTTP 200; 1,490,000 billed tokens; 0 cached tokens; billed on INV-2026-0831-455/L1",
+       "token_count_caveat": "The console returned one usage record in the reported date range; the 1,490,000 figure is the tokens on that record, not a verified aggregate for every request during the week.",
+       "request_ids": "req_q11 (the console record found)",
+       "goodwill_request": "Developer asks for something off as a goodwill gesture; no amount specified; reason: slow responses for about a week.",
+       "plan": "Hosted Self-Serve (self_serve), direct billing",
+       "contract": "No contracts on account; self-serve plan carries no SLA; no SLA credit promised.",
+       "checks_done": "Reviewed account overview and August invoice details; invoice line has $187.00, no credits, no console-confirmed duplicates; queried account usage and found req_q11 in reported date window.",
+       "policy_source": "google_drive/shared_drives/finance/billing-adjustments-approval-matrix; confluence/customer-success-and-support/support-process/billing-case-routing-and-handoffs",
+       "missing_details": "Timezone for the reported slow week; complete week-wide usage aggregate; no goodwill amount requested; no latency metrics/request examples provided."
+      }
+     }
+    }
+   ]
+  },
+  {
+   "role": "tool",
+   "content": "{\"case\": {\"case_id\": \"CASE-1\", \"team\": \"finance\", \"status\": \"escalated\", \"dispute_id\": null}}"
+  },
+  {
+   "role": "assistant",
+   "content": "Your August 2026 invoice was **$187.00** (open). For Aug 17\u201323, the console found **1,490,000 billed tokens** on one recorded request, `req_q11`, at Aug 18, 12:00 UTC. That\u2019s the record found\u2014not a verified total for every request that week; I can\u2019t confirm a complete weekly token total from the available data.\n\nI\u2019ve sent your goodwill request to **Finance** for review. Your account is self-serve and has no SLA, so this isn\u2019t an SLA credit; Finance decides whether to approve a goodwill credit and its amount. **Case CASE-1** is with Finance."
+  },
+  {
+   "role": "user",
+   "content": "Thanks for passing it on. ###TRANSFER###"
+  }
+ ]
+}

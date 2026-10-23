@@ -244,3 +244,14 @@ def test_a_replay_hint_reaches_the_system_message_only_when_set(monkeypatch):
     assert hinted[1:] == messages[1:] and messages[0].content == "You are support."  # the original is untouched
     bare = run_agent.with_replay_hint([UserMessage(content="Hi")])
     assert isinstance(bare[0], SystemMessage) and "3 business days" in bare[0].content
+
+
+def test_an_r0_conversation_on_the_r1_console_sees_only_r0_records(tmp_path):
+    """Q10 replays R0 cases (dated 2026) on the R1 console: R1's format, but not the invoices R1 added later."""
+    from grade.scenarios import Release, Scenario
+    case = Scenario.model_validate({"id": "a0-x", "step": "build_r0"})
+    conversation = run_agent.Conversation(case, tmp_path, tmp_path, None, release=Release.R1)
+    assert (conversation.release, conversation.records) == (Release.R1, Release.R0)
+    r0, r1 = run_agent.load_db(Release.R0), run_agent.load_db(Release.R1)
+    assert not any(row["issued_on"] >= "2027" for row in r0["invoices"].values())
+    assert any(row["issued_on"] >= "2027" for row in r1["invoices"].values())
